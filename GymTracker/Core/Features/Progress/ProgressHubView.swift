@@ -39,7 +39,7 @@ struct ProgressHubView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 if completedWorkouts.isEmpty {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("No progress yet")
@@ -53,39 +53,34 @@ struct ProgressHubView: View {
                     .padding(.top, Spacing.xxl)
                     .accessibilityIdentifier("progress-empty-state")
                 } else {
-                    progressControls
+                    rangeMenu
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.bottom, Spacing.l)
 
-                    if selectedLens == .global {
-                        ProgressOverviewSection(
-                            range: overviewRange,
-                            state: overviewState,
-                            onOpenPlan: onOpenPlan,
-                            onNavigate: onNavigate
-                        )
-                    } else if hasOverviewEvidence {
-                        AthleteIntelligenceSection(
-                            selectedLens: $selectedLens,
-                            isEditingProfile: $isEditingAthleteProfile,
-                            range: overviewRange,
-                            workouts: workouts,
-                            showsGlobalSummary: false,
-                            showsLensPicker: false,
-                            onNavigate: onNavigate
-                        )
-                    }
+                    overviewContent
 
                     exploreGroup
-                    supportingHistoryGroup
+                        .padding(.top, ProgressLayout.majorBreak)
                 }
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.xl)
+            .padding(.bottom, 96)
         }
+        .scrollIndicators(.hidden)
+        .foregroundStyle(Color.trameText)
         .background(Color.trameCanvas)
+        .tint(Color.trameStrength)
         .navigationTitle("Progress")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.trameCanvas, for: .navigationBar, .tabBar)
+        .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .accessibilityIdentifier("progress-screen")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                progressLensMenu
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     isEditingAthleteProfile = true
@@ -93,7 +88,10 @@ struct ProgressHubView: View {
                     Image(systemName: AppIcon.settings)
                         .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.trameText)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -107,7 +105,9 @@ struct ProgressHubView: View {
                 TrainingProfileSettingsView()
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { isEditingAthleteProfile = false }
+                            Button("Done") {
+                                isEditingAthleteProfile = false
+                            }
                         }
                     }
             }
@@ -124,41 +124,50 @@ struct ProgressHubView: View {
         return false
     }
 
-    private var progressControls: some View {
-        HStack(alignment: .center) {
-            lensPicker
-            Spacer()
-            rangePicker
+    @ViewBuilder
+    private var overviewContent: some View {
+        if selectedLens == .global {
+            ProgressOverviewSection(
+                range: overviewRange,
+                state: overviewState,
+                onOpenPlan: onOpenPlan,
+                onNavigate: onNavigate
+            )
+        } else if hasOverviewEvidence {
+            AthleteIntelligenceSection(
+                selectedLens: $selectedLens,
+                isEditingProfile: $isEditingAthleteProfile,
+                range: overviewRange,
+                workouts: workouts,
+                showsGlobalSummary: false,
+                showsLensPicker: false,
+                onNavigate: onNavigate
+            )
         }
-        .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("progress-controls")
     }
 
-    private var lensPicker: some View {
+    private var progressLensMenu: some View {
         Menu {
-            Picker("Progress lens", selection: $selectedLens) {
+            Picker("Progress scope", selection: $selectedLens) {
                 ForEach(availableLenses, id: \.self) { lens in
                     Text(lens.title)
                         .tag(lens)
-                        .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
+                        .accessibilityIdentifier(
+                            "progress-lens-\(lensIdentifier(lens))"
+                        )
                 }
             }
         } label: {
-            HStack(spacing: Spacing.s) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(lensColor(selectedLens))
-                    .frame(width: 10, height: 10)
-                Text(selectedLens.title)
-                    .font(AppFont.bodyMedium)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(AppFont.micro)
-                    .foregroundStyle(Color.trameSubdued)
-            }
-            .foregroundStyle(Color.trameText)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .contentShape(Rectangle())
+            Image(systemName: AppIcon.filters)
+                .font(AppFont.bodyMedium)
+                .foregroundStyle(lensColor(selectedLens))
+                .frame(
+                    width: ComponentSize.minimumTouchTarget,
+                    height: ComponentSize.minimumTouchTarget
+                )
+                .contentShape(Rectangle())
         }
-        .accessibilityLabel("Progress lens")
+        .accessibilityLabel("Progress scope")
         .accessibilityValue(selectedLens.title)
         .accessibilityIdentifier("progress-sport-lens-picker")
     }
@@ -170,23 +179,29 @@ struct ProgressHubView: View {
         }
     }
 
-    private var rangePicker: some View {
+    private var rangeMenu: some View {
         Menu {
             Picker("Progress range", selection: $overviewRange) {
                 ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
-                    Text(range.title).tag(range)
+                    Text(range.title)
+                        .tag(range)
                 }
             }
         } label: {
-            HStack(spacing: Spacing.xxs) {
+            HStack(spacing: Spacing.xs) {
                 Text(rangeShortTitle(overviewRange))
-                    .font(AppFont.captionSemiboldMonospaced)
-                    .foregroundStyle(Color.trameText)
-                Image(systemName: "chevron.up.chevron.down")
+                    .font(AppFont.metadata)
+                    .monospacedDigit()
+
+                Image(systemName: AppIcon.picker)
                     .font(AppFont.micro)
-                    .foregroundStyle(Color.trameSubdued)
             }
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .foregroundStyle(Color.trameText)
+            .frame(
+                minWidth: ComponentSize.minimumTouchTarget,
+                minHeight: ComponentSize.minimumTouchTarget,
+                alignment: .trailing
+            )
             .contentShape(Rectangle())
         }
         .accessibilityLabel("Progress range")
@@ -205,65 +220,85 @@ struct ProgressHubView: View {
     }
 
     private var exploreGroup: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "History")
+        VStack(alignment: .leading, spacing: 0) {
+            TrameSectionRule(title: "Explore")
+                .padding(.bottom, Spacing.xs)
 
-            LibraryOpenGroup {
-                progressLink(
-                    route: .workoutHistory,
-                    title: "History",
-                    count: "\(completedWorkouts.count)"
+            quietProgressLink(
+                route: .workoutHistory,
+                title: "History",
+                count: "\(completedWorkouts.count)"
+            )
+
+            quietProgressLink(
+                route: .trainingTrends,
+                title: "Trends"
+            )
+
+            if featureFlags.isEnabled(.mobilityAssessment) {
+                quietProgressLink(
+                    route: .mobilityAssessmentHistory,
+                    title: "Assessments",
+                    count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
                 )
             }
-        }
-    }
 
-    private var supportingHistoryGroup: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "More")
+            DisclosureGroup(isExpanded: $isShowingTools) {
+                VStack(spacing: 0) {
+                    quietProgressLink(
+                        route: .records,
+                        title: "Records",
+                        isNested: true
+                    )
 
-            LibraryOpenGroup {
-                progressLink(
-                    route: .supportingHistory(.mobility),
-                    title: "Supporting history",
-                    count: "\(completedMobilitySessions.count + dailyLogEntries.count)"
-                )
-                if featureFlags.isEnabled(.mobilityAssessment) {
-                    progressLink(
-                        route: .mobilityAssessmentHistory,
-                        title: "Assessments",
-                        count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
+                    quietProgressLink(
+                        route: .muscleGroupVolume,
+                        title: "Muscles",
+                        isNested: true
+                    )
+
+                    quietProgressLink(
+                        route: .supportingHistory(.mobility),
+                        title: "Supporting history",
+                        isNested: true
+                    )
+
+                    quietProgressLink(
+                        route: .weightlifting,
+                        title: "Weightlifting",
+                        isNested: true
+                    )
+
+                    quietProgressLink(
+                        route: .trainingLedger,
+                        title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
+                        isNested: true
+                    )
+
+                    quietProgressLink(
+                        route: .coachExchange,
+                        title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
+                        isNested: true
                     )
                 }
+            } label: {
+                HStack {
+                    Text("More")
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
 
-                DisclosureGroup(isExpanded: $isShowingTools) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        progressLink(
-                            route: .weightlifting,
-                            title: "Weightlifting"
-                        )
-                        progressLink(
-                            route: .trainingLedger,
-                            title: String(localized: "progression.ledger.title", defaultValue: "Training ledger")
-                        )
-                        progressLink(
-                            route: .coachExchange,
-                            title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange")
-                        )
-                    }
-                } label: {
-                    HStack(spacing: Spacing.m) {
-                        TrameCategoryTile(systemImage: AppIcon.export, fill: Color.trameCompetition, size: ComponentSize.iconChip)
-                        Text("Tools")
-                            .font(AppFont.bodyMedium)
-                            .foregroundStyle(Color.trameText)
-                        Spacer()
-                    }
-                    .padding(.vertical, Spacing.md)
-                    .contentShape(Rectangle())
+                    Spacer()
                 }
-                .tint(Color.trameText)
-                .accessibilityIdentifier("progress-tools-disclosure")
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .padding(.vertical, Spacing.s)
+                .contentShape(Rectangle())
+            }
+            .tint(Color.trameSubdued)
+            .accessibilityIdentifier("progress-tools-disclosure")
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
             }
         }
     }
@@ -425,44 +460,40 @@ struct ProgressHubView: View {
         assessmentSessions.filter { $0.results.isEmpty == false }
     }
 
-    private func progressLink(
+    private func quietProgressLink(
         route: ProgressRoute,
         title: String,
         count: String? = nil,
-        detail: String? = nil
+        isNested: Bool = false
     ) -> some View {
         NavigationLink(value: route) {
             HStack(spacing: Spacing.m) {
-                TrameCategoryTile(systemImage: route.icon, fill: route.tint, size: ComponentSize.iconChip)
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(title)
-                        .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.trameText)
-                    if let detail {
-                        Text(detail)
-                            .font(AppFont.metadata)
-                            .foregroundStyle(Color.trameSubdued)
-                            .lineLimit(1)
-                    }
-                }
+                Text(title)
+                    .font(isNested ? AppFont.body : AppFont.bodyMedium)
+                    .foregroundStyle(isNested ? Color.trameSubdued : Color.trameText)
+
                 Spacer()
+
                 if let count {
                     Text(count)
                         .font(AppFont.metadata)
                         .monospacedDigit()
                         .foregroundStyle(Color.trameSubdued)
                 }
+
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.micro)
                     .foregroundStyle(Color.trameSubdued)
             }
-            .padding(.vertical, Spacing.md)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(.vertical, Spacing.s)
+            .padding(.leading, isNested ? Spacing.l : 0)
+            .contentShape(Rectangle())
             .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(Color.trameSeparator)
                     .frame(height: 1)
             }
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("progress-\(route.accessibilityIdentifier)")

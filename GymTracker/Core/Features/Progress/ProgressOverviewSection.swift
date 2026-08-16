@@ -1,6 +1,17 @@
 import Charts
 import SwiftUI
 
+/// Layout spacing and sizing constants local to the Progress experience.
+enum ProgressLayout {
+    static let majorBreak: CGFloat = 48
+    static let sectionSpacing: CGFloat = 44
+
+    static let heroChartHeight: CGFloat = 148
+    static let rhythmChartHeight: CGFloat = 124
+
+    static let focusBarHeight: CGFloat = 18
+}
+
 /// The evidence-first Global lens for Progress.
 ///
 /// Every value is supplied by an existing analytics projection. This view composes
@@ -72,160 +83,132 @@ struct ProgressOverviewSection: View {
 
     @ViewBuilder
     private func insightGroups(_ summary: ProgressOverviewSummary) -> some View {
-        if hasComparableSeries(summary) {
-            performanceSection(summary)
-            rhythmSection(summary)
+        VStack(alignment: .leading, spacing: ProgressLayout.sectionSpacing) {
+            performanceEvidence(summary)
+
+            recentCadence(summary.weeklyFrequency, summary: summary)
+
             if shouldShowFocus(summary) {
-                focusSection(summary)
-            }
-        } else if summary.latestRecord != nil {
-            latestRecordSection(summary)
-            rhythmSection(summary)
-            if shouldShowFocus(summary) {
-                focusSection(summary)
-            }
-        } else {
-            rhythmSection(summary)
-            if shouldShowFocus(summary) {
-                focusSection(summary)
+                sportEvidence(summary)
             }
         }
-    }
-
-    private func hasComparableSeries(_ summary: ProgressOverviewSummary) -> Bool {
-        guard let series = summary.featuredSeries,
-              let projection = featuredTrendProjection(series)
-        else { return false }
-        return projection.points.count >= 2
     }
 
     // MARK: - Performance
 
     @ViewBuilder
-    private func performanceSection(_ summary: ProgressOverviewSummary) -> some View {
+    private func performanceEvidence(_ summary: ProgressOverviewSummary) -> some View {
         if let series = summary.featuredSeries,
            let projection = featuredTrendProjection(series),
-           projection.points.count >= 2,
-           let latestPoint = projection.points.last {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("PERFORMANCE")
-                    .font(AppFont.eyebrow)
-                    .tracking(1.0)
-                    .foregroundStyle(Color.trameSubdued)
+           projection.points.count >= 2 {
+            featuredTrendDiagram(series, projection: projection)
+        } else if let record = summary.latestRecord {
+            latestRecordSection(record)
+        }
+    }
 
-                Button {
-                    onNavigate(.trainingTrends)
-                } label: {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .bottom, spacing: Spacing.l) {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text("\(latestPoint.value.formatted(.number.precision(.fractionLength(0...1)))) \(series.unit)")
-                                    .font(AppFont.metricHero)
-                                    .foregroundStyle(Color.trameText)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.75)
-                                Text(series.name)
-                                    .font(AppFont.bodyMedium)
-                                    .foregroundStyle(Color.trameSubdued)
-                                    .lineLimit(2)
-                            }
-                            .frame(minWidth: 120, alignment: .leading)
+    private func featuredTrendDiagram(
+        _ series: ExerciseProgressSeries,
+        projection: (label: String, points: [ExerciseProgressPoint])
+    ) -> some View {
+        let selected = selectedTrendPoint(in: projection.points)
+        let maximum = projection.points.map(\.value).max() ?? 1
+        let upperBound = max(Float(1), maximum * 1.12)
+        let latestPoint = projection.points.last
 
-                            sparklineChart(points: projection.points, label: projection.label)
-                        }
+        return Button {
+            onNavigate(.trainingTrends)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                if let latestPoint {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text(projection.label.uppercased())
+                            .font(AppFont.eyebrow)
+                            .foregroundStyle(Color.trameSubdued)
 
-                        VStack(alignment: .leading, spacing: Spacing.s) {
-                            Text("\(latestPoint.value.formatted(.number.precision(.fractionLength(0...1)))) \(series.unit)")
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                            Text(latestPoint.value.formatted(.number.precision(.fractionLength(0...1))))
                                 .font(AppFont.metricHero)
                                 .foregroundStyle(Color.trameText)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                            Text(series.name)
-                                .font(AppFont.bodyMedium)
-                                .foregroundStyle(Color.trameSubdued)
-                                .lineLimit(2)
 
-                            sparklineChart(points: projection.points, label: projection.label)
+                            Text(series.unit)
+                                .font(AppFont.metricLarge)
+                                .foregroundStyle(Color.trameText)
                         }
+
+                        Text(series.name)
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameSubdued)
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(featuredTrendAccessibilityLabel(series, projection: projection))
-                .accessibilityIdentifier("progress-overview-featured-trend-chart")
+
+                Chart(projection.points) { point in
+                    LineMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .foregroundStyle(Color.trameStrength)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.linear)
+
+                    PointMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .symbolSize(selected?.id == point.id ? 60 : 28)
+                    .foregroundStyle(selected?.id == point.id ? Color.trameText : Color.trameStrength)
+
+                    if selected?.id == point.id {
+                        RuleMark(x: .value("Selected session", point.date))
+                            .foregroundStyle(Color.trameText)
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
+                }
+                .chartYScale(domain: Float.zero...upperBound)
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .chartLegend(.hidden)
+                .chartXSelection(value: $selectedTrendDate)
+                .frame(height: ProgressLayout.heroChartHeight)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(featuredTrendAccessibilityLabel(series, projection: projection))
+        .accessibilityIdentifier("progress-overview-featured-trend-chart")
     }
 
-    private func sparklineChart(points: [ExerciseProgressPoint], label: String) -> some View {
-        let selected = selectedTrendPoint(in: points)
-        let maximum = points.map(\.value).max() ?? 1
-        let upperBound = max(Float(1), maximum * 1.12)
-
-        return Chart(points) { point in
-            LineMark(
-                x: .value("Session", point.date),
-                y: .value(label, point.value)
-            )
-            .foregroundStyle(Color.trameStrength)
-            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-            .interpolationMethod(.linear)
-
-            PointMark(
-                x: .value("Session", point.date),
-                y: .value(label, point.value)
-            )
-            .symbolSize(selected?.id == point.id ? 60 : 28)
-            .foregroundStyle(selected?.id == point.id ? Color.trameText : Color.trameStrength)
-
-            if selected?.id == point.id {
-                RuleMark(x: .value("Selected session", point.date))
-                    .foregroundStyle(Color.trameText)
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-            }
-        }
-        .chartYScale(domain: Float.zero...upperBound)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartLegend(.hidden)
-        .chartXSelection(value: $selectedTrendDate)
-        .frame(height: ComponentSize.progressOverviewSparklineHeight)
-    }
-
-    @ViewBuilder
-    private func latestRecordSection(_ summary: ProgressOverviewSummary) -> some View {
-        if let record = summary.latestRecord {
+    private func latestRecordSection(_ record: PersonalRecordItem) -> some View {
+        Button {
+            onNavigate(.records)
+        } label: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("LATEST BEST")
                     .font(AppFont.eyebrow)
                     .tracking(1.0)
                     .foregroundStyle(Color.trameSubdued)
 
-                Button {
-                    onNavigate(.records)
-                } label: {
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(record.displayValue)
-                            .font(AppFont.metricHero)
-                            .foregroundStyle(Color.trameText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                        Text(record.exerciseName)
-                            .font(AppFont.bodyMedium)
-                            .foregroundStyle(Color.trameSubdued)
-                            .lineLimit(2)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Latest record. \(record.displayValue). \(record.exerciseName)")
-                .accessibilityHint("Opens records")
-                .accessibilityIdentifier("progress-overview-latest-record")
+                Text(record.displayValue)
+                    .font(AppFont.metricHero)
+                    .foregroundStyle(Color.trameText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text(record.exerciseName)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameSubdued)
+                    .lineLimit(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Latest record. \(record.displayValue). \(record.exerciseName)")
+        .accessibilityHint("Opens records")
+        .accessibilityIdentifier("progress-overview-latest-record")
     }
 
     private func selectedTrendPoint(in points: [ExerciseProgressPoint]) -> ExerciseProgressPoint? {
@@ -267,44 +250,38 @@ struct ProgressOverviewSection: View {
 
     // MARK: - Training Rhythm
 
-    private func rhythmSection(_ summary: ProgressOverviewSummary) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("RHYTHM")
-                .font(AppFont.eyebrow)
-                .tracking(1.0)
-                .foregroundStyle(Color.trameSubdued)
+    private func recentCadence(
+        _ points: [WeeklyFrequencyPoint],
+        summary: ProgressOverviewSummary
+    ) -> some View {
+        let displayedWorkoutCount = points.reduce(0) { $0 + $1.workoutCount }
 
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                    Text("\(summary.completedWorkoutsInRange)")
-                        .font(AppFont.metricHero)
-                        .foregroundStyle(Color.trameText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    Text(summary.completedWorkoutsInRange == 1 ? "workout" : "workouts")
-                        .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.trameSubdued)
-                }
+        return VStack(alignment: .leading, spacing: Spacing.l) {
+            TrameSectionRule(title: "Training rhythm")
 
-                if let durationText = summary.trainingTimeInRangeText {
-                    Text("\(durationText) trained")
-                        .font(AppFont.metadata)
-                        .foregroundStyle(Color.trameSubdued)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                Text("\(displayedWorkoutCount)")
+                    .font(AppFont.metricHero)
+                    .foregroundStyle(Color.trameText)
+
+                Text(displayedWorkoutCount == 1 ? "session" : "sessions")
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameSubdued)
+
+                Spacer()
             }
-            .padding(.bottom, Spacing.xxs)
             .accessibilityElement(children: .combine)
 
-            if summary.weeklyFrequency.isEmpty == false {
+            if !points.isEmpty {
                 Button {
                     onNavigate(.trainingTrends)
                 } label: {
-                    VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Chart(summary.weeklyFrequency) { point in
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        Chart(points) { point in
                             BarMark(
                                 x: .value("Week", point.weekStart, unit: .weekOfYear),
                                 y: .value("Completed workouts", point.workoutCount),
-                                width: .ratio(summary.weeklyFrequency.count > 20 ? 0.8 : 0.54)
+                                width: .ratio(points.count > 20 ? 0.8 : 0.54)
                             )
                             .foregroundStyle(
                                 point.workoutCount == 0
@@ -312,7 +289,7 @@ struct ProgressOverviewSection: View {
                                     : Color.trameStrength
                             )
                         }
-                        .chartYScale(domain: 0...max(1, summary.weeklyFrequency.map(\.workoutCount).max() ?? 1))
+                        .chartYScale(domain: 0...max(1, points.map(\.workoutCount).max() ?? 1))
                         .chartXAxis(.hidden)
                         .chartYAxis {
                             AxisMarks(values: .automatic(desiredCount: 3)) { _ in
@@ -322,7 +299,7 @@ struct ProgressOverviewSection: View {
                         .chartPlotStyle { plot in
                             plot.background(Color.clear)
                         }
-                        .frame(height: 76)
+                        .frame(height: ProgressLayout.rhythmChartHeight)
 
                         HStack {
                             Text(rangeStartLabel(for: range))
@@ -335,7 +312,7 @@ struct ProgressOverviewSection: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(weeklyFrequencyAccessibilityLabel(summary.weeklyFrequency, range: range))
+                .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points, range: range))
                 .accessibilityHint("Opens training trends")
                 .accessibilityIdentifier("progress-overview-current-period")
             }
@@ -369,48 +346,50 @@ struct ProgressOverviewSection: View {
         return known.count > 1 || (known.count == 1 && nonZero.contains { $0.discipline == nil })
     }
 
-    private func focusSection(_ summary: ProgressOverviewSummary) -> some View {
+    private func sportEvidence(_ summary: ProgressOverviewSummary) -> some View {
         let segments = sportFocusSegments(summary.sportFocus)
 
-        return VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("FOCUS")
-                .font(AppFont.eyebrow)
-                .tracking(1.0)
-                .foregroundStyle(Color.trameSubdued)
-                .accessibilityIdentifier("progress-sport-highlights")
+        return VStack(alignment: .leading, spacing: Spacing.l) {
+            TrameSectionRule(title: "Focus")
 
-            VStack(alignment: .leading, spacing: Spacing.s) {
+            if summary.sportFocus.isEmpty {
+                Text("No completed training in this period.")
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+            } else {
                 GeometryReader { geometry in
-                    let gaps = CGFloat(max(segments.count - 1, 0)) * Spacing.xxs
+                    let gapCount = max(segments.count - 1, 0)
+                    let gaps = CGFloat(gapCount) * Spacing.xxs
                     let availableWidth = max(geometry.size.width - gaps, 0)
                     HStack(spacing: Spacing.xxs) {
                         ForEach(segments) { segment in
-                            RoundedRectangle(cornerRadius: 2)
+                            Rectangle()
                                 .fill(segment.color)
                                 .frame(width: max(availableWidth * CGFloat(segment.proportion), 2))
                         }
                     }
                 }
-                .frame(height: 12)
+                .frame(height: ProgressLayout.focusBarHeight)
                 .accessibilityHidden(true)
 
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: Spacing.m) {
+                    HStack(spacing: Spacing.l) {
                         ForEach(segments) { segment in
-                            sportLegendItem(segment)
+                            focusLegendItem(segment)
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                    VStack(alignment: .leading, spacing: Spacing.s) {
                         ForEach(segments) { segment in
-                            sportLegendItem(segment)
+                            focusLegendItem(segment)
                         }
                     }
                 }
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(sportFocusAccessibilityLabel(segments))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(sportFocusAccessibilityLabel(segments))
+        .accessibilityIdentifier("progress-sport-highlights")
     }
 
     private func sportFocusSegments(
@@ -439,17 +418,19 @@ struct ProgressOverviewSection: View {
         return topSlices + [otherSegment]
     }
 
-    private func sportLegendItem(_ segment: SportFocusSegment) -> some View {
-        HStack(spacing: Spacing.xxs) {
+    private func focusLegendItem(_ segment: SportFocusSegment) -> some View {
+        HStack(spacing: Spacing.xs) {
             Rectangle()
                 .fill(segment.color)
                 .frame(width: 8, height: 8)
                 .cornerRadius(1.5)
                 .accessibilityHidden(true)
+
             Text(segment.title)
                 .font(AppFont.micro)
                 .foregroundStyle(Color.trameSubdued)
                 .lineLimit(1)
+
             Text("\(segment.percentage)%")
                 .font(AppFont.micro)
                 .monospacedDigit()
