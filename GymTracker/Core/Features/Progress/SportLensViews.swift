@@ -42,7 +42,6 @@ struct SpecializedSportLensView: View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             SportLensHeader(
                 title: discipline.title,
-                detail: lensDescription,
                 period: "\(interval.start.formatted(date: .abbreviated, time: .omitted)) – \(interval.end.formatted(date: .abbreviated, time: .omitted))",
                 tint: disciplineTint
             )
@@ -125,27 +124,6 @@ struct SpecializedSportLensView: View {
         }
     }
 
-    private var lensDescription: String {
-        switch discipline {
-        case .powerlifting:
-            String(localized: "Exercise records and training exposure from completed Powerlifting snapshots.")
-        case .generalStrength:
-            String(localized: "Exercise records and weekly working-set exposure.")
-        case .hybridFitnessRacing:
-            String(localized: "Simulation time, race composition, and recorded splits.")
-        case .strongman:
-            String(localized: "Best evidence by event family and recorded implement conditions.")
-        case .bodybuilding:
-            String(localized: "Weekly working-set exposure from completed training.")
-        case .generalCardio:
-            String(localized: "Distance, duration, and pace from recorded cardio sets.")
-        case .mixed:
-            String(localized: "A combined view. Mixed training is not treated as one sport.")
-        case .olympicWeightlifting:
-            String(localized: "Snatch and Clean & Jerk evidence remains in the existing technical dashboard.")
-        }
-    }
-
     private var disciplineTint: Color {
         switch discipline {
         case .generalStrength, .powerlifting:
@@ -181,27 +159,18 @@ private enum SpecializedSportLensProjection {
 
 struct SportLensHeader: View {
     let title: String
-    let detail: String
+    var detail: String? = nil
     let period: String
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title)
-                    .font(AppFont.stageTitle)
-                    .foregroundStyle(Color.trameText)
-                Spacer(minLength: Spacing.m)
-                Text(period)
-                    .font(AppFont.micro)
-                    .foregroundStyle(tint)
-            }
-            Rectangle()
-                .fill(tint)
-                .frame(height: 3)
-                .accessibilityHidden(true)
-            Text(detail)
-                .font(AppFont.metadata)
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(AppFont.stageTitle)
+                .foregroundStyle(Color.trameText)
+            Spacer(minLength: Spacing.m)
+            Text(period)
+                .font(AppFont.micro)
                 .foregroundStyle(Color.trameSubdued)
         }
         .padding(.vertical, Spacing.xs)
@@ -727,36 +696,25 @@ private struct HybridRaceSportLensView: View {
                     .frame(height: ComponentSize.standardChartHeight)
                     .accessibilityLabel(splitDeltaAccessibilityLabel(comparison))
                 }
-            }
-
-            let running = latest.splits.filter { $0.kind == .run && ($0.distanceMeters ?? 0) > 0 }
-            if running.count > 1 {
+            } else {
                 SportLensEvidenceChart(
-                    title: String(localized: "Run pace by split"),
-                    evidence: String(localized: "Measured pace across run splits in the latest recorded simulation.")
+                    title: String(localized: "Race composition"),
+                    evidence: String(localized: "Latest recorded simulation, separated by completed split type.")
                 ) {
-                    Chart {
-                        ForEach(Array(running.enumerated()), id: \.element.id) { item in
-                            LineMark(
-                                x: .value(String(localized: "Run"), item.offset + 1),
-                                y: .value(String(localized: "Seconds per kilometer"), item.element.duration / ((item.element.distanceMeters ?? 1) / 1_000))
-                            )
-                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                            .foregroundStyle(Color.trameConditioning)
-                            .interpolationMethod(.linear)
-                            PointMark(
-                                x: .value(String(localized: "Run"), item.offset + 1),
-                                y: .value(String(localized: "Seconds per kilometer"), item.element.duration / ((item.element.distanceMeters ?? 1) / 1_000))
-                            )
-                            .symbolSize(64)
-                            .foregroundStyle(Color.trameConditioning)
-                        }
+                    Chart(composition(latest)) { item in
+                        BarMark(
+                            x: .value(String(localized: "Duration"), item.duration),
+                            y: .value(String(localized: "Simulation"), String(localized: "Best"))
+                        )
+                        .foregroundStyle(by: .value(String(localized: "Split type"), item.kind.title))
                     }
+                    .chartForegroundStyleScale(
+                        domain: WorkoutSplitPalette.domain,
+                        range: WorkoutSplitPalette.range
+                    )
                     .gymChartAxisStyle()
                     .frame(height: ComponentSize.compactChartHeight)
-                    .accessibilityLabel(running.enumerated().map { index, split in
-                        String(localized: "Run \(index + 1), \(duration(split.duration / ((split.distanceMeters ?? 1) / 1_000))) per kilometer")
-                    }.joined(separator: ". "))
+                    .accessibilityLabel(compositionAccessibilityLabel(latest))
                 }
             }
 
@@ -871,30 +829,22 @@ private struct StrongmanSportLensView: View {
                 let records = recordsByFamily[family] ?? []
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     TrameSectionRule(title: LocalizedStringKey(family.title))
-                    Text(String(localized: "Implement and condition snapshots remain separate."))
-                        .font(AppFont.metadata)
-                        .foregroundStyle(Color.trameSubdued)
 
                     ForEach(Array(records.prefix(4).enumerated()), id: \.element.id) { index, record in
-                        VStack(alignment: .leading, spacing: Spacing.xs) {
-                            HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(record.exerciseName)
-                                        .font(AppFont.sectionTitle)
-                                        .foregroundStyle(Color.trameText)
-                                    Text(String(localized: "Recorded condition \(index + 1)"))
-                                        .font(AppFont.micro)
-                                        .foregroundStyle(Color.trameSubdued)
-                                }
-                                Spacer(minLength: Spacing.m)
-                                Text(strongmanRecord(record))
-                                    .font(AppFont.metricCompact)
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(record.exerciseName)
+                                    .font(AppFont.sectionTitle)
                                     .foregroundStyle(Color.trameText)
-                                    .multilineTextAlignment(.trailing)
+                                Text(String(localized: "Condition \(index + 1)"))
+                                    .font(AppFont.micro)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
-                            Text(String(localized: "Compared only with the same authored event family, load convention, implement, and captured conditions."))
-                                .font(AppFont.micro)
-                                .foregroundStyle(Color.trameSubdued)
+                            Spacer(minLength: Spacing.m)
+                            Text(strongmanRecord(record))
+                                .font(AppFont.metricCompact)
+                                .foregroundStyle(Color.trameText)
+                                .multilineTextAlignment(.trailing)
                         }
                         .padding(.vertical, Spacing.s)
                         .accessibilityElement(children: .combine)
@@ -907,7 +857,7 @@ private struct StrongmanSportLensView: View {
 
             SportEvidenceDisclosure(
                 summary: String(localized: "Evidence & record method"),
-                detail: String(localized: "\(projection.records.count) condition-specific records are shown. Each row keeps load, distance, duration, and throw distance in their declared units. Unlike event families or condition snapshots are never placed on one scale.")
+                detail: String(localized: "\(projection.records.count) condition-specific records are shown. Each row keeps load, distance, duration, and throw distance in their declared units. Compared only with the same authored event family, load convention, implement, and captured conditions.")
             )
         }
     }
@@ -938,25 +888,6 @@ private struct CardioSportLensView: View {
 
             SportMetricField(tint: .trameConditioning, metrics: metrics)
 
-            if projection.weeklyDistanceAndDuration.contains(where: { $0.value > 0 }) {
-                SportLensEvidenceChart(
-                    title: String(localized: "Distance per week"),
-                    evidence: String(localized: "Completed cardio sets with recorded distance.")
-                ) {
-                    Chart(projection.weeklyDistanceAndDuration) { metric in
-                        BarMark(
-                            x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
-                            y: .value(String(localized: "Kilometers"), metric.value / 1_000),
-                            width: .ratio(0.7)
-                        )
-                        .foregroundStyle(Color.trameConditioning)
-                    }
-                    .gymChartAxisStyle()
-                    .frame(height: ComponentSize.compactChartHeight)
-                    .accessibilityLabel(cardioAccessibilityLabel)
-                }
-            }
-
             let paceWeeks = projection.weeklyDistanceAndDuration.filter {
                 $0.value > 0 && ($0.secondaryValue ?? 0) > 0
             }
@@ -984,6 +915,23 @@ private struct CardioSportLensView: View {
                     .gymChartAxisStyle()
                     .frame(height: ComponentSize.compactChartHeight)
                     .accessibilityLabel(paceAccessibilityLabel(paceWeeks))
+                }
+            } else if projection.weeklyDistanceAndDuration.contains(where: { $0.value > 0 }) {
+                SportLensEvidenceChart(
+                    title: String(localized: "Distance per week"),
+                    evidence: String(localized: "Completed cardio sets with recorded distance.")
+                ) {
+                    Chart(projection.weeklyDistanceAndDuration) { metric in
+                        BarMark(
+                            x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
+                            y: .value(String(localized: "Kilometers"), metric.value / 1_000),
+                            width: .ratio(0.7)
+                        )
+                        .foregroundStyle(Color.trameConditioning)
+                    }
+                    .gymChartAxisStyle()
+                    .frame(height: ComponentSize.compactChartHeight)
+                    .accessibilityLabel(cardioAccessibilityLabel)
                 }
             }
 

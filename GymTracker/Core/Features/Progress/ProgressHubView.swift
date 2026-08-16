@@ -40,34 +40,47 @@ struct ProgressHubView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xl) {
-                progressControls
+                if completedWorkouts.isEmpty {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("No progress yet")
+                            .font(AppFont.stageTitle)
+                            .foregroundStyle(Color.trameText)
+                        Text("Completed workouts will appear here.")
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, Spacing.xxl)
+                    .accessibilityIdentifier("progress-empty-state")
+                } else {
+                    progressControls
 
-                if selectedLens == .global {
-                    ProgressOverviewSection(
-                        range: overviewRange,
-                        state: overviewState,
-                        onOpenPlan: onOpenPlan,
-                        onNavigate: onNavigate,
-                        presentation: .all
-                    )
-                } else if hasOverviewEvidence {
-                    AthleteIntelligenceSection(
-                        selectedLens: $selectedLens,
-                        isEditingProfile: $isEditingAthleteProfile,
-                        range: overviewRange,
-                        workouts: workouts,
-                        showsGlobalSummary: false,
-                        showsLensPicker: false,
-                        onNavigate: onNavigate
-                    )
+                    if selectedLens == .global {
+                        ProgressOverviewSection(
+                            range: overviewRange,
+                            state: overviewState,
+                            onOpenPlan: onOpenPlan,
+                            onNavigate: onNavigate
+                        )
+                    } else if hasOverviewEvidence {
+                        AthleteIntelligenceSection(
+                            selectedLens: $selectedLens,
+                            isEditingProfile: $isEditingAthleteProfile,
+                            range: overviewRange,
+                            workouts: workouts,
+                            showsGlobalSummary: false,
+                            showsLensPicker: false,
+                            onNavigate: onNavigate
+                        )
+                    }
+
+                    exploreGroup
+                    supportingHistoryGroup
                 }
-
-                exploreGroup
-                supportingHistoryGroup
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, 96)
+            .padding(.bottom, Spacing.xl)
         }
         .background(Color.trameCanvas)
         .navigationTitle("Progress")
@@ -112,11 +125,12 @@ struct ProgressHubView: View {
     }
 
     private var progressControls: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        HStack(alignment: .center) {
             lensPicker
+            Spacer()
             rangePicker
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("progress-controls")
     }
 
@@ -138,9 +152,11 @@ struct ProgressHubView: View {
                     .font(AppFont.bodyMedium)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
             .foregroundStyle(Color.trameText)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
         }
         .accessibilityLabel("Progress lens")
         .accessibilityValue(selectedLens.title)
@@ -155,13 +171,24 @@ struct ProgressHubView: View {
     }
 
     private var rangePicker: some View {
-        Picker("Progress range", selection: $overviewRange) {
-            ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
-                Text(rangeShortTitle(range)).tag(range)
+        Menu {
+            Picker("Progress range", selection: $overviewRange) {
+                ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
+                    Text(range.title).tag(range)
+                }
             }
+        } label: {
+            HStack(spacing: Spacing.xxs) {
+                Text(rangeShortTitle(overviewRange))
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.trameText)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
         }
-        .pickerStyle(.segmented)
-        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityLabel("Progress range")
         .accessibilityValue(overviewRange.title)
         .accessibilityIdentifier("progress-overview-range")
@@ -178,8 +205,8 @@ struct ProgressHubView: View {
     }
 
     private var exploreGroup: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            TrameSectionRule(title: "Explore")
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "History")
 
             LibraryOpenGroup {
                 progressLink(
@@ -187,18 +214,27 @@ struct ProgressHubView: View {
                     title: "History",
                     count: "\(completedWorkouts.count)"
                 )
+            }
+        }
+    }
+
+    private var supportingHistoryGroup: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "More")
+
+            LibraryOpenGroup {
                 progressLink(
-                    route: .records,
-                    title: "Records"
+                    route: .supportingHistory(.mobility),
+                    title: "Supporting history",
+                    count: "\(completedMobilitySessions.count + dailyLogEntries.count)"
                 )
-                progressLink(
-                    route: .trainingTrends,
-                    title: "Trends"
-                )
-                progressLink(
-                    route: .muscleGroupVolume,
-                    title: "Muscles"
-                )
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    progressLink(
+                        route: .mobilityAssessmentHistory,
+                        title: "Assessments",
+                        count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
+                    )
+                }
 
                 DisclosureGroup(isExpanded: $isShowingTools) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -228,27 +264,6 @@ struct ProgressHubView: View {
                 }
                 .tint(Color.trameText)
                 .accessibilityIdentifier("progress-tools-disclosure")
-            }
-        }
-    }
-
-    private var supportingHistoryGroup: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            TrameSectionRule(title: "More history")
-
-            LibraryOpenGroup {
-                progressLink(
-                    route: .supportingHistory(.mobility),
-                    title: "Mobility & Check-ins",
-                    count: "\(completedMobilitySessions.count + dailyLogEntries.count)"
-                )
-                if featureFlags.isEnabled(.mobilityAssessment) {
-                    progressLink(
-                        route: .mobilityAssessmentHistory,
-                        title: "Assessments",
-                        count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
-                    )
-                }
             }
         }
     }
@@ -296,6 +311,7 @@ struct ProgressHubView: View {
 
         let consistency = TrainingConsistencyAnalyticsService.analytics(
             workouts: workouts,
+            range: overviewRange,
             calendar: calendar
         )
         let workoutProjection = PersonalRecordAnalyticsService.overviewAnalytics(
@@ -306,41 +322,26 @@ struct ProgressHubView: View {
         let records = workoutProjection.selectedRecords
         let series = workoutProjection.exerciseSeries
 
-        let journey = TrainingJourneyBuilder().summary(
-            workouts: workouts,
-            fixedRuns: planRuns,
-            repeatingRuns: repeatingPlanRuns,
-            calendar: calendar
-        )
         let rangeInterval = overviewRange.dateInterval()
         let workoutsInRange = completedWorkouts.filter { workout in
             rangeInterval.map { $0.contains(workout.startTime) } ?? true
         }
         let globalProjection = GlobalProgressProjection.project(workouts: workoutsInRange)
-        let globalInterval = rangeInterval ?? DateInterval(
+        let interval = rangeInterval ?? DateInterval(
             start: completedWorkouts.map(\.startTime).min() ?? .now,
             end: Date.now.addingTimeInterval(1)
         )
-        let sportTimeline = ProgressSportFocusTimeline.project(
-            workouts: completedWorkouts,
-            interval: globalInterval
+        let mixedProjection = MixedProgressProjection.project(
+            workouts: workoutsInRange,
+            interval: interval,
+            calendar: calendar
         )
-        let activeFixed = planRuns.filter { $0.status == .active }
-        let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
-        var currentPlanID: UUID?
-        var currentPlanName: String?
-        var currentPlanPhaseText: String?
-
-        if activeFixed.count == 1 && activeRepeating.isEmpty {
-            let run = activeFixed[0]
-            currentPlanID = run.sourcePlanID
-            currentPlanName = run.sourcePlanName
-            currentPlanPhaseText = "Week \(run.currentWeekIndex + 1)"
-        } else if activeRepeating.count == 1 && activeFixed.isEmpty {
-            let run = activeRepeating[0]
-            currentPlanID = run.sourcePlanID
-            currentPlanName = run.sourcePlanName
-            currentPlanPhaseText = "Cycle \(run.completedCycleCount + 1)"
+        let sportFocus = mixedProjection.composition.map { comp in
+            ProgressOverviewSportFocusItem(
+                discipline: comp.discipline,
+                contribution: comp.completedWorkoutContribution,
+                proportion: comp.proportion
+            )
         }
 
         return .loaded(
@@ -348,42 +349,12 @@ struct ProgressHubView: View {
                 completedWorkoutsInRange: globalProjection.completedWorkoutCount,
                 completedEntriesInRange: globalProjection.completedEntryCount,
                 trainingTimeInRangeText: globalProjection.trainingTime.map(trainingTimeText),
-                sportEvidence: globalProjection.sportHighlights.compactMap { highlight in
-                    guard highlight.metric == .completedWorkouts,
-                          let value = highlight.value
-                    else { return nil }
-                    return ProgressOverviewSportEvidence(
-                        discipline: highlight.discipline,
-                        completedWorkoutCount: Int(value),
-                        quality: highlight.quality
-                    )
-                },
-                hasComparableSportFocus: sportTimeline.quality == .adequate
-                    && sportTimeline.periods.filter(\.hasEvidence).count >= 2,
+                sportFocus: sportFocus,
                 weeklyFrequency: consistency.weeklyFrequency,
-                currentPlanID: currentPlanID,
-                currentPlanName: currentPlanName,
-                currentPlanPhaseText: currentPlanPhaseText,
                 latestRecord: records.max { $0.date < $1.date },
-                featuredSeries: series.max { totalPoints($0) < totalPoints($1) },
-                mobilitySessionsInRange: completedMobilitySessions.filter { session in
-                    rangeInterval.map { $0.contains(session.startTime) } ?? true
-                }.count,
-                assessmentRecencyText: assessmentRecencyText,
-                latestChapterTitle: journey.latestChapterTitle,
-                journeySummaryText: journeySummaryText(journey)
+                featuredSeries: series.max { totalPoints($0) < totalPoints($1) }
             )
         )
-    }
-
-    /// Counts chapters rather than naming a "milestone": a chapter count is a
-    /// fact the records support, where "3 milestones" would be a category this
-    /// app has never defined.
-    private func journeySummaryText(_ journey: TrainingJourneySummary) -> String {
-        guard journey.chapterCount > 0 else { return "Your training history appears here as you complete workouts." }
-        let chapterText = journey.chapterCount == 1 ? "1 chapter" : "\(journey.chapterCount) chapters"
-        let yearText = journey.yearCount == 1 ? "1 year" : "\(journey.yearCount) years"
-        return "\(chapterText) across \(yearText)"
     }
 
     private func totalPoints(_ series: ExerciseProgressSeries) -> Int {
@@ -440,14 +411,6 @@ struct ProgressHubView: View {
                 revision.combine(result.id)
                 revision.combine(result.updatedAt)
             }
-        }
-        for run in planRuns {
-            revision.combine(run.id)
-            revision.combine(run.updatedAt)
-        }
-        for run in repeatingPlanRuns {
-            revision.combine(run.id)
-            revision.combine(run.updatedAt)
         }
         return revision.finalize()
     }

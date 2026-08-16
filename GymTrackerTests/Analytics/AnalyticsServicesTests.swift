@@ -216,4 +216,40 @@ final class AnalyticsServicesTests: XCTestCase {
             system: .metric
         ))
     }
+
+    func testTrainingConsistencyRangeAwareBuckets() {
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let w1 = Workout(name: "W1", endTime: referenceDate)
+        w1.startTime = referenceDate.addingTimeInterval(-86_400 * 2)
+        let w2 = Workout(name: "W2", endTime: referenceDate.addingTimeInterval(-86_400 * 100))
+        w2.startTime = referenceDate.addingTimeInterval(-86_400 * 100)
+
+        let fourWeeks = TrainingConsistencyAnalyticsService.analytics(
+            workouts: [w1, w2],
+            range: .fourWeeks,
+            referenceDate: referenceDate
+        )
+        XCTAssertEqual(fourWeeks.weeklyFrequency.count, 4)
+
+        let twelveWeeks = TrainingConsistencyAnalyticsService.analytics(
+            workouts: [w1, w2],
+            range: .twelveWeeks,
+            referenceDate: referenceDate
+        )
+        XCTAssertEqual(twelveWeeks.weeklyFrequency.count, 12)
+
+        let sixMonths = TrainingConsistencyAnalyticsService.analytics(
+            workouts: [w1, w2],
+            range: .sixMonths,
+            referenceDate: referenceDate
+        )
+        XCTAssertEqual(sixMonths.weeklyFrequency.count, 26)
+
+        let oneYear = TrainingConsistencyAnalyticsService.analytics(
+            workouts: [w1, w2],
+            range: .oneYear,
+            referenceDate: referenceDate
+        )
+        XCTAssertEqual(oneYear.weeklyFrequency.count, 52)
+    }
 }

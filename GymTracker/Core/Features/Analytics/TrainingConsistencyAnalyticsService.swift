@@ -45,6 +45,44 @@ struct TrainingConsistencyAnalyticsService {
         )
     }
 
+    /// Pure projection entry point for callers that specify an `AnalyticsDateRange`.
+    /// Resolves the matching number of weekly buckets for that range.
+    static func analytics(
+        workouts: [Workout],
+        range: AnalyticsDateRange,
+        referenceDate: Date = .now,
+        calendar: Calendar = .current
+    ) -> ConsistencyAnalytics {
+        let weekCount: Int
+        switch range {
+        case .fourWeeks:
+            weekCount = 4
+        case .twelveWeeks:
+            weekCount = 12
+        case .sixMonths:
+            weekCount = 26
+        case .oneYear:
+            weekCount = 52
+        case .allTime:
+            let completed = workouts.filter { $0.status == .completed }
+            if let earliest = completed.map(\.startTime).min(),
+               let earliestWeekStart = calendar.dateInterval(of: .weekOfYear, for: earliest)?.start,
+               let currentWeekStart = calendar.dateInterval(of: .weekOfYear, for: referenceDate)?.start {
+                let diff = calendar.dateComponents([.weekOfYear], from: earliestWeekStart, to: currentWeekStart).weekOfYear ?? 11
+                weekCount = max(4, min(104, diff + 1))
+            } else {
+                weekCount = 12
+            }
+        }
+
+        return analytics(
+            workouts: workouts,
+            referenceDate: referenceDate,
+            weekCount: weekCount,
+            calendar: calendar
+        )
+    }
+
     /// Pure projection entry point for callers that already observe workouts.
     /// This avoids issuing another SwiftData fetch for every overview card.
     static func analytics(

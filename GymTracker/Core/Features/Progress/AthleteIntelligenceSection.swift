@@ -182,26 +182,13 @@ struct AthleteIntelligenceSection: View {
             $0.inputID == inputID ? $0 : nil
         } ?? makeProjection(inputID: inputID)
 
-        if showsLensPicker {
-            lensPicker(availability: projection.availability)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
-        }
-
-        switch selectedLens {
-        case .global:
-            globalContent(projection)
-        case let .sport(discipline):
+        if case let .sport(discipline) = selectedLens {
             sportContent(discipline, projection: projection)
+                .task(id: inputID) {
+                    guard projectionCache?.inputID != inputID else { return }
+                    projectionCache = projection
+                }
         }
-
-        athleteProfileControl(suggestion: projection.suggestion)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            .task(id: inputID) {
-                guard projectionCache?.inputID != inputID else { return }
-                projectionCache = projection
-            }
     }
 
     @ViewBuilder
