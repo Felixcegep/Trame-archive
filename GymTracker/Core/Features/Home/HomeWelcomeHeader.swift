@@ -1,31 +1,33 @@
 import SwiftUI
 
-/// Date plus the plan you are following — nothing else.
+/// Date plus the training context — active plan, active rotation, or personalization offer.
 ///
-/// This header used to repeat the workout name, plan name, and week that
-/// `HomePrimaryWorkoutCard` states immediately below it, plus a fixed greeting
-/// line that never changed. The hero card is the better place for all of that,
-/// so the header keeps only what the card does not say: the date, and a tap
-/// target into the plan itself.
+/// This header provides orientation (the date) and trailing training context.
+/// When a plan or rotation is active, it presents the plan badge and week/cycle.
+/// When no plan is active and the lifter is eligible, it presents a compact,
+/// solid Trame competition color block offering personalization.
 struct HomeWelcomeHeader: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let activePlanRun: PlanRun?
     let activeRepeatingPlanRun: RepeatingPlanRun?
+    var showsPersonalizationOffer: Bool = false
     let onOpenPlan: (UUID) -> Void
+    var onPersonalize: () -> Void = {}
+    var onDeferPersonalization: () -> Void = {}
 
     var body: some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     dateLabel
-                    planContext
+                    trainingContext
                 }
             } else {
                 HStack(spacing: Spacing.m) {
                     dateLabel
                     Spacer(minLength: Spacing.s)
-                    planContext
+                    trainingContext
                 }
             }
         }
@@ -42,7 +44,7 @@ struct HomeWelcomeHeader: View {
     }
 
     @ViewBuilder
-    private var planContext: some View {
+    private var trainingContext: some View {
         if let activePlanRun {
             planChip(
                 planID: activePlanRun.sourcePlanID,
@@ -61,7 +63,50 @@ struct HomeWelcomeHeader: View {
                 accessibilityLabel: "Active rotation: \(activeRepeatingPlanRun.sourcePlanName), cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
                 accessibilityIdentifier: "active-repeating-plan-badge"
             )
+        } else if showsPersonalizationOffer {
+            personalizationControl
         }
+    }
+
+    private var personalizationControl: some View {
+        HStack(spacing: 0) {
+            Button(action: onPersonalize) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: AppIcon.siri)
+                        .font(AppFont.captionBold)
+
+                    Text("PERSONALISE")
+                        .font(AppFont.metadata)
+                        .tracking(0.5)
+                        .lineLimit(1)
+
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.micro)
+                }
+                .foregroundStyle(Color.trameSemanticFieldInk)
+                .padding(.leading, Spacing.m)
+                .padding(.trailing, Spacing.s)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("personalization-accept")
+            .accessibilityLabel("Personalise training")
+            .accessibilityHint("Opens training setup and plan recommendations.")
+
+            Button(action: onDeferPersonalization) {
+                Image(systemName: AppIcon.remove)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.trameSemanticFieldInk)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("personalization-defer")
+            .accessibilityLabel("Dismiss personalisation prompt")
+            .accessibilityHint("Postpones training setup.")
+        }
+        .background(Color.trameCompetition, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var todayLabel: String {

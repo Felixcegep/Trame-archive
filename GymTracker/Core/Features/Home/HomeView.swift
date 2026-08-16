@@ -147,7 +147,18 @@ struct HomeView: View {
                 HomeWelcomeHeader(
                     activePlanRun: activePlanRun,
                     activeRepeatingPlanRun: activeRepeatingPlanRun,
-                    onOpenPlan: onOpenPlan
+                    showsPersonalizationOffer: isShowingPersonalizationPrompt,
+                    onOpenPlan: onOpenPlan,
+                    onPersonalize: {
+                        isShowingPersonalizationPrompt = false
+                        onPersonalize()
+                    },
+                    onDeferPersonalization: {
+                        isShowingPersonalizationPrompt = false
+                        PersonalizationPromptPolicy.postpone(
+                            atCompletedWorkoutCount: completedWorkoutCount
+                        )
+                    }
                 )
                 .gymAssembly(index: 0, isActive: isPlayingAssembly)
                 HomePrimaryWorkoutCard(
@@ -182,25 +193,6 @@ struct HomeView: View {
                     onResumeMobility: onResumeMobility
                 )
                 .gymAssembly(index: 3, isActive: isPlayingAssembly)
-                // Last in the page, after everything the lifter came for.
-                if isShowingPersonalizationPrompt {
-                    PersonalizationPromptCard(
-                        onPersonalize: {
-                            isShowingPersonalizationPrompt = false
-                            onPersonalize()
-                        },
-                        onNotNow: {
-                            isShowingPersonalizationPrompt = false
-                            PersonalizationPromptPolicy.postpone(
-                                atCompletedWorkoutCount: completedWorkoutCount
-                            )
-                        },
-                        onNeverAsk: {
-                            isShowingPersonalizationPrompt = false
-                            PersonalizationPromptPolicy.declineForGood()
-                        }
-                    )
-                }
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
