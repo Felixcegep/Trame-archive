@@ -58,6 +58,32 @@ struct BuiltInBadge: View {
     }
 }
 
+/// Train's open-list identity mark.
+///
+/// A slim opaque rail carries the training domain while the SF Symbol stays
+/// neutral and readable. This deliberately avoids turning every destination
+/// into another colored rounded-square object: color behaves like wayfinding,
+/// and the row's typography/data remain the thing being scanned.
+private struct LibraryWayfindingMark: View {
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: Spacing.s) {
+            RoundedRectangle(cornerRadius: Spacing.xxs, style: .continuous)
+                .fill(color)
+                .frame(width: Spacing.xs, height: 30)
+
+            Image(systemName: systemImage)
+                .font(AppFont.bodyMedium)
+                .foregroundStyle(Color.trameText)
+                .frame(width: 26, height: 30)
+        }
+        .frame(width: 40, alignment: .leading)
+        .accessibilityHidden(true)
+    }
+}
+
 struct LibraryItemRow: View {
     let title: String
     var subtitle: String? = nil
@@ -69,7 +95,8 @@ struct LibraryItemRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            TrameCategoryTile(systemImage: icon, fill: color, size: ComponentSize.iconChip)
+            LibraryWayfindingMark(systemImage: icon, color: color)
+
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 HStack(spacing: Spacing.xs) {
                     Text(title)
@@ -88,13 +115,16 @@ struct LibraryItemRow: View {
                         .lineLimit(1)
                 }
             }
-            Spacer()
+
+            Spacer(minLength: Spacing.s)
+
             if let count {
                 Text("\(count)")
-                    .font(AppFont.metadata)
-                    .monospacedDigit()
+                    .font(AppFont.subheadlineSemiboldMonospaced)
                     .foregroundStyle(Color.trameSubdued)
+                    .frame(minWidth: 32, alignment: .trailing)
             }
+
             if showsChevron {
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.micro)
@@ -102,7 +132,7 @@ struct LibraryItemRow: View {
             }
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)
-        .padding(.vertical, Spacing.xs)
+        .padding(.vertical, Spacing.md)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.trameSeparator)
@@ -221,7 +251,7 @@ struct RecentLibraryRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            TrameCategoryTile(systemImage: icon, fill: color)
+            LibraryWayfindingMark(systemImage: icon, color: color)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
@@ -241,6 +271,7 @@ struct RecentLibraryRow: View {
                 .font(AppFont.micro)
                 .foregroundStyle(Color.trameSubdued)
         }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .padding(.vertical, Spacing.md)
         .overlay(alignment: .bottom) {
             Rectangle()

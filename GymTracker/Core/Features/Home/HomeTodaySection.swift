@@ -173,11 +173,18 @@ struct HomeTodaySection: View {
     ) -> some View {
         Button(action: action) {
             HStack(spacing: Spacing.m) {
-                TrameCategoryTile(
-                    systemImage: icon,
-                    fill: surface,
-                    size: ComponentSize.iconChip
-                )
+                HStack(spacing: Spacing.s) {
+                    RoundedRectangle(cornerRadius: Spacing.xxs, style: .continuous)
+                        .fill(surface)
+                        .frame(width: Spacing.xs, height: 30)
+
+                    Image(systemName: icon)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: 26, height: 30)
+                }
+                .frame(width: 40, alignment: .leading)
+                .accessibilityHidden(true)
 
                 Text(title)
                     .font(AppFont.bodyMedium)
