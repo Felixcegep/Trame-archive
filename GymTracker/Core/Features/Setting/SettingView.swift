@@ -794,10 +794,17 @@ private struct AdvancedSettingsView: View {
             Section {
                 ShortcutsLink()
                     .accessibilityIdentifier("settings-shortcuts-link")
+
+                NavigationLink {
+                    GarminPingPongView()
+                } label: {
+                    Label("Garmin connection test", systemImage: AppIcon.workout)
+                }
+                .accessibilityIdentifier("settings-garmin-test")
             } header: {
-                Text("Siri & Shortcuts")
+                Text("Connections")
             } footer: {
-                Text("Show today’s plan, start a workout, log the current set, control rest, or review performance and volume from Shortcuts and Siri.")
+                Text("Test Siri shortcuts or verify a direct local Bluetooth connection with a Garmin device.")
             }
 
             #if DEBUG

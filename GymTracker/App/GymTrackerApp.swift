@@ -18,6 +18,9 @@ struct GymTrackerApp: App {
             case let .ready(container):
                 RootView()
                     .modelContainer(container)
+                    .onOpenURL { url in
+                        _ = GarminPingPongCoordinator.shared.handleOpenURL(url)
+                    }
             case let .unavailable(message, storeURL):
                 StorageUnavailableView(message: message, storeURL: storeURL)
             }

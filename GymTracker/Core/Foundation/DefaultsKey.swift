@@ -1,6 +1,7 @@
 import Foundation
 
 struct DefaultsKey {
+    static let garminSelectedDevice = "garminSelectedDevice"
     static let darkMode = "darkMode"
     static let appearance = "appearance"
     static let hasCompletedWelcome = "hasCompletedWelcome"

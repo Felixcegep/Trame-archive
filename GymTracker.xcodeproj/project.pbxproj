@@ -10,6 +10,7 @@
 		44E0076F2FFAEB0600BF7D2B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 44E0076E2FFAEB0600BF7D2B /* WidgetKit.framework */; };
 		44E007712FFAEB0600BF7D2B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 44E007702FFAEB0600BF7D2B /* SwiftUI.framework */; };
 		44E007822FFAEB0700BF7D2B /* GymTrackerExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D90000000000000000000001 /* ConnectIQ in Frameworks */ = {isa = PBXBuildFile; productRef = D90000000000000000000003 /* ConnectIQ */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,13 @@
 			);
 			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;
 		};
+		D90000000000000000000004 /* Exceptions for "GymTracker" folder in "GymTracker" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 44E006392FF6E3C000BF7D2B /* GymTracker */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -111,6 +119,7 @@
 		44E0063C2FF6E3C000BF7D2B /* GymTracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				D90000000000000000000004 /* Exceptions for "GymTracker" folder in "GymTracker" target */,
 				4496BE252FFCA57D00D919E7 /* Exceptions for "GymTracker" folder in "GymTrackerExtensionExtension" target */,
 			);
 			path = GymTracker;
@@ -158,6 +167,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D90000000000000000000001 /* ConnectIQ in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,6 +287,7 @@
 			);
 			name = GymTracker;
 			packageProductDependencies = (
+				D90000000000000000000003 /* ConnectIQ */,
 			);
 			productName = GymTracker;
 			productReference = 44E0063A2FF6E3C000BF7D2B /* Trame.app */;
@@ -386,6 +397,9 @@
 			);
 			mainGroup = 44E006312FF6E3C000BF7D2B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D90000000000000000000002 /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 44E0063B2FF6E3C000BF7D2B /* Products */;
 			projectDirPath = "";
@@ -669,9 +683,12 @@
 				DEVELOPMENT_TEAM = M9FC992T46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GymTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Trame;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Trame uses Bluetooth to communicate locally with your selected Garmin device.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "Trame uses Bluetooth to communicate locally with your selected Garmin device.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments, and to show an optional steadiness indicator during timed mobility holds.";
@@ -687,6 +704,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker;
 				PRODUCT_MODULE_NAME = GymTracker;
 				PRODUCT_NAME = Trame;
@@ -712,10 +733,13 @@
 				DEVELOPMENT_TEAM = M9FC992T46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GymTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Trame;
 				INFOPLIST_KEY_GTFeatureFlagChannel = beta;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Trame uses Bluetooth to communicate locally with your selected Garmin device.";
+				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "Trame uses Bluetooth to communicate locally with your selected Garmin device.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments, and to show an optional steadiness indicator during timed mobility holds.";
@@ -731,6 +755,10 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker;
 				PRODUCT_MODULE_NAME = GymTracker;
 				PRODUCT_NAME = Trame;
@@ -954,6 +982,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D90000000000000000000002 /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/garmin/connectiq-companion-app-sdk-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D90000000000000000000003 /* ConnectIQ */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D90000000000000000000002 /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */;
+			productName = ConnectIQ;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 44E006322FF6E3C000BF7D2B /* Project object */;
 }
