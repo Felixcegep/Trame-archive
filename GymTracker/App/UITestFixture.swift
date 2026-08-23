@@ -6,6 +6,7 @@ import SwiftData
 /// fixtures: they exercise the user actions that create the graph.
 enum UITestFixture: String {
     case activeEmpty = "active-empty"
+    case activePickerSections = "active-picker-sections"
     case activeInProgress = "active-in-progress"
     case activeCompletedSet = "active-completed-set"
     case activeCompletedExercise = "active-completed-exercise"
@@ -95,6 +96,8 @@ enum UITestFixture: String {
         switch fixture {
         case .activeEmpty:
             try makeActiveWorkout(exercises: [], using: context)
+        case .activePickerSections:
+            try makePickerSectionsFixture(using: context)
         case .activeInProgress:
             try makeActiveWorkout(exercises: [inProgressEntry(named: "Bench Press", using: context)], using: context)
         case .activeCompletedSet:
@@ -805,6 +808,22 @@ enum UITestFixture: String {
         entry.executionBlockComponentOrder = 0
         context.insert(workout)
         try context.save()
+    }
+
+    /// Picker-specific graph: one completed recent exercise and one distinct
+    /// favorite, with an empty active workout as the destination for adding.
+    /// Keeping this state in a fixture avoids navigating through exercise
+    /// details merely to seed a favorite during a picker UI test.
+    private static func makePickerSectionsFixture(using context: ModelContext) throws {
+        let recentEntry = try completedExerciseEntry(named: "Bench Press", using: context)
+        let workout = Workout(name: "Recent picker session", endTime: Date.now.addingTimeInterval(-3_600))
+        workout.startTime = Date.now.addingTimeInterval(-7_200)
+        workout.exercises = [recentEntry]
+        context.insert(workout)
+
+        let favorite = try exercise(named: "Arnold Press", using: context)
+        favorite.isFavorite = true
+        try makeActiveWorkout(exercises: [], using: context)
     }
 
     /// Completed Olympic-lifting snapshots for the CE-06 dashboard. The

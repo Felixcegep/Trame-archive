@@ -11,6 +11,8 @@ import SwiftUI
 struct MobilitySessionView: View {
     @Environment(\.modelContext) private var modelContext
     let session: MobilitySession
+    let linkedWorkoutName: String?
+    let linkedWorkoutStartTime: Date?
     let onFinished: () -> Void
     @Query(
         filter: #Predicate<MobilitySession> { $0.statusRaw != "active" },
@@ -38,6 +40,18 @@ struct MobilitySessionView: View {
     @State private var isShowingStopConfirmation = false
     @State private var error: ValidationIssue?
 
+    init(
+        session: MobilitySession,
+        linkedWorkoutName: String? = nil,
+        linkedWorkoutStartTime: Date? = nil,
+        onFinished: @escaping () -> Void
+    ) {
+        self.session = session
+        self.linkedWorkoutName = linkedWorkoutName
+        self.linkedWorkoutStartTime = linkedWorkoutStartTime
+        self.onFinished = onFinished
+    }
+
     var body: some View {
         Group {
             if session.status == .active, session.currentEntry != nil {
@@ -46,21 +60,24 @@ struct MobilitySessionView: View {
                 terminalContent
             }
         }
-        .foregroundStyle(Color.gymText)
-        .background(Color.gymBackground)
-        .navigationTitle(session.nameSnapshot)
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameCanvas)
+        .navigationTitle(isLinkedWorkoutStage ? "" : session.nameSnapshot)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close") { onFinished() }
-            }
-            if session.status == .active {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Stop", role: .destructive) { isShowingStopConfirmation = true }
-                        .accessibilityIdentifier("stop-mobility-session")
+            if !isLinkedWorkoutStage {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { onFinished() }
+                }
+                if session.status == .active {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Stop", role: .destructive) { isShowingStopConfirmation = true }
+                            .accessibilityIdentifier("stop-mobility-session")
+                    }
                 }
             }
         }
+        .toolbar(isLinkedWorkoutStage ? .hidden : .visible, for: .navigationBar)
         .confirmationDialog("Stop this mobility session?", isPresented: $isShowingStopConfirmation, titleVisibility: .visible) {
             Button("Stop Session", role: .destructive) {
                 guard MobilitySessionService.stop(session, using: modelContext) else {
@@ -103,15 +120,101 @@ struct MobilitySessionView: View {
     ) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
+                if isLinkedWorkoutStage {
+                    linkedWorkoutChrome
+                }
                 progressHeader
                 if let current = session.currentEntry {
                     activeMovementRow(current, evidenceByResultID: evidenceByResultID)
                 }
                 routineDisclosure
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
         }
+    }
+
+    private var isLinkedWorkoutStage: Bool {
+        session.workoutID != nil && (session.context == .warmup || session.context == .cooldown)
+    }
+
+    /// The shared training-cover hierarchy for linked warm-up and cooldown.
+    /// MobilitySession still owns all performed mobility evidence; this header
+    /// carries only the workout-stage presentation context.
+    private var linkedWorkoutChrome: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.s) {
+                Button(action: onFinished) {
+                    Image(systemName: AppIcon.minimize)
+                        .font(AppFont.sectionTitle)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityLabel("Minimize workout")
+                .accessibilityIdentifier("minimize-workout")
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("WORKOUT")
+                        .font(AppFont.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(Color.trameSubdued)
+                    Text(linkedWorkoutName ?? session.nameSnapshot)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameText)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(linkedWorkoutStartTime ?? session.startTime, style: .timer)
+                    .font(AppFont.metadata.monospacedDigit())
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityLabel("Elapsed time")
+
+                Menu {
+                    Button(role: .destructive) {
+                        isShowingStopConfirmation = true
+                    } label: {
+                        Text("Stop mobility stage")
+                            .accessibilityIdentifier("stop-mobility-session")
+                    }
+                } label: {
+                    Image(systemName: AppIcon.ellipsis)
+                        .font(AppFont.sectionTitle)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Workout stage actions")
+                .accessibilityIdentifier("linked-mobility-menu")
+            }
+
+            HStack(spacing: Spacing.s) {
+                Text(session.context == .warmup ? "WARM-UP" : "COOLDOWN")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameMobility)
+                Text("\(min(session.currentEntryIndex + 1, session.entries.count)) / \(session.entries.count)")
+                    .font(AppFont.micro.monospacedDigit())
+                    .foregroundStyle(Color.trameSubdued)
+                mobilityProgressRail
+            }
+        }
+        .padding(.bottom, Spacing.s)
+    }
+
+    private var mobilityProgressRail: some View {
+        HStack(spacing: Spacing.xs) {
+            ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { index, _ in
+                RoundedRectangle(cornerRadius: Radius.icon, style: .continuous)
+                    .fill(progressDotColor(at: index))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: index == session.currentEntryIndex ? 3 : 1)
+            }
+        }
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder
@@ -153,9 +256,9 @@ struct MobilitySessionView: View {
                 Text("ROUTINE · \(session.entries.count) MOVEMENTS")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
-            .tint(Color.gymSubduedText)
+            .tint(Color.trameSubdued)
             .accessibilityIdentifier("mobility-routine-disclosure")
         }
     }
@@ -179,18 +282,24 @@ struct MobilitySessionView: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.circleFill)
                 .font(AppFont.caption2)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
             Text(entry.definitionNameSnapshot)
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Spacer(minLength: Spacing.s)
             Text("Current")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
         }
-        .padding(Spacing.m)
+        .padding(.horizontal, Spacing.m)
+        .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCurrentSetSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle().fill(Color.trameMobility).frame(width: 3)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
         .accessibilityElement(children: .combine)
     }
 
@@ -198,10 +307,10 @@ struct MobilitySessionView: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.checkmark)
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSecondary)
+                .foregroundStyle(Color.trameCompleted)
             Text(entry.definitionNameSnapshot)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .strikethrough()
             Spacer()
         }
@@ -213,10 +322,10 @@ struct MobilitySessionView: View {
         HStack(spacing: Spacing.m) {
             Text("\(index + 1)")
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text(entry.definitionNameSnapshot)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Spacer()
         }
         .padding(Spacing.m)
@@ -234,32 +343,50 @@ struct MobilitySessionView: View {
     /// something `MobilitySessionService` cannot do. This one only reports.
     private var progressHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("MOBILITY SESSION")
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+            if !isLinkedWorkoutStage {
+                Text(stageEyebrow)
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
 
-            ScrollView(.horizontal) {
-                HStack(spacing: Spacing.xs) {
-                    ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { index, _ in
-                        progressDot(at: index)
+                ScrollView(.horizontal) {
+                    HStack(spacing: Spacing.xs) {
+                        ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { index, _ in
+                            progressDot(at: index)
+                        }
                     }
                 }
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
 
             Text("Movement \(min(session.currentEntryIndex + 1, session.entries.count)) of \(session.entries.count)")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(stageAccessibilityIdentifier)
+    }
+
+    private var stageEyebrow: LocalizedStringKey {
+        guard session.workoutID != nil else { return "MOBILITY SESSION" }
+        switch session.context {
+        case .warmup: return "WORKOUT · MOBILITY WARM-UP"
+        case .cooldown: return "WORKOUT · POST-WORKOUT MOBILITY"
+        case .standalone: return "MOBILITY SESSION"
+        }
+    }
+
+    private var stageAccessibilityIdentifier: String {
+        session.workoutID != nil && (session.context == .warmup || session.context == .cooldown)
+            ? "active-workout-mobility-stage"
+            : "standalone-mobility-stage"
     }
 
     private func progressDot(at index: Int) -> some View {
         let isCurrent = index == session.currentEntryIndex
         return ZStack {
             Circle()
-                .stroke(isCurrent ? Color.gymText : .clear, lineWidth: 1.5)
+                .stroke(isCurrent ? Color.trameText : .clear, lineWidth: 1.5)
                 .frame(width: 14, height: 14)
             Circle()
                 .fill(progressDotColor(at: index))
@@ -270,9 +397,9 @@ struct MobilitySessionView: View {
     }
 
     private func progressDotColor(at index: Int) -> Color {
-        if index < session.currentEntryIndex { return Color.gymSecondary }
-        if index == session.currentEntryIndex { return Color.gymAccent }
-        return Color.gymSubduedText.opacity(0.35)
+        if index < session.currentEntryIndex { return Color.trameCompleted }
+        if index == session.currentEntryIndex { return Color.trameMobility }
+        return Color.trameSeparator
     }
 
     private func currentEntry(
@@ -287,16 +414,17 @@ struct MobilitySessionView: View {
             Label("CURRENT MOVEMENT", systemImage: AppIcon.circleFill)
                 .font(AppFont.caption2Bold)
                 .tracking(0.55)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
 
             Text(entry.definitionNameSnapshot)
-                .font(AppFont.displayMedium)
+                .font(AppFont.screenTitle)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let instructions = entry.instructionsSnapshot, !instructions.isEmpty {
                 Text(instructions)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             if let context = prescriptionContext(
@@ -305,13 +433,13 @@ struct MobilitySessionView: View {
             ) {
                 Text(context)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             if let blockContext = blockContextLabel(for: entry) {
                 Label(blockContext, systemImage: AppIcon.mobility)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityIdentifier("mobility-block-context")
             }
 
@@ -319,10 +447,10 @@ struct MobilitySessionView: View {
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     Label(phase.phaseType.title, systemImage: AppIcon.timer)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                     Text(phaseProgressLabel(phase, in: entry))
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         holdHero(
@@ -336,14 +464,14 @@ struct MobilitySessionView: View {
                     if let intensity = phase.prescribedIntensity {
                         Text("Prescribed effort: \(intensity.title)")
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
             } else {
                 VStack(alignment: .leading, spacing: Spacing.m) {
-                    Label(entry.side.displayName, systemImage: AppIcon.mobility)
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymPrimary)
+                    Text(entry.side.displayName.uppercased())
+                        .font(AppFont.metricLarge)
+                        .foregroundStyle(Color.trameMobility)
 
                     if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -355,9 +483,15 @@ struct MobilitySessionView: View {
                             )
                         }
                     } else if let target = entry.targetRepetitions {
-                        Text("Target \(target) reps")
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymPrimary)
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("\(target)")
+                                .font(AppFont.metricHero)
+                                .foregroundStyle(Color.trameText)
+                            Text("REPS")
+                                .font(AppFont.micro)
+                                .tracking(0.8)
+                                .foregroundStyle(Color.trameSubdued)
+                        }
                     }
                 }
             }
@@ -365,21 +499,21 @@ struct MobilitySessionView: View {
                let unit = entry.prescribedLoadUnit {
                 Text("Target load: \(load.formatted(.number.precision(.fractionLength(0...2)))) \(unit.abbreviation)")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
-        .padding(Spacing.l)
+        .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // `gymCurrentSetSurface` marks the movement in progress.
-        //
-        // This is a card sitting directly on the background, so the fill is the
-        // only thing separating it — unlike Active Workout's set row, which sat
-        // inside an already-tinted exercise card and has since dropped its own
-        // fill for that reason. Same token, different job.
-        .background(Color.gymCurrentSetSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.trameMobility)
+                .frame(width: 5)
+                .padding(.vertical, Spacing.xs)
+                .offset(x: -Spacing.m)
+                .accessibilityHidden(true)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(entryAccessibilityLabel(entry))
@@ -426,9 +560,9 @@ struct MobilitySessionView: View {
     private func phaseResultInput(_ phase: MobilityPhaseResult) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("PHASE RESULT")
-                .font(AppFont.captionBold)
+                .font(AppFont.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text(phase.side == .none ? phase.phaseType.title : phase.side.displayName)
@@ -466,17 +600,19 @@ struct MobilitySessionView: View {
                     }
                 }
             }
-            .padding(Spacing.m)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .padding(.vertical, Spacing.s)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
         }
     }
 
     private func legacyResultInputs(_ entry: MobilityEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("RESULT")
-                .font(AppFont.captionBold)
+                .font(AppFont.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             ForEach(entry.orderedResults) { result in
                 VStack(alignment: .leading, spacing: Spacing.s) {
@@ -541,12 +677,12 @@ struct MobilitySessionView: View {
                             }
                             .labelsHidden()
                             .pickerStyle(.menu)
-                            .tint(Color.gymText)
+                            .tint(Color.trameText)
                             .accessibilityIdentifier("mobility-intensity-\(result.id.uuidString)")
                         } label: {
                             Text("Perceived intensity")
                                 .font(AppFont.subheadline)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                         .frame(minHeight: ComponentSize.minimumTouchTarget)
 
@@ -557,8 +693,10 @@ struct MobilitySessionView: View {
                             .accessibilityIdentifier("mobility-discomfort-note-\(result.side.rawValue)")
                     }
                 }
-                .padding(Spacing.m)
-                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .padding(.vertical, Spacing.s)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
             }
         }
     }
@@ -574,12 +712,12 @@ struct MobilitySessionView: View {
                 movementActions
             }
         }
-        .padding(.horizontal, Spacing.xl)
+        .padding(.horizontal, Spacing.screenInset)
         .padding(.vertical, Spacing.m)
-        .background(Color.gymBackground)
+        .background(Color.trameSurface)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.gymBorder)
+                .fill(Color.trameSeparator)
                 .frame(height: 1)
         }
     }
@@ -589,13 +727,13 @@ struct MobilitySessionView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("Stop and pay attention to what you feel. This records your observation; it is not a diagnosis.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Button(role: .destructive) {
                 stopForSensation(stop.sensation, resultID: stop.resultID)
             } label: {
                 Label("Stop session now", systemImage: AppIcon.stop)
             }
-            .buttonStyle(.gymPrimary)
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("stop-mobility-for-sensation")
         }
     }
@@ -605,15 +743,14 @@ struct MobilitySessionView: View {
             Button {
                 completeCurrentPhase()
             } label: {
-                Label("Complete phase", systemImage: AppIcon.checkmark)
-                    .font(AppFont.subheadlineBold)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 50)
-                    .background(Color.gymSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                HStack(spacing: Spacing.m) {
+                    Text("Complete phase")
+                    Spacer(minLength: Spacing.s)
+                    Image(systemName: AppIcon.chevronRight)
+                        .accessibilityHidden(true)
+                }
             }
-            .buttonStyle(.gymPress)
+            .buttonStyle(MobilityPrimaryActionButtonStyle())
             .accessibilityIdentifier("complete-mobility-phase")
 
             HStack(spacing: Spacing.xl) {
@@ -623,7 +760,7 @@ struct MobilitySessionView: View {
                 Spacer(minLength: Spacing.s)
 
                 Button("Skip phase") { skipCurrentPhase() }
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityIdentifier("skip-mobility-phase")
             }
             .font(AppFont.subheadlineSemibold)
@@ -636,15 +773,14 @@ struct MobilitySessionView: View {
                 Button {
                     completeCurrent()
                 } label: {
-                    Label("Complete movement", systemImage: AppIcon.checkmark)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 50)
-                        .background(Color.gymSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                    HStack(spacing: Spacing.m) {
+                        Text("Complete movement")
+                        Spacer(minLength: Spacing.s)
+                        Image(systemName: AppIcon.chevronRight)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .buttonStyle(.gymPress)
+                .buttonStyle(MobilityPrimaryActionButtonStyle())
                 .accessibilityIdentifier("complete-mobility-movement")
 
                 HStack(spacing: Spacing.xl) {
@@ -654,7 +790,7 @@ struct MobilitySessionView: View {
                     Spacer(minLength: Spacing.s)
 
                     Button("Skip movement") { skipCurrent() }
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .accessibilityIdentifier("skip-mobility-movement")
                 }
                 .font(AppFont.subheadlineSemibold)
@@ -688,7 +824,7 @@ struct MobilitySessionView: View {
                 }
             }
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
     }
@@ -708,7 +844,7 @@ struct MobilitySessionView: View {
                 } label: {
                     Label("Undo last phase", systemImage: AppIcon.restore)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("undo-completed-mobility-phase")
             }
 
@@ -737,21 +873,23 @@ struct MobilitySessionView: View {
         if previousResultsByCurrentID.isEmpty == false {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text("PREVIOUS RESULT")
-                    .font(AppFont.captionBold)
+                    .font(AppFont.eyebrow)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 ForEach(entry.orderedResults) { result in
                     if let previousResult = previousResultsByCurrentID[result.id] {
                         Text(previousResultLabel(previousResult, side: result.side, trackingType: entry.trackingType))
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
             }
-            .padding(Spacing.m)
+            .padding(.vertical, Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
         }
     }
 
@@ -1216,13 +1354,13 @@ struct MobilitySessionView: View {
                 systemImage: hasRecordedDetails(resultID: resultID) ? AppIcon.checkmarkCircle : AppIcon.plus
             )
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
             // Put the identifier on the disclosure control, not its ancestor.
             // An identifier on DisclosureGroup is inherited by every expanded
             // child and erases the Picker identifiers VoiceOver/XCTest need.
             .accessibilityIdentifier(identifier)
         }
-        .tint(Color.gymPrimary)
+        .tint(Color.trameMobility)
     }
 
     @ViewBuilder
@@ -1234,7 +1372,7 @@ struct MobilitySessionView: View {
             } label: {
                 Label("Report pain, numbness, or tingling", systemImage: AppIcon.warning)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameDestructiveText)
                     .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                     .contentShape(Rectangle())
             }
@@ -1258,12 +1396,12 @@ struct MobilitySessionView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .tint(Color.gymText)
+            .tint(Color.trameText)
             .accessibilityIdentifier("mobility-sensation-\(resultID.uuidString)")
         } label: {
             Text("Sensation")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)
     }
@@ -1283,12 +1421,12 @@ struct MobilitySessionView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
-            .tint(Color.gymText)
+            .tint(Color.trameText)
             .accessibilityIdentifier("mobility-quality-\(resultID.uuidString)")
         } label: {
             Text("Movement quality")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)
 
@@ -1331,7 +1469,7 @@ struct MobilitySessionView: View {
                     if let inhale = breathing.inhaleSeconds, let exhale = breathing.exhaleSeconds {
                         Text("Breathing pace: \(inhale) sec in · \(exhale) sec out")
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
                 if let assistance = evidence?.assistancePrescriptionSnapshot {
@@ -1353,7 +1491,7 @@ struct MobilitySessionView: View {
                     if let equipment = assistance.equipmentRaw, equipment.isEmpty == false {
                         Text(equipment)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
                 if evidence?.supportLevelSnapshot != nil {
@@ -1368,7 +1506,7 @@ struct MobilitySessionView: View {
                     }
                     Text("Support is saved as comparison context, not as a score.")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
         }
@@ -1464,5 +1602,27 @@ struct MobilitySessionView: View {
     private func positiveValue(_ value: Int?) -> Int? {
         guard let value, value > 0 else { return nil }
         return value
+    }
+}
+
+/// Coral is an action semantic only inside Mobility execution. It never
+/// recolors the surrounding workout shell or the separately persisted
+/// MobilitySession evidence.
+private struct MobilityPrimaryActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(AppFont.sectionTitle)
+            .foregroundStyle(Color.trameSemanticFieldInk)
+            .padding(.horizontal, Spacing.l)
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background(
+                Color.trameMobility,
+                in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+            )
+            .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .contentShape(Rectangle())
     }
 }

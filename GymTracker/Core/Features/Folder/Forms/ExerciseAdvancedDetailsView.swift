@@ -35,7 +35,36 @@ struct ExerciseAdvancedDetailsView: View {
 
     var body: some View {
         Form {
-            Section("General") {
+            Section("Logging behavior") {
+                Picker("Laterality", selection: $laterality) {
+                    ForEach(Laterality.allCases, id: \.self) { laterality in
+                        Text(LocalizedStringKey(laterality.rawValue)).tag(laterality)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if laterality == .unilateral {
+                    Picker("Rep Counting", selection: $repCountingStyle) {
+                        ForEach(RepCountingStyle.allCases, id: \.self) { style in
+                            Text(LocalizedStringKey(style.rawValue)).tag(style)
+                        }
+                    }
+                }
+
+                if trackingType.usesWeight {
+                    Picker("Weight Entry", selection: $weightEntryStyle) {
+                        ForEach(WeightEntryStyle.allCases, id: \.self) { style in
+                            Text(LocalizedStringKey(style.rawValue)).tag(style)
+                        }
+                    }
+
+                    if weightEntryStyle == .perLoadUnit {
+                        Stepper("Load Units: \(loadUnitCount)", value: $loadUnitCount, in: 1...4)
+                    }
+                }
+            }
+
+            Section("Classification") {
                 Picker("Category", selection: $category) {
                     ForEach(ExerciseCategory.allCases, id: \.self) { category in
                         Text(LocalizedStringKey(category.rawValue)).tag(category)
@@ -47,9 +76,7 @@ struct ExerciseAdvancedDetailsView: View {
                         Text(LocalizedStringKey(difficulty.rawValue)).tag(difficulty)
                     }
                 }
-            }
 
-            Section("Classification") {
                 Picker("Resistance", selection: $resistanceType) {
                     Text("None").tag(ResistanceType?.none)
                     ForEach(ResistanceType.allCases, id: \.self) { resistance in
@@ -85,35 +112,6 @@ struct ExerciseAdvancedDetailsView: View {
                 sportSection
             }
 
-            Section("Logging") {
-                Picker("Laterality", selection: $laterality) {
-                    ForEach(Laterality.allCases, id: \.self) { laterality in
-                        Text(LocalizedStringKey(laterality.rawValue)).tag(laterality)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if laterality == .unilateral {
-                    Picker("Rep Counting", selection: $repCountingStyle) {
-                        ForEach(RepCountingStyle.allCases, id: \.self) { style in
-                            Text(LocalizedStringKey(style.rawValue)).tag(style)
-                        }
-                    }
-                }
-
-                if trackingType.usesWeight {
-                    Picker("Weight Entry", selection: $weightEntryStyle) {
-                        ForEach(WeightEntryStyle.allCases, id: \.self) { style in
-                            Text(LocalizedStringKey(style.rawValue)).tag(style)
-                        }
-                    }
-
-                    if weightEntryStyle == .perLoadUnit {
-                        Stepper("Load Units: \(loadUnitCount)", value: $loadUnitCount, in: 1...4)
-                    }
-                }
-            }
-
             if trackingType.usesWeight && equipmentType == .barbell {
                 Section {
                     Label("Plate calculator enabled", systemImage: AppIcon.plateCalculator)
@@ -139,8 +137,8 @@ struct ExerciseAdvancedDetailsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
-        .navigationTitle("Advanced Details")
+        .background(Color.trameCanvas)
+        .navigationTitle("Logging & Classification")
         .navigationBarTitleDisplayMode(.inline)
     }
 

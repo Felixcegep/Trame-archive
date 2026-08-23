@@ -158,6 +158,7 @@ struct RootView: View {
             }
             .tag(AppTab.progress)
         }
+        .rootTabTint()
         .preferredColorScheme(effectiveAppearance.colorScheme)
         .gymFeedback(.planStateChanged, trigger: planStateChangeCount)
         // A Today confirmation belongs to the screen where the user saw the
@@ -169,7 +170,7 @@ struct RootView: View {
         .overlay {
             if isShowingLaunchExperience {
                 ZStack {
-                    Color.gymBackground.ignoresSafeArea()
+                    Color.trameCanvas.ignoresSafeArea()
 
                     TrameBuild(onFinish: { hasFinishedLaunchAnimation = true })
                     .accessibilityIdentifier("launch-brand-mark")
@@ -200,13 +201,26 @@ struct RootView: View {
             }
         }) {
             NavigationStack(path: $activeSessionRouter.activeWorkoutPath) {
-                ActiveWorkoutView(
-                    workoutVM: workoutVM,
-                    navigationPath: $activeSessionRouter.activeWorkoutPath,
-                    modelContext: modelContext,
-                    activeLoggingMetrics: activeLoggingMetrics,
-                    onDiscardRequested: requestDiscardActiveWorkout
-                )
+                Group {
+                    if let mobilitySession = integratedMobilitySession {
+                        let linkedWorkout = linkedWorkout(for: mobilitySession)
+                        MobilitySessionView(
+                            session: mobilitySession,
+                            linkedWorkoutName: linkedWorkout?.displayTitle,
+                            linkedWorkoutStartTime: linkedWorkout?.startTime
+                        ) {
+                            finishIntegratedMobilityStage(mobilitySession)
+                        }
+                    } else {
+                        ActiveWorkoutView(
+                            workoutVM: workoutVM,
+                            navigationPath: $activeSessionRouter.activeWorkoutPath,
+                            modelContext: modelContext,
+                            activeLoggingMetrics: activeLoggingMetrics,
+                            onDiscardRequested: requestDiscardActiveWorkout
+                        )
+                    }
+                }
                 .navigationDestination(for: ActiveWorkoutRoute.self) { route in
                     switch route {
                     case .saveWorkout:
@@ -216,13 +230,13 @@ struct RootView: View {
                             isPresented: $activeSessionRouter.isShowingActiveWorkout,
                             activeLoggingMetrics: activeLoggingMetrics,
                             onWorkoutSaved: { workoutID in
-                                prepareCooldown(for: workoutID)
                                 preparePendingProgressionReceipts(for: workoutID)
                                 // Raised here rather than on the save screen,
                                 // which is dismissing. It lands on Today, where
                                 // the user is being sent, so the session ends
                                 // with something other than a screen vanishing.
                                 todayStatusMessage = savedWorkoutMessage()
+                                return !beginIntegratedCooldown(for: workoutID)
                             },
                             onDiscardRequested: requestDiscardActiveWorkout
                         )
@@ -230,7 +244,7 @@ struct RootView: View {
                 }
             }
         }
-        .fullScreenCover(item: $activeSessionRouter.activeMobilitySession) { session in
+        .fullScreenCover(item: standaloneMobilityPresentation) { session in
             NavigationStack {
                 MobilitySessionView(session: session) {
                     activeSessionRouter.activeMobilitySession = nil
@@ -387,6 +401,9 @@ struct RootView: View {
             // could not roll back the already-committed restore.
             workoutVM.restoreActiveWorkout(using: modelContext)
             activeSessionRouter.activeMobilitySession = reconciledActiveMobilitySession()
+            if activeSessionRouter.activeMobilitySession.map(isLinkedMobilityStage) == true {
+                activeSessionRouter.isShowingActiveWorkout = true
+            }
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -509,8 +526,11 @@ struct RootView: View {
                 selectedTab = .today
                 return
             }
-            selectedTab = .train
+            selectedTab = isLinkedMobilityStage(session) ? .today : .train
             activeSessionRouter.activeMobilitySession = session
+            if isLinkedMobilityStage(session) {
+                activeSessionRouter.isShowingActiveWorkout = true
+            }
         case .personalizedWorkout(let launchRequest):
             guard featureFlags.isEnabled(.workoutGeneration) else {
                 selectedTab = .today
@@ -630,6 +650,9 @@ struct RootView: View {
             activeSessionRouter.activeMobilitySession = MobilitySessionService.activeSession(using: modelContext)
         } else if let active = MobilitySessionService.activeSession(using: modelContext) {
             activeSessionRouter.activeMobilitySession = active
+        }
+        if activeSessionRouter.activeMobilitySession.map(isLinkedMobilityStage) == true {
+            activeSessionRouter.isShowingActiveWorkout = true
         }
         WidgetSnapshotService.refresh(using: modelContext)
     }
@@ -781,6 +804,7 @@ struct RootView: View {
             onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) },
             onStartPlannedWorkout: startPlannedWorkout,
             onStartRepeatingWorkout: startRepeatingWorkout,
+            onStartFreeWorkout: startFreeWorkout,
             onResumePlan: resumeFixedPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,
@@ -1070,6 +1094,19 @@ struct RootView: View {
             MobilityProgramCatalogView(onStartProgramSession: startMobilityProgramSession)
         case .mobilityAssessments:
             MobilityAssessmentLandingView(onStart: { activeSessionRouter.activeAssessmentSession = $0 })
+        case .trainingCalendar:
+            TrainingCalendarView(
+                onStartPlannedWorkout: startPlannedWorkout,
+                onOpenNutrition: openNutrition,
+                onOpenMobilityHistory: {
+                    selectedTab = .progress
+                    progressPath = [.supportingHistory(.mobility)]
+                },
+                onOpenJournalHistory: {
+                    selectedTab = .progress
+                    progressPath = [.supportingHistory(.journal)]
+                }
+            )
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
         case .weeklyReview(let route):
@@ -1144,6 +1181,9 @@ struct RootView: View {
         }
 
         activeSessionRouter.activeMobilitySession = reconciledActiveMobilitySession()
+        if activeSessionRouter.activeMobilitySession.map(isLinkedMobilityStage) == true {
+            activeSessionRouter.isShowingActiveWorkout = true
+        }
         apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
@@ -1225,6 +1265,97 @@ struct RootView: View {
 
     private func resumeMobility(_ session: MobilitySession) {
         activeSessionRouter.resumeMobility(session, using: modelContext)
+        if isLinkedMobilityStage(session) {
+            activeSessionRouter.isShowingActiveWorkout = true
+        }
+    }
+
+    /// Linked mobility is a stage of the root-owned training presentation.
+    /// Standalone routines and Mobility Program sessions keep their existing
+    /// independent presentation because they have no workout to continue.
+    private var integratedMobilitySession: MobilitySession? {
+        guard activeSessionRouter.isShowingActiveWorkout,
+              let session = activeSessionRouter.activeMobilitySession,
+              isLinkedMobilityStage(session)
+        else { return nil }
+        return session
+    }
+
+    private var standaloneMobilityPresentation: Binding<MobilitySession?> {
+        Binding(
+            get: {
+                guard let session = activeSessionRouter.activeMobilitySession,
+                      !isLinkedMobilityStage(session)
+                else { return nil }
+                return session
+            },
+            set: { activeSessionRouter.activeMobilitySession = $0 }
+        )
+    }
+
+    private func isLinkedMobilityStage(_ session: MobilitySession) -> Bool {
+        guard session.workoutID != nil else { return false }
+        return session.context == .warmup || session.context == .cooldown
+    }
+
+    private func linkedWorkout(for session: MobilitySession) -> Workout? {
+        guard let workoutID = session.workoutID,
+              let workout = ProgressionReceiptPolicy.workout(id: workoutID, using: modelContext)
+        else { return nil }
+        return workout
+    }
+
+    private func finishIntegratedMobilityStage(_ session: MobilitySession) {
+        // Closing an unfinished linked stage minimizes the whole training flow;
+        // the persisted active MobilitySession remains available to resume.
+        guard session.status != .active else {
+            activeSessionRouter.isShowingActiveWorkout = false
+            return
+        }
+
+        activeSessionRouter.activeMobilitySession = nil
+        MobilityProgramRunCoordinator.reconcileTerminalSessions(using: modelContext)
+
+        if session.context == .warmup {
+            postWorkoutCoordinator.clearWarmupWorkoutID()
+            return
+        }
+
+        // Strength was already saved before the cooldown stage began. Closing
+        // the shared shell now allows the pending progression receipt to route.
+        activeSessionRouter.isShowingActiveWorkout = false
+    }
+
+    /// Starts a linked cooldown before the training cover dismisses. The saved
+    /// Workout and the MobilitySession remain distinct performed records even
+    /// though the athlete experiences one uninterrupted stage sequence.
+    @discardableResult
+    private func beginIntegratedCooldown(for workoutID: UUID) -> Bool {
+        prepareCooldown(for: workoutID)
+        guard let request = postWorkoutCoordinator.pendingCooldownAfterWorkoutDismissal else {
+            return false
+        }
+        postWorkoutCoordinator.pendingCooldownAfterWorkoutDismissal = nil
+        if let activeSession = MobilitySessionService.activeSession(using: modelContext) {
+            if isLinkedMobilityStage(activeSession), activeSession.workoutID == workoutID {
+                activeSessionRouter.activeMobilitySession = activeSession
+                return true
+            }
+            postWorkoutCoordinator.cooldownRequest = request
+            mobilityLinkError = String(localized: "Finish or stop the active mobility session before starting this linked cooldown.")
+            return false
+        }
+        guard let session = MobilitySessionService.start(
+            routine: request.routine,
+            context: request.context,
+            workoutID: request.workoutID,
+            using: modelContext
+        ) else {
+            mobilityLinkError = String(localized: "The linked mobility routine could not be started. Try again.")
+            return false
+        }
+        activeSessionRouter.activeMobilitySession = session
+        return true
     }
 
     /// Mirrors `startMobility`: a mobility program session is compiled and
@@ -1515,6 +1646,7 @@ struct RootView: View {
         }
         postWorkoutCoordinator.warmupWorkoutID = workout.id
         activeSessionRouter.activeMobilitySession = session
+        activeSessionRouter.isShowingActiveWorkout = true
         return true
     }
 
@@ -1533,7 +1665,7 @@ struct RootView: View {
                     startLinkedMobility(request)
                 }
                 .accessibilityIdentifier("start-linked-cooldown")
-                .accessibilityHint(String(localized: "Starts the linked cooldown as a separate mobility session."))
+                .accessibilityHint(String(localized: "Continues into the linked cooldown inside the workout flow."))
             }
         }
         Button("Done", role: .cancel) {
@@ -1552,6 +1684,7 @@ struct RootView: View {
             return
         }
         activeSessionRouter.activeMobilitySession = session
+        activeSessionRouter.isShowingActiveWorkout = true
     }
 
     private func resumeWorkoutAfterWarmupIfNeeded(_ session: MobilitySession) {
@@ -1713,11 +1846,11 @@ struct RootView: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.pause)
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
             Text("Active plan changed")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .lineLimit(2)
             Spacer(minLength: Spacing.s)
             Button("Undo") { undoGuidedSourceSwitch() }
@@ -1728,12 +1861,11 @@ struct RootView: View {
         }
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
-        .shadow(color: Color.gymText.opacity(0.08), radius: 8, y: 2)
         .padding(.horizontal, Spacing.l)
         .padding(.bottom, Spacing.m)
         .accessibilityElement(children: .contain)
@@ -1842,6 +1974,14 @@ struct RootView: View {
     private func requestDiscardActiveWorkout() {
         activeLoggingMetrics.workoutDiscarded()
         activeSessionRouter.requestDiscardActiveWorkout()
+    }
+}
+
+private extension View {
+    /// Keeps the root's already-large view expression behind an opaque type
+    /// boundary while assigning the selected tab/native control tint.
+    func rootTabTint() -> some View {
+        tint(Color.trameAction)
     }
 }
 

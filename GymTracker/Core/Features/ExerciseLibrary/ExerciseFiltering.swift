@@ -113,7 +113,7 @@ struct ExerciseFilterState: Equatable {
         }
         if let focus, !matches(focus, exercise: exercise, allMuscles: allMuscles) { return false }
         if !bodyAreas.isEmpty && !bodyAreas.contains(where: { $0.matches(allMuscles) }) { return false }
-        if !movementPatterns.isEmpty && !movementPatterns.contains(exercise.movementPattern ?? .other) { return false }
+        if !movementPatterns.isEmpty && !exercise.displayMovementPatterns.contains(where: { movementPatterns.contains($0) }) { return false }
         if !mechanics.isEmpty, let exerciseMechanics = exercise.mechanics, !mechanics.contains(exerciseMechanics) { return false }
         if !mechanics.isEmpty && exercise.mechanics == nil { return false }
         if !forceTypes.isEmpty, let exerciseForceType = exercise.forceType, !forceTypes.contains(exerciseForceType) { return false }
@@ -135,37 +135,130 @@ struct ExerciseFilterState: Equatable {
             exercise.laterality.rawValue
         ]
         + exercise.tags
+        + exercise.displayMovementPatterns.map(\.rawValue)
         + allMuscles.map(\.displayName)
     }
 
+    private static let pushPrimaryMuscles: Set<Muscle> = [
+        .upperChest, .middleChest, .lowerChest,
+        .frontDeltoid, .lateralDeltoid,
+        .tricepLongHead, .tricepLateralHead, .tricepMedialHead
+    ]
+
+    private static let pullPrimaryMuscles: Set<Muscle> = [
+        .latissimusDorsi, .trapezius, .rhomboids, .teresMajor,
+        .rearDeltoid,
+        .bicep, .brachialis, .brachioradialis, .forearms
+    ]
+
+    private static let legPrimaryMuscles: Set<Muscle> = [
+        .quadriceps, .hamstrings, .gluteMaximus, .gluteMedius, .gluteMinimus,
+        .calves, .tibialisAnterior, .adductors, .abductors
+    ]
+
+    private static let corePrimaryMuscles: Set<Muscle> = [
+        .rectusAbdominis, .obliques, .transverseAbdominis
+    ]
+
     private func matches(_ focus: ExerciseFocus, exercise: Exercise, allMuscles: [Muscle]) -> Bool {
         switch focus {
-        case .push:
-            return matchesPattern(exercise, [.horizontalPush, .verticalPush])
-                || ExerciseBodyArea.chest.matches(allMuscles)
-                || ExerciseBodyArea.shoulders.matches(allMuscles)
-                || allMuscles.contains(where: { [.tricepLongHead, .tricepLateralHead, .tricepMedialHead].contains($0) })
-        case .pull:
-            return matchesPattern(exercise, [.horizontalPull, .verticalPull])
-                || ExerciseBodyArea.back.matches(allMuscles)
-                || allMuscles.contains(where: { [.rearDeltoid, .bicep, .brachialis, .brachioradialis, .forearms].contains($0) })
-        case .legs:
-            return matchesPattern(exercise, [.squat, .hinge, .lunge])
-                || ExerciseBodyArea.glutes.matches(allMuscles)
-                || ExerciseBodyArea.quadriceps.matches(allMuscles)
-                || ExerciseBodyArea.hamstrings.matches(allMuscles)
-                || ExerciseBodyArea.calves.matches(allMuscles)
-                || ExerciseBodyArea.hips.matches(allMuscles)
-        case .core:
-            return matchesPattern(exercise, [.rotation, .antiRotation]) || ExerciseBodyArea.core.matches(allMuscles)
         case .cardio:
-            return exercise.displayCategory == .cardio
-        }
-    }
+            if exercise.displayCategory == .cardio { return true }
+            if exercise.tags.contains(where: { $0.caseInsensitiveCompare("cardio") == .orderedSame }) { return true }
+            if exercise.equipmentType == .cardioMachine { return true }
+            if exercise.trackingType == .calories { return true }
+            if exercise.movementPattern == .locomotion && exercise.displayCategory != .strength { return true }
+            return false
 
-    private func matchesPattern(_ exercise: Exercise, _ patterns: Set<MovementPattern>) -> Bool {
-        guard let movementPattern = exercise.movementPattern else { return false }
-        return patterns.contains(movementPattern)
+        case .push:
+            if matches(.cardio, exercise: exercise, allMuscles: allMuscles) { return false }
+            for pattern in exercise.displayMovementPatterns {
+                switch pattern {
+                case .horizontalPush, .verticalPush, .shoulderAbduction, .shoulderFlexion, .horizontalAdduction, .elbowExtension:
+                    return true
+                case .horizontalPull, .verticalPull, .squat, .hinge, .lunge,
+                     .antiExtension, .antiRotation, .antiLateralFlexion, .rotation, .carry,
+                     .spinalFlexion, .spinalExtension, .lateralFlexion, .horizontalAbduction,
+                     .shoulderExtension, .elbowFlexion, .hipAbduction, .hipAdduction, .plantarFlexion, .dorsiflexion:
+                    return false
+                case .locomotion, .jump, .throwMovement, .olympicLift, .isometricSupport, .other:
+                    break
+                }
+            }
+            if exercise.forceType == .pull { return false }
+            let primary = Set(exercise.primaryMuscles)
+            let hasPush = !primary.intersection(Self.pushPrimaryMuscles).isEmpty
+            let hasPull = !primary.intersection(Self.pullPrimaryMuscles).isEmpty
+            let hasLegs = !primary.intersection(Self.legPrimaryMuscles).isEmpty
+            if hasPush && !hasPull && !hasLegs { return true }
+            if exercise.forceType == .push && hasPush && !hasLegs { return true }
+            return false
+
+        case .pull:
+            if matches(.cardio, exercise: exercise, allMuscles: allMuscles) { return false }
+            for pattern in exercise.displayMovementPatterns {
+                switch pattern {
+                case .horizontalPull, .verticalPull, .horizontalAbduction, .shoulderExtension, .elbowFlexion:
+                    return true
+                case .horizontalPush, .verticalPush, .squat, .lunge,
+                     .antiExtension, .antiRotation, .antiLateralFlexion, .rotation, .carry,
+                     .spinalFlexion, .spinalExtension, .lateralFlexion, .shoulderAbduction,
+                     .shoulderFlexion, .horizontalAdduction, .elbowExtension, .hipAbduction, .hipAdduction:
+                    return false
+                case .hinge, .locomotion, .jump, .throwMovement, .olympicLift, .isometricSupport, .plantarFlexion, .dorsiflexion, .other:
+                    break
+                }
+            }
+            if exercise.forceType == .push { return false }
+            let primary = Set(exercise.primaryMuscles)
+            let hasPull = !primary.intersection(Self.pullPrimaryMuscles).isEmpty
+            let hasPush = !primary.intersection(Self.pushPrimaryMuscles).isEmpty
+            let hasLegs = !primary.intersection(Self.legPrimaryMuscles).isEmpty
+            if hasPull && !hasPush && !hasLegs { return true }
+            if exercise.forceType == .pull && hasPull && !hasLegs { return true }
+            return false
+
+        case .legs:
+            if matches(.cardio, exercise: exercise, allMuscles: allMuscles) { return false }
+            for pattern in exercise.displayMovementPatterns {
+                switch pattern {
+                case .squat, .hinge, .lunge, .hipAbduction, .hipAdduction, .plantarFlexion, .dorsiflexion, .jump:
+                    return true
+                case .horizontalPush, .horizontalPull, .verticalPull, .shoulderAbduction, .shoulderFlexion, .shoulderExtension, .horizontalAdduction, .horizontalAbduction, .elbowFlexion, .elbowExtension:
+                    return false
+                case .verticalPush:
+                    let primary = Set(exercise.primaryMuscles)
+                    if !primary.intersection(Self.pushPrimaryMuscles).isEmpty && primary.intersection(Self.legPrimaryMuscles).isEmpty {
+                        return false
+                    }
+                case .antiExtension, .antiRotation, .antiLateralFlexion, .rotation, .locomotion, .carry, .spinalFlexion, .spinalExtension, .lateralFlexion, .throwMovement, .olympicLift, .isometricSupport, .other:
+                    break
+                }
+            }
+            let primary = Set(exercise.primaryMuscles)
+            return !primary.intersection(Self.legPrimaryMuscles).isEmpty
+
+        case .core:
+            if matches(.cardio, exercise: exercise, allMuscles: allMuscles) { return false }
+            for pattern in exercise.displayMovementPatterns {
+                switch pattern {
+                case .antiExtension, .antiRotation, .antiLateralFlexion, .rotation, .spinalFlexion, .spinalExtension, .lateralFlexion:
+                    return true
+                case .horizontalPush, .horizontalPull, .verticalPush, .verticalPull, .squat, .lunge,
+                     .shoulderAbduction, .shoulderFlexion, .shoulderExtension, .horizontalAdduction, .horizontalAbduction,
+                     .elbowFlexion, .elbowExtension, .hipAbduction, .hipAdduction, .plantarFlexion, .dorsiflexion:
+                    return false
+                case .hinge, .locomotion, .carry, .jump, .throwMovement, .olympicLift, .isometricSupport, .other:
+                    break
+                }
+            }
+            let primary = Set(exercise.primaryMuscles)
+            let hasCore = !primary.intersection(Self.corePrimaryMuscles).isEmpty
+            let hasPush = !primary.intersection(Self.pushPrimaryMuscles).isEmpty
+            let hasPull = !primary.intersection(Self.pullPrimaryMuscles).isEmpty
+            let hasLegs = !primary.intersection(Self.legPrimaryMuscles).isEmpty
+            return hasCore && !hasPush && !hasPull && !hasLegs
+        }
     }
 }
 
@@ -176,6 +269,8 @@ extension Exercise {
 }
 
 struct ExerciseFilterControls: View {
+    @Environment(\.dismissSearch) private var dismissSearch
+
     @Binding var filter: ExerciseFilterState
     let resultCount: Int
 
@@ -195,30 +290,30 @@ struct ExerciseFilterControls: View {
             }
             .scrollIndicators(.hidden)
 
-            Image(systemName: AppIcon.chevronRight)
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymPrimary)
-                .accessibilityHidden(true)
-
             Button {
+                dismissSearch()
                 isShowingFilters = true
             } label: {
-                Image(systemName: AppIcon.filters)
-                    .font(AppFont.subheadlineSemibold)
-                    .frame(width: 42, height: 38)
-                    .background(filter.activeFilterCount > 0 ? Color.gymPrimarySurface : Color.gymCard)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-                    .overlay(alignment: .topTrailing) {
-                        if filter.activeFilterCount > 0 {
-                            Text("\(filter.activeFilterCount)")
-                                .font(AppFont.caption2Bold)
-                                .foregroundStyle(.white)
-                                .frame(width: 18, height: 18)
-                                .background(Color.gymPrimary)
-                                .clipShape(Circle())
-                                .offset(x: 5, y: -5)
-                        }
+                HStack(spacing: Spacing.xs) {
+                    Text("REFINE")
+                        .font(AppFont.eyebrow)
+                        .tracking(0.6)
+
+                    if filter.activeFilterCount > 0 {
+                        Text(filter.activeFilterCount.formatted())
+                            .font(AppFont.micro)
+                            .monospacedDigit()
                     }
+                }
+                .foregroundStyle(Color.trameText)
+                .padding(.horizontal, Spacing.s)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(filter.activeFilterCount > 0 ? Color.trameStrength : Color.trameSeparator)
+                        .frame(height: filter.activeFilterCount > 0 ? 2 : 1)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("exercise-filters-button")
@@ -240,15 +335,15 @@ struct ExerciseFilterControls: View {
         } label: {
             Text(LocalizedStringKey(title))
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(isSelected ? .white : Color.gymText)
-                .padding(.horizontal, Spacing.m)
-                .frame(height: 38)
-                .background(isSelected ? Color.gymPrimary : Color.gymCard)
-                .clipShape(Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(isSelected ? Color.clear : Color.gymText.opacity(0.08), lineWidth: 1)
+                .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
+                .padding(.horizontal, Spacing.s)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(isSelected ? Color.trameStrength : Color.clear)
+                        .frame(height: 2)
                 }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("exercise-focus-\(focus?.rawValue ?? "All")")
@@ -336,18 +431,18 @@ private struct ExerciseFiltersSheet: View {
 
                 Toggle("Favorites only", isOn: $filter.favoritesOnly)
                     .font(AppFont.bodyMedium)
-                    .tint(Color.gymPrimary)
-                    .padding(Spacing.l)
-                    .background {
-                        RoundedRectangle(cornerRadius: Radius.large)
-                            .fill(Color.gymCard)
-                            .stroke(Color.gymText.opacity(0.08), lineWidth: 1)
+                    .tint(Color.trameStrength)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(Color.trameSeparator)
+                            .frame(height: 1)
                     }
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Filters")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -371,13 +466,11 @@ private struct ExerciseFiltersSheet: View {
                 Text("Show \(resultCount) exercises")
                     .font(AppFont.subheadlineSemibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, Spacing.m)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.gymPrimary)
+            .buttonStyle(.tramePrimaryAction)
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.s)
-            .background(.bar)
+            .background(Color.trameCanvas)
         }
     }
 
@@ -429,7 +522,7 @@ private struct ExerciseFiltersSheet: View {
             Text(title.uppercased())
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             ChipFlowLayout(spacing: Spacing.s) {
                 content()
             }
@@ -446,18 +539,17 @@ struct FilterChip: View {
         Button(action: onTap) {
             Text(LocalizedStringKey(title))
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(isSelected ? .white : Color.gymText)
-                .padding(.horizontal, Spacing.m)
-                .frame(height: 36)
-                .background(isSelected ? Color.gymPrimary : Color.gymCard)
-                .clipShape(Capsule())
-                .overlay {
-                    Capsule()
-                        .stroke(isSelected ? Color.clear : Color.gymText.opacity(0.08), lineWidth: 1)
+                .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
+                .padding(.horizontal, Spacing.s)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(isSelected ? Color.trameStrength : Color.trameSeparator)
+                        .frame(height: isSelected ? 2 : 1)
                 }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
-

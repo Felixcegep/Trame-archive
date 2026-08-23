@@ -22,6 +22,8 @@ struct FolderView: View {
     @Query(filter: #Predicate<MobilityProgramDefinitionRecord> { !$0.isArchived })
     private var mobilityProgramDefinitions: [MobilityProgramDefinitionRecord]
 
+    @Query private var mobilityAssessmentDefinitions: [MobilityAssessmentDefinition]
+
     @State private var activeSheet: FolderSheet?
     @State private var pendingSheet: FolderSheet?
     @State private var isCreateMenuPresented = false
@@ -33,6 +35,7 @@ struct FolderView: View {
     let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
     let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
+    let onStartFreeWorkout: () -> Void
     let onResumePlan: (PlanRun) -> Void
     let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
@@ -45,32 +48,64 @@ struct FolderView: View {
         let searchResults = searchText.isEmpty ? nil : makeSearchResults()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
-                Text("Train")
-                    .font(AppFont.screenTitle)
-                    .foregroundStyle(Color.trameText)
-                    .gymAssembly(index: 0, isActive: isPlayingAssembly)
+                CurrentPlanCard(
+                    onOpenPlan: { target in
+                        onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
+                    },
+                    onOpenProgramPath: onOpenProgramPath,
+                    onOpenWeeklyReview: onOpenWeeklyReview,
+                    onChoosePlan: { onOpenRoute(.plans) },
+                    onStartPlannedWorkout: onStartPlannedWorkout,
+                    onStartRepeatingWorkout: onStartRepeatingWorkout,
+                    onResumePlan: onResumePlan,
+                    onPauseRepeatingPlan: onPauseRepeatingPlan,
+                    onResumeRepeatingPlan: onResumeRepeatingPlan,
+                    onEndRepeatingPlan: onEndRepeatingPlan
+                )
+                .gymAssembly(index: 0, isActive: isPlayingAssembly)
 
                 searchField
                     .gymAssembly(index: 1, isActive: isPlayingAssembly)
 
                 if searchText.isEmpty {
-                    browseSection
+                    strengthSection
+                        .gymAssembly(index: 2, isActive: isPlayingAssembly)
+
+                    if featureFlags.isEnabled(.mobility) {
+                        mobilitySection
+                            .gymAssembly(index: 3, isActive: isPlayingAssembly)
+                    }
                 } else if let searchResults {
                     globalResults(searchResults)
                 }
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, 96)
+            .padding(.bottom, Spacing.xl)
         }
         .onAppear(perform: resolveAssembly)
         .folderScreenStyle()
-        // The tab is "Train". This was empty, so the screen had no name, pushed
-        // screens' back buttons read "Back" instead of naming the parent, and
-        // the first heading in the content said "Library" — three different
-        // answers to what this tab is called, left over from a half-finished
-        // rename.
+        .navigationTitle("Train")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    onOpenRoute(.trainingCalendar)
+                } label: {
+                    Image(systemName: AppIcon.plan)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.trameText)
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Training Calendar")
+                .accessibilityIdentifier("open-training-calendar")
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
@@ -83,7 +118,7 @@ struct FolderView: View {
                     Button {
                         activeSheet = .exercise
                     } label: {
-                        Label("New Exercise", systemImage: AppIcon.workout)
+                        Label("New Exercise", systemImage: AppIcon.exercise)
                     }
                     .accessibilityIdentifier("new-exercise")
 
@@ -112,9 +147,12 @@ struct FolderView: View {
                     }
                 } label: {
                     Image(systemName: "plus")
-                        .font(AppFont.bodyMedium)
+                        .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.trameText)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Create library item")
@@ -156,7 +194,7 @@ struct FolderView: View {
             Image(systemName: AppIcon.search)
                 .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
-            TextField("Search workouts, plans, exercises", text: $searchText)
+            TextField("Search Train", text: $searchText)
                 .font(AppFont.bodyMedium)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
@@ -171,46 +209,18 @@ struct FolderView: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, Spacing.m)
-        .frame(height: 46)
-        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.field))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.field)
-                .stroke(Color.trameSeparator, lineWidth: 1)
-        }
-    }
-
-    private var browseSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxl) {
-            CurrentPlanCard(
-                onOpenPlan: { target in
-                    onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
-                },
-                onOpenProgramPath: onOpenProgramPath,
-                onOpenWeeklyReview: onOpenWeeklyReview,
-                onChoosePlan: { onOpenRoute(.plans) },
-                onStartPlannedWorkout: onStartPlannedWorkout,
-                onStartRepeatingWorkout: onStartRepeatingWorkout,
-                onResumePlan: onResumePlan,
-                onPauseRepeatingPlan: onPauseRepeatingPlan,
-                onResumeRepeatingPlan: onResumeRepeatingPlan,
-                onEndRepeatingPlan: onEndRepeatingPlan
-            )
-            .gymAssembly(index: 2, isActive: isPlayingAssembly)
-
-            strengthSection
-                .gymAssembly(index: 3, isActive: isPlayingAssembly)
-
-            if featureFlags.isEnabled(.mobility) {
-                mobilitySection
-                    .gymAssembly(index: 4, isActive: isPlayingAssembly)
-            }
+        .padding(.horizontal, Spacing.xs)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
         }
     }
 
     private var strengthSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "Strength")
+            TrameDomainSectionRule(title: "STRENGTH", color: Color.trameStrength)
 
             VStack(spacing: 0) {
                 NavigationLink(value: LibraryRoute.plans) {
@@ -238,7 +248,7 @@ struct FolderView: View {
                 NavigationLink(value: LibraryRoute.exercises) {
                     LibraryItemRow(
                         title: "Exercises",
-                        icon: AppIcon.workout,
+                        icon: AppIcon.exercise,
                         color: Color.trameStrength,
                         count: exerciseTemplates.count
                     )
@@ -251,7 +261,7 @@ struct FolderView: View {
 
     private var mobilitySection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "Mobility")
+            TrameDomainSectionRule(title: "MOBILITY", color: Color.trameMobility)
 
             VStack(spacing: 0) {
                 NavigationLink(value: LibraryRoute.mobility) {
@@ -283,7 +293,8 @@ struct FolderView: View {
                         LibraryItemRow(
                             title: "Assessments",
                             icon: AppIcon.mobilityAssessment,
-                            color: Color.trameMobility
+                            color: Color.trameMobility,
+                            count: mobilityAssessmentCount
                         )
                     }
                     .buttonStyle(.plain)
@@ -291,6 +302,10 @@ struct FolderView: View {
                 }
             }
         }
+    }
+
+    private var mobilityAssessmentCount: Int {
+        mobilityAssessmentDefinitions.isEmpty ? 4 : mobilityAssessmentDefinitions.count
     }
 
     /// Bundled plus user-authored mobility plans, matching what the Mobility
@@ -364,7 +379,7 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.plan,
-                                    color: Color.trameCompetition
+                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -378,7 +393,7 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.routine,
-                                    color: Color.trameCompetition
+                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -391,8 +406,36 @@ struct FolderView: View {
                                 RecentLibraryRow(
                                     title: exercise.name,
                                     type: "EXERCISE",
-                                    icon: AppIcon.workout,
+                                    icon: AppIcon.exercise,
                                     color: Color.trameStrength
+                                )
+                            }
+                        }
+                    }
+                }
+                if !results.mobilityRoutines.isEmpty {
+                    searchResultsCard(title: "Mobility Routines") {
+                        ForEach(results.mobilityRoutines) { routine in
+                            NavigationLink(value: LibraryRoute.mobility) {
+                                RecentLibraryRow(
+                                    title: routine.name,
+                                    type: "ROUTINE",
+                                    icon: AppIcon.mobility,
+                                    color: Color.trameMobility
+                                )
+                            }
+                        }
+                    }
+                }
+                if !results.mobilityPlans.isEmpty {
+                    searchResultsCard(title: "Mobility Plans") {
+                        ForEach(results.mobilityPlans) { plan in
+                            NavigationLink(value: LibraryRoute.mobilityPlans) {
+                                RecentLibraryRow(
+                                    title: plan.name,
+                                    type: "PLAN",
+                                    icon: AppIcon.plan,
+                                    color: Color.trameMobility
                                 )
                             }
                         }
@@ -413,12 +456,15 @@ struct FolderView: View {
     }
 
     private func makeSearchResults() -> FolderSearchResults {
-        FolderSearchResults(
-            collections: workoutCollections.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
-            templates: workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
-            exercises: exerciseTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
-            plans: workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
-            repeatingPlans: repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FolderSearchResults(
+            collections: workoutCollections.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            templates: workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            exercises: exerciseTemplates.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            plans: workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            repeatingPlans: repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            mobilityRoutines: mobilityRoutines.filter { $0.name.localizedCaseInsensitiveContains(query) },
+            mobilityPlans: mobilityProgramDefinitions.filter { $0.name.localizedCaseInsensitiveContains(query) }
         )
     }
 
@@ -440,122 +486,13 @@ private struct FolderSearchResults {
     let exercises: [Exercise]
     let plans: [WorkoutPlan]
     let repeatingPlans: [RepeatingPlan]
+    let mobilityRoutines: [MobilityRoutine]
+    let mobilityPlans: [MobilityProgramDefinitionRecord]
 
     var isEmpty: Bool {
         collections.isEmpty && templates.isEmpty && exercises.isEmpty
             && plans.isEmpty && repeatingPlans.isEmpty
-    }
-}
-
-private struct LibraryCreatePopover: View {
-    let onSelect: (FolderSheet) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            group {
-                option(
-                    title: "New Workout",
-                    subtitle: "One session, like Leg Day",
-                    systemImage: AppIcon.routine,
-                    sheet: .workoutTemplate,
-                    accessibilityIdentifier: "new-workout-template"
-                )
-                option(
-                    title: "New Exercise",
-                    subtitle: "Add a move you do at the gym",
-                    systemImage: AppIcon.workout,
-                    sheet: .exercise,
-                    accessibilityIdentifier: "new-exercise"
-                )
-            }
-
-            Divider()
-                .padding(.horizontal, Spacing.l)
-
-            group {
-                option(
-                    title: "New Training Plan",
-                    subtitle: "A weekly schedule of workouts",
-                    systemImage: AppIcon.planAdd,
-                    sheet: .plan,
-                    accessibilityIdentifier: "new-plan"
-                )
-                option(
-                    title: "Plan Builder",
-                    subtitle: "Advanced: sets, reps and weight rules",
-                    systemImage: AppIcon.progression,
-                    sheet: .programDefinition,
-                    accessibilityIdentifier: "new-program-definition"
-                )
-            }
-
-            Divider()
-                .padding(.horizontal, Spacing.l)
-
-            option(
-                title: "New Folder",
-                subtitle: "Group workouts together",
-                systemImage: "folder.badge.plus",
-                sheet: .workoutCollection
-            )
-        }
-        .padding(.vertical, Spacing.s)
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private func group<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 0, content: content)
-    }
-
-    private func option(
-        title: LocalizedStringKey,
-        subtitle: LocalizedStringKey,
-        systemImage: String,
-        sheet: FolderSheet,
-        accessibilityIdentifier: String? = nil
-    ) -> some View {
-        Button {
-            onSelect(sheet)
-        } label: {
-            HStack(spacing: Spacing.m) {
-                Image(systemName: systemImage)
-                    .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymText)
-                    .frame(width: Spacing.xxl)
-
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(title)
-                        .font(AppFont.body)
-                        .foregroundStyle(Color.gymText)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.md)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(title))
-        .modifier(OptionalAccessibilityIdentifier(identifier: accessibilityIdentifier))
-    }
-}
-
-private struct OptionalAccessibilityIdentifier: ViewModifier {
-    let identifier: String?
-
-    func body(content: Content) -> some View {
-        if let identifier {
-            content.accessibilityIdentifier(identifier)
-        } else {
-            content
-        }
+            && mobilityRoutines.isEmpty && mobilityPlans.isEmpty
     }
 }
 
@@ -579,6 +516,7 @@ enum LibraryRoute: Hashable {
     case mobility
     case mobilityPlans
     case mobilityAssessments
+    case trainingCalendar
     case archivedExercises
     case readyMadePlan(UUID)
     case plan(UUID)

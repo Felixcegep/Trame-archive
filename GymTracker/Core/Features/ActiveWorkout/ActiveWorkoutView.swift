@@ -274,6 +274,7 @@ struct ActiveWorkoutView: View {
                     viewModel: viewModel,
                     activeLoggingMetrics: activeLoggingMetrics,
                     nextUp: restNextUp(in: workout),
+                    onEditJustLogged: editJustLoggedSet,
                     onStartNextSet: startNextSet,
                     onCollapse: {
                         withAnimation(reduceMotion ? nil : AppMotion.layout) {
@@ -352,6 +353,21 @@ struct ActiveWorkoutView: View {
         .onAppear {
             viewModel.trackActiveExercise(with: trackedExerciseID(for: selection, in: workout))
             viewModel.restorePersistedRestTimer()
+        }
+    }
+
+    private func editJustLoggedSet(_ entry: ExerciseEntry, _ set: ExerciseSet) {
+        selection = WorkoutStagePlan.page(containing: entry)
+        isRestExpanded = false
+        // Page changes intentionally clear completed-set editing. Re-enter it
+        // on the next turn so the destination page owns the correction state.
+        DispatchQueue.main.async {
+            editingCompletedSetID = set.persistentModelID
+            coordinator.focus = SetInputFocus(
+                exerciseID: entry.persistentModelID,
+                setID: set.persistentModelID,
+                field: entry.trackingTypeSnapshot.usesWeight ? .weight : .repetitions
+            )
         }
     }
 

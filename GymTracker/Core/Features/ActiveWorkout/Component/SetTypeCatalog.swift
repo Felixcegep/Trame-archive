@@ -29,7 +29,7 @@ enum SetTypeGroup: String, CaseIterable, Hashable {
         switch self {
         case .common: [.normal, .warmup, .topSet, .backoff]
         case .special: [.amrap, .failure, .technique]
-        case .more: [.dropSet, .test, .dailyMaximum, .recovery]
+        case .more: [.test, .dailyMaximum, .recovery]
         }
     }
 }
@@ -87,6 +87,6 @@ enum RecentSetTypes {
     /// Common types are always on screen already, so remembering them would
     /// spend the shortcut row on options that need no shortcut.
     private static func isRemembered(_ type: SetType) -> Bool {
-        type.group != .common
+        type != .dropSet && type.group != .common
     }
 }

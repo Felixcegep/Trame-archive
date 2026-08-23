@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 
+private struct StageMetric: Identifiable {
+    let id: String
+    let value: String
+    let unit: String
+    let isPrimary: Bool
+}
+
 /// One page of the Active Workout pager: the exercise (or group of exercises)
 /// the lifter is currently inside, and nothing else.
 ///
@@ -40,6 +47,7 @@ struct ExerciseStagePage: View {
     @FocusState private var focusedNoteID: PersistentIdentifier?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var entries: [ExerciseEntry] {
         WorkoutStagePlan.entries(for: page, in: workout)
@@ -195,6 +203,7 @@ struct ExerciseStagePage: View {
 
         return VStack(alignment: .leading, spacing: Spacing.l) {
             hero(for: entry)
+            currentSetSummary(for: entry)
             actionRail(for: entry)
 
             if let recommendation, recommendation.exercise.persistentModelID == entry.persistentModelID {
@@ -304,6 +313,182 @@ struct ExerciseStagePage: View {
     private func isNoteVisible(for entry: ExerciseEntry) -> Bool {
         expandedNoteIDs.contains(entry.persistentModelID)
             || !(entry.comment ?? "").isEmpty
+    }
+
+    /// The current prescription becomes the stage's dominant object instead of
+    /// asking the lifter to find the active row in a table. The ledger remains
+    /// below as performed history and correction context; this answer-sized
+    /// strip is the glance layer used between sets.
+    @ViewBuilder
+    private func currentSetSummary(for entry: ExerciseEntry) -> some View {
+        if let set = entry.orderedSets.first(where: { !$0.done }) {
+            let metrics = stageMetrics(for: entry, set: set)
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Text("SET \(set.orderIndex + 1) / \(entry.orderedSets.count)")
+                        .font(AppFont.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(Color.trameSubdued)
+
+                    Group {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: Spacing.m) {
+                                stageMetricBlocks(metrics)
+                            }
+                        } else {
+                            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxl) {
+                                stageMetricBlocks(metrics)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(
+                    "Set \(set.orderIndex + 1) of \(entry.orderedSets.count). "
+                        + metrics.map { "\($0.value) \($0.unit)" }.joined(separator: ", ")
+                )
+                .accessibilityIdentifier("current-set-summary-\(entry.exercise.name)")
+
+                if set.resolvedSetMethod != .standard {
+                    liveSegmentEditor(for: set)
+                }
+            }
+            .padding(.vertical, Spacing.s)
+        }
+    }
+
+    /// Advanced set methods are performed work, so their internal drops or
+    /// clusters stay on the exercise stage instead of being hidden in a generic
+    /// details sheet. Less frequent metadata remains in Advanced options.
+    private func liveSegmentEditor(for set: ExerciseSet) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(set.resolvedSetMethod.title.uppercased())
+                    .font(AppFont.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameText)
+                Spacer()
+                Text("\(set.orderedSegments.count) segments")
+                    .font(AppFont.micro.monospacedDigit())
+                    .foregroundStyle(Color.trameSubdued)
+            }
+
+            Text(set.resolvedSetMethod.detail)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+
+            ForEach(set.orderedSegments, id: \.persistentModelID) { segment in
+                SetSegmentEditorRow(
+                    segment: segment,
+                    method: set.resolvedSetMethod,
+                    canDelete: set.orderedSegments.count > set.resolvedSetMethod.minimumSegmentCount,
+                    onPersist: { viewModel.persistChanges() }
+                ) {
+                    set.segments.removeAll { $0 === segment }
+                    set.normalizeSegmentOrder()
+                    viewModel.persistChanges()
+                }
+            }
+
+            Button {
+                set.segments.append(ExerciseSetSegment(
+                    orderIndex: set.orderedSegments.count,
+                    repetitions: set.repetitions,
+                    weight: set.weight,
+                    weightType: set.weightType
+                ))
+                viewModel.persistChanges()
+            } label: {
+                Label(set.resolvedSetMethod == .dropSet ? "Add drop" : "Add effort", systemImage: AppIcon.plus)
+                    .font(AppFont.metadata)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.trameText)
+            .accessibilityIdentifier("add-set-segment")
+        }
+        .padding(.top, Spacing.m)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("active-set-segment-editor")
+    }
+
+    @ViewBuilder
+    private func stageMetricBlocks(_ metrics: [StageMetric]) -> some View {
+        ForEach(metrics) { metric in
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                Text(metric.value)
+                    .font(AppFont.metricHero)
+                    .foregroundStyle(Color.trameText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+
+                if !metric.unit.isEmpty {
+                    Text(metric.unit)
+                        .font(AppFont.micro)
+                        .tracking(0.6)
+                        .foregroundStyle(metric.isPrimary ? Color.trameStrength : Color.trameSubdued)
+                        .textCase(.uppercase)
+                }
+            }
+        }
+    }
+
+    private func stageMetrics(for entry: ExerciseEntry, set: ExerciseSet) -> [StageMetric] {
+        let tracking = entry.trackingTypeSnapshot
+        var metrics: [StageMetric] = []
+
+        if tracking.usesWeight {
+            metrics.append(StageMetric(
+                id: "weight",
+                value: set.weight > 0 ? Formatters.formatFloat(set.weight) : "—",
+                unit: set.weight > 0 ? set.weightType.rawValue : "",
+                isPrimary: true
+            ))
+        }
+        if tracking.usesReps {
+            metrics.append(StageMetric(
+                id: "reps",
+                value: set.repetitions > 0 ? Formatters.formatFloat(set.repetitions) : "—",
+                unit: set.repetitions > 0 && entry.loggingSemanticsSnapshot.laterality == .unilateral
+                    && entry.loggingSemanticsSnapshot.repCountingStyle == .perSide
+                    ? String(localized: "reps / side")
+                    : set.repetitions > 0 ? String(localized: "reps") : "",
+                isPrimary: metrics.isEmpty
+            ))
+        }
+        if tracking.usesDuration {
+            metrics.append(StageMetric(
+                id: "duration",
+                value: (set.duration ?? 0) > 0
+                    ? Formatters.formatFloat(Float(set.duration ?? 0))
+                    : "—",
+                unit: (set.duration ?? 0) > 0 ? String(localized: "sec") : "",
+                isPrimary: metrics.isEmpty
+            ))
+        }
+        if tracking.usesDistance {
+            metrics.append(StageMetric(
+                id: "distance",
+                value: (set.distance ?? 0) > 0 ? Formatters.formatFloat(set.distance ?? 0) : "—",
+                unit: (set.distance ?? 0) > 0 ? set.distanceType.rawValue : "",
+                isPrimary: metrics.isEmpty
+            ))
+        }
+        if tracking.usesCalories {
+            metrics.append(StageMetric(
+                id: "calories",
+                value: (set.calories ?? 0) > 0
+                    ? Formatters.formatFloat(Float(set.calories ?? 0))
+                    : "—",
+                unit: (set.calories ?? 0) > 0 ? String(localized: "cal") : "",
+                isPrimary: metrics.isEmpty
+            ))
+        }
+        return metrics
     }
 
     /// The prescription as one subdued line.

@@ -46,8 +46,8 @@ enum StageSetColumnTitles {
 }
 
 /// One band of sets — the warm-up ramp, or the working sets — with its own
-/// heading and progress count. Working sets stay an open table; the warm-up
-/// ramp remains one opaque object because it is a distinct training phase.
+/// heading and progress count. Both bands stay in the same open ledger; a
+/// performance-colored rule distinguishes the warm-up phase.
 ///
 /// Splitting them is not decoration. Every non-UI layer in the app already
 /// treats a warm-up as a different kind of set: excluded from volume, from
@@ -76,6 +76,7 @@ struct StageSetSection: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var isShowingWarmUpRemovalConfirmation = false
 
     private var isWarmUp: Bool { group.kind == .warmUp }
 
@@ -89,14 +90,30 @@ struct StageSetSection: View {
                 addSetButton
             }
         }
-        .padding(isWarmUp ? Spacing.m : 0)
-        .background {
+        .padding(.leading, isWarmUp ? Spacing.m : 0)
+        .overlay(alignment: .leading) {
             if isWarmUp {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(Color.trameRow)
+                Rectangle()
+                    .fill(Color.trameAttention)
+                    .frame(width: 3)
+                    .accessibilityHidden(true)
             }
         }
         .animation(reduceMotion ? nil : AppMotion.layout, value: isCollapsed)
+        .confirmationDialog(
+            "Remove warm-up sets?",
+            isPresented: $isShowingWarmUpRemovalConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Remove warm-up sets", role: .destructive) {
+                viewModel.removeWarmUpSets(from: exerciseEntry)
+            }
+            Button("Keep warm-up", role: .cancel) {}
+        } message: {
+            Text(group.completedCount > 0
+                 ? "Completed warm-up entries will be removed. Working sets and this exercise will stay in the workout."
+                 : "Working sets and this exercise will stay in the workout.")
+        }
     }
 
     // MARK: - Header
@@ -104,15 +121,33 @@ struct StageSetSection: View {
     @ViewBuilder
     private var header: some View {
         if isWarmUp {
-            Button {
-                isCollapsed.toggle()
-            } label: {
-                headerContent
-                    .contentShape(Rectangle())
+            HStack(spacing: 0) {
+                Button {
+                    isCollapsed.toggle()
+                } label: {
+                    headerContent
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("warm-up-section-\(exerciseEntry.exercise.name)")
+                .accessibilityHint(isCollapsed ? "Show warm-up sets" : "Hide warm-up sets")
+
+                Menu {
+                    Button("Remove warm-up sets", role: .destructive) {
+                        if group.completedCount > 0 {
+                            isShowingWarmUpRemovalConfirmation = true
+                        } else {
+                            viewModel.removeWarmUpSets(from: exerciseEntry)
+                        }
+                    }
+                } label: {
+                    Image(systemName: AppIcon.ellipsis)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Warm-up actions")
+                .accessibilityIdentifier("remove-warm-up-sets-\(exerciseEntry.exercise.name)")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("warm-up-section-\(exerciseEntry.exercise.name)")
-            .accessibilityHint(isCollapsed ? "Show warm-up sets" : "Hide warm-up sets")
         } else {
             headerContent
         }
@@ -145,6 +180,7 @@ struct StageSetSection: View {
                 Image(systemName: isCollapsed ? AppIcon.chevronDown : AppIcon.chevronUp)
                     .font(AppFont.caption2Bold)
                     .foregroundStyle(Color.trameSubdued)
+
             }
         }
         .frame(minHeight: isWarmUp ? ComponentSize.minimumTouchTarget : 0)

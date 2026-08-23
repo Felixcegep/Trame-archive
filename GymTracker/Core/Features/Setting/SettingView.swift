@@ -118,7 +118,7 @@ struct SettingView: View {
                     title: "Data & backup",
                     systemImage: AppIcon.backup,
                     detail: backupSummary,
-                    detailTint: lastBackupExportTimestamp == nil ? Color.gymAccent : Color.gymSubduedText
+                    detailTint: lastBackupExportTimestamp == nil ? Color.trameDestructiveText : Color.trameSubdued
                 ) {
                     DataSettingsView()
                 }
@@ -151,6 +151,7 @@ struct SettingView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
+        .tint(Color.trameAction)
         .navigationTitle("Settings")
         .sheet(isPresented: $isShowingBetaFeedback) {
             BetaFeedbackScreen(
@@ -220,7 +221,7 @@ private struct SettingsLinkRow<Destination: View>: View {
     let title: LocalizedStringKey
     let systemImage: String
     var detail: String?
-    var detailTint: Color = .gymSubduedText
+    var detailTint: Color = .trameSubdued
     @ViewBuilder var destination: () -> Destination
 
     var body: some View {
@@ -805,7 +806,7 @@ private struct AdvancedSettingsView: View {
                     isShowingTrainingSeedConfirmation = true
                 } label: {
                     Label("Seed 2 Years of Training", systemImage: AppIcon.chart)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                 }
                 .accessibilityIdentifier("settings-seed-two-years")
 

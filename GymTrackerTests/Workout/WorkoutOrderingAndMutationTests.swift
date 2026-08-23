@@ -76,6 +76,87 @@ final class WorkoutOrderingAndMutationTests: XCTestCase {
         XCTAssertEqual(entry.orderedSets.map(\.repetitions), [8, 12, 12, 0])
     }
 
+    func testManuallyAddedExerciseStartsWithWorkingSetsOnly() throws {
+        let context = try makeContext()
+        let exercise = Exercise(
+            name: "Barbell Bench Press",
+            primaryMuscles: [.middleChest],
+            equipmentType: .barbell,
+            movementPattern: .horizontalPush
+        )
+        let workout = Workout(name: "Manual add")
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        let activeViewModel = ActiveWorkoutViewModel(
+            workoutVM: workoutViewModel,
+            modelContext: context
+        )
+
+        activeViewModel.addExercise(exercise)
+
+        let entry = try XCTUnwrap(workout.orderedExercises.first)
+        XCTAssertFalse(entry.orderedSets.isEmpty)
+        XCTAssertTrue(entry.orderedSets.allSatisfy { $0.setType == .normal })
+        XCTAssertTrue(entry.orderedSets.allSatisfy { $0.prescribedSetType == nil })
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), Array(entry.orderedSets.indices))
+    }
+
+    func testRemovingWarmUpSetsPreservesExerciseAndWorkingSetOrder() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let warmUp = ExerciseSet(
+            repetitions: 5,
+            weight: 20,
+            done: true,
+            setType: .warmup,
+            orderIndex: 0,
+            usedMetric: .metric
+        )
+        let firstWorking = ExerciseSet(
+            repetitions: 8,
+            weight: 60,
+            orderIndex: 1,
+            usedMetric: .metric
+        )
+        let secondWorking = ExerciseSet(
+            repetitions: 8,
+            weight: 60,
+            orderIndex: 2,
+            usedMetric: .metric
+        )
+        let entry = ExerciseEntry(
+            exercise: exercise,
+            sets: [warmUp, firstWorking, secondWorking],
+            usedMetric: .metric
+        )
+        let workout = Workout(name: "Warm-up removal")
+        workout.exercises = [entry]
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        let activeViewModel = ActiveWorkoutViewModel(
+            workoutVM: workoutViewModel,
+            modelContext: context
+        )
+
+        let workingIDs = entry.orderedSets
+            .filter { $0.setType != .warmup }
+            .map(\.id)
+        activeViewModel.removeWarmUpSets(from: entry)
+
+        XCTAssertEqual(workout.orderedExercises.first?.id, entry.id)
+        XCTAssertEqual(entry.orderedSets.map(\.id), workingIDs)
+        XCTAssertTrue(entry.orderedSets.allSatisfy { $0.setType != .warmup })
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1])
+    }
+
     func testSwappingUnstartedExerciseResetsSetsAndRefreshesSnapshots() throws {
         let context = try makeContext()
         let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest])

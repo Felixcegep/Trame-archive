@@ -97,15 +97,9 @@ class ActiveWorkoutViewModel {
         getNextExerciseToDo() != nil
     }
     
-    /// Adds an exercise mid-session, with warm-up sets when the movement is the
-    /// kind that wants them.
-    ///
-    /// Warm-ups used to exist only on exercises that arrived from a template, so
-    /// anything added mid-session started at the working weight — the app
-    /// quietly had two standards depending on where the exercise came from. The
-    /// default follows the movement rather than asking: a loaded compound gets
-    /// two ramp-up sets, an accessory gets none, and either can be changed from
-    /// the set's own type control afterwards.
+    /// Adds an exercise mid-session as ordinary working work. Warm-up ramps are
+    /// authored prescription, so an ad-hoc exercise must not invent one merely
+    /// from its equipment or movement pattern.
     func addExercise(_ template: Exercise) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
@@ -115,7 +109,6 @@ class ActiveWorkoutViewModel {
             usedMetric: unitSystem
         )
         activeWorkout.exercises.append(newExercise)
-        addDefaultWarmUpSets(to: newExercise, template: template)
         persistChanges()
         loadPreviousPerformance(for: newExercise)
         workoutVM.reconcileLiveActivity()
@@ -129,6 +122,21 @@ class ActiveWorkoutViewModel {
             exerciseEntry.normalizeSetOrder()
             persistChanges()
         }
+    }
+
+    /// Removes the warm-up band without touching the exercise or its working
+    /// sets. The caller owns confirmation when any performed warm-up is present.
+    func removeWarmUpSets(from exerciseEntry: ExerciseEntry) {
+        guard let workout = workoutVM.activeWorkout,
+              let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id })
+        else { return }
+
+        let warmUps = storedExercise.sets.filter { $0.setType == .warmup }
+        guard !warmUps.isEmpty else { return }
+        storedExercise.sets.removeAll { $0.setType == .warmup }
+        warmUps.forEach(modelContext.delete)
+        storedExercise.normalizeSetOrder()
+        persistChanges()
     }
 
     /// Chooses the completed daily-maximum attempt used by same-session
@@ -153,51 +161,6 @@ class ActiveWorkoutViewModel {
     /// Adds a set pre-filled with the last set's values (reps, weight,
     /// duration, distance) so lifters rarely retype; RPE, RIR, lift quality,
     /// and set type reset because they describe one specific effort.
-    /// How many ramp-up sets a freshly added exercise should start with.
-    ///
-    /// Heavy compound patterns are the ones nobody walks up to cold; single-
-    /// joint accessory work is the one where a warm-up set is noise. Bodyweight
-    /// and cardio movements are excluded because "warm-up" there is a different
-    /// activity, not a lighter version of the same one.
-    private func defaultWarmUpSetCount(for template: Exercise) -> Int {
-        guard template.trackingType.usesWeight else { return 0 }
-        guard let equipment = template.equipmentType,
-              [EquipmentType.barbell, .dumbbell, .machine, .cable].contains(equipment)
-        else { return 0 }
-
-        let compoundPatterns: [MovementPattern] = [
-            .squat, .hinge, .horizontalPush, .verticalPush, .horizontalPull, .verticalPull, .lunge
-        ]
-        guard let pattern = template.movementPattern, compoundPatterns.contains(pattern) else {
-            return 0
-        }
-        return 2
-    }
-
-    private func addDefaultWarmUpSets(to entry: ExerciseEntry, template: Exercise) {
-        let count = defaultWarmUpSetCount(for: template)
-        guard count > 0 else { return }
-
-        // Captured before the append: existing sets have to be renumbered
-        // relative to each other, not to a list that already contains the
-        // warm-ups. Filtering inside `enumerated()` would keep counting the
-        // rows it skipped and scatter the working sets.
-        let existing = entry.orderedSets
-        for (offset, set) in existing.enumerated() {
-            set.orderIndex = count + offset
-        }
-
-        for index in 0..<count {
-            entry.sets.append(
-                ExerciseSet(
-                    setType: .warmup,
-                    orderIndex: index,
-                    usedMetric: unitSystem
-                )
-            )
-        }
-    }
-
     func addSet(_ exerciseEntry: ExerciseEntry) {
         guard
             let workout = workoutVM.activeWorkout,
@@ -657,6 +620,16 @@ class ActiveWorkoutViewModel {
             || entry.prescribedRPE != nil
             || entry.prescribedRIR != nil
         return prescribesEffort ? set : nil
+    }
+
+    /// The performed set immediately preceding the active rest period. This is
+    /// display context only; the `ExerciseSet` remains the authoritative
+    /// performed snapshot and the timer remains owned by `RestTimerSession`.
+    var lastCompletedSetContext: (entry: ExerciseEntry, set: ExerciseSet)? {
+        guard let workout = workoutVM.activeWorkout else { return nil }
+        return workout.orderedExercises
+            .flatMap { entry in entry.orderedSets.filter(\.done).map { (entry, $0) } }
+            .last
     }
 
     /// The full length of the rest period now running, when it is known.

@@ -89,15 +89,15 @@ struct NutritionCenterView: View {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     Text(meal.slot.displayName)
                                         .font(AppFont.captionBold)
-                                        .foregroundStyle(Color.gymAccent)
+                                        .foregroundStyle(Color.trameSubdued)
                                     Text(meal.nameSnapshot)
                                         .font(AppFont.subheadlineSemibold)
-                                        .foregroundStyle(Color.gymText)
+                                        .foregroundStyle(Color.trameText)
                                 }
                                 Spacer()
                                 Text(mealMacroDescription(meal))
                                     .font(AppFont.subheadlineSemiboldMonospaced)
-                                    .foregroundStyle(Color.gymText)
+                                    .foregroundStyle(Color.trameText)
                             }
                         }
                         .accessibilityHint("Repeats this meal as a new entry today")
@@ -118,7 +118,8 @@ struct NutritionCenterView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
+        .tint(Color.trameAction)
         .navigationTitle("Nutrition")
         .sheet(item: $selectedFood) { food in
             FoodQuickLogView(food: food)
@@ -173,11 +174,11 @@ struct NutritionCenterView: View {
         Button { selectedFood = food } label: {
             HStack(spacing: Spacing.m) {
                 Image(systemName: AppIcon.nutrition)
-                    .foregroundStyle(Color.gymSecondary)
+                    .foregroundStyle(Color.trameText)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(food.name).font(AppFont.subheadlineSemibold).foregroundStyle(Color.gymText)
-                    Text("\(detail) · \(foodMacroDescription(food))").font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                    Text(food.name).font(AppFont.subheadlineSemibold).foregroundStyle(Color.trameText)
+                    Text("\(detail) · \(foodMacroDescription(food))").font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                 }
             }
         }

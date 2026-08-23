@@ -59,6 +59,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let trainingTrends = app.descendants(matching: .any)["progress-training-trends"]
         scrollToElement(trainingTrends, in: app)
         XCTAssertTrue(trainingTrends.exists)
+        let tools = app.buttons["More"]
+        scrollToElement(tools, in: app)
+        tools.tap()
         let muscleGroupVolume = app.descendants(matching: .any)["progress-muscle-group-volume"]
         scrollToElement(muscleGroupVolume, in: app)
         XCTAssertTrue(muscleGroupVolume.exists)
@@ -82,21 +85,30 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
         app.launchWithGymTrackerUITestArguments()
 
-        let picker = app.buttons["settings-appearance-picker"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 45))
-        XCTAssertTrue((picker.value as? String)?.contains("Light") == true)
+        func assertAppearance(_ expected: String) {
+            let current = app.buttons["settings-appearance-picker"].firstMatch
+            XCTAssertTrue(current.waitForExistence(timeout: 5))
+            let changed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "value CONTAINS %@", expected),
+                object: current
+            )
+            XCTAssertEqual(XCTWaiter().wait(for: [changed], timeout: 5), .completed)
+        }
 
-        picker.tap()
-        app.buttons["Dark"].tap()
-        XCTAssertTrue((picker.value as? String)?.contains("Dark") == true)
+        XCTAssertTrue(app.buttons["settings-appearance-picker"].firstMatch.waitForExistence(timeout: 45))
+        assertAppearance("Dark")
 
-        picker.tap()
-        app.buttons["Light"].tap()
-        XCTAssertTrue((picker.value as? String)?.contains("Light") == true)
+        tapButton("settings-appearance-picker", in: app)
+        tapButton("Light", in: app)
+        assertAppearance("Light")
 
-        picker.tap()
-        app.buttons["System Default"].tap()
-        XCTAssertTrue((picker.value as? String)?.contains("System Default") == true)
+        tapButton("settings-appearance-picker", in: app)
+        tapButton("Dark", in: app)
+        assertAppearance("Dark")
+
+        tapButton("settings-appearance-picker", in: app)
+        tapButton("System Default", in: app)
+        assertAppearance("System Default")
     }
 
     func testNutritionTargetsEmptyStateOffersCreationWithoutDuplicateDismissal() {
@@ -120,14 +132,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(startButton.waitForExistence(timeout: 5))
         startButton.tap()
 
-        // The primary card now opens the unified "Start a workout" sheet, where
-        // an empty session is one explicit choice among the saved workouts.
-        XCTAssertTrue(app.navigationBars["Start a workout"].waitForExistence(timeout: 5))
-
-        let empty = app.buttons["start-empty-workout"]
-        XCTAssertTrue(empty.waitForExistence(timeout: 5))
-        empty.tap()
-
+        // The free-state primary command is already unambiguous and starts an
+        // empty workout directly. Saved workouts remain a separate Train route.
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
@@ -135,8 +141,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         openPlans(.readyMade, in: app)
 
-        app.searchFields["Search plans"].tap()
-        app.searchFields["Search plans"].typeText("Double Progression")
+        focusPlansSearch(in: app).typeText("Double Progression")
         let program = app.buttons["program-catalog-Double Progression Builder"].firstMatch
         XCTAssertTrue(program.waitForExistence(timeout: 5))
         program.tap()
@@ -171,9 +176,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         )
 
         openPlans(.readyMade, in: app)
-        app.searchFields["Search plans"].tap()
-        app.searchFields["Search plans"].typeText("Double Progression")
-        app.searchFields["Search plans"].typeText("\n")
+        let search = focusPlansSearch(in: app)
+        search.typeText("Double Progression")
+        search.typeText("\n")
         tapButton("program-catalog-Double Progression Builder", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
         tapButton("use-program", in: app)
@@ -209,9 +214,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         )
 
         openPlans(.readyMade, in: app)
-        app.searchFields["Search plans"].tap()
-        app.searchFields["Search plans"].typeText("Double Progression")
-        app.searchFields["Search plans"].typeText("\n")
+        let search = focusPlansSearch(in: app)
+        search.typeText("Double Progression")
+        search.typeText("\n")
         tapButton("program-catalog-Double Progression Builder", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
         tapButton("use-program", in: app)
@@ -239,9 +244,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         openPlans(.readyMade, in: app)
 
-        let search = app.searchFields["Search plans"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
+        let search = focusPlansSearch(in: app)
         search.typeText("not-a-real-plan")
 
         let noResults = app.staticTexts.matching(
@@ -270,9 +273,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("Powerlifting", in: app)
         tapButton("Done", in: app)
 
-        let search = app.searchFields["Search plans"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
+        let search = focusPlansSearch(in: app)
         search.typeText("Foundation Barbell")
         XCTAssertTrue(app.staticTexts["No plans match"].waitForExistence(timeout: 5))
 
@@ -332,6 +333,19 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
     }
 
+    func testEditsJustLoggedSetWithoutStoppingRest() {
+        let app = launchFixture("active-rest-running")
+
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-just-logged"].exists)
+        tapButton("edit-just-logged-set", in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["set-input-panel"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["rest-running"].exists)
+        XCTAssertTrue(app.buttons["rest-pill"].waitForExistence(timeout: 5))
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
+    }
+
     // This is intentionally only the first phase of the reboot test. The
     // runner script restarts the simulator between this test and its matching
     // verification test, because an XCTest process cannot survive a simulator
@@ -349,8 +363,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         // intentionally collapse while the set-entry panel is open, so close
         // it before extending the timer.
         dismissKeypadIfPresent(in: app)
+        tapButton("rest-pill", in: app)
         for _ in 0..<10 {
-            tapButton("+30s", in: app)
+            tapButton("rest-extend", in: app)
         }
 
         XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
@@ -398,6 +413,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         // Deliberately terminate with the keypad still open. The latest draft
         // must flush at the lifecycle boundary even though keypresses are
         // coalesced instead of saved one by one.
+        XCUIDevice.shared.press(.home)
+        let backgrounded = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in app.state == .runningBackground },
+            object: app
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [backgrounded], timeout: 5), .completed)
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
@@ -418,7 +439,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testStartSeededTemplateIncludesPrescription() {
         let app = launchFreshApp()
 
-        let startFromTemplate = app.buttons["start-free-workout"]
+        let startFromTemplate = app.buttons["today-open-saved-workouts"]
         XCTAssertTrue(startFromTemplate.waitForExistence(timeout: 5))
         startFromTemplate.tap()
 
@@ -462,25 +483,82 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testLinkedWarmupStartsMobilityBeforeTheSameWorkout() {
         let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
 
-        let startFreeWorkout = app.buttons["start-free-workout"]
+        let startFreeWorkout = app.buttons["today-open-saved-workouts"]
         scrollToElement(startFreeWorkout, in: app)
         startFreeWorkout.tap()
-        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
-        for _ in 0..<12 where !template.isHittable {
+        let search = app.textFields["workout-search"]
+        for _ in 0..<4 where !search.isHittable {
             app.swipeUp()
         }
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Linked Mobility Screenshot")
+        if app.keyboards.buttons["Return"].exists {
+            app.keyboards.buttons["Return"].tap()
+        }
+        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
         XCTAssertTrue(template.waitForExistence(timeout: 10))
         XCTAssertTrue(template.isHittable)
         template.tap()
 
         tapButton("start-linked-warmup", in: app)
-        XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 10))
+        let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
+        XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.buttons["complete-mobility-movement"].exists
+                || app.buttons["complete-mobility-phase"].exists
+        )
+        XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
         XCTAssertFalse(app.staticTexts["active-workout-title"].exists)
 
+        tapButton("linked-mobility-menu", in: app)
         tapButton("stop-mobility-session", in: app)
         tapButton("Stop Session", in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
         XCTAssertTrue(activeExerciseCard("Bench Press", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["active-workout-mobility-stage"].exists)
+        XCTAssertFalse(app.buttons["complete-mobility-movement"].exists)
+        XCTAssertFalse(app.buttons["complete-mobility-phase"].exists)
+    }
+
+    func testLinkedCooldownContinuesInsideActiveWorkoutAfterSave() {
+        let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
+
+        tapButton("today-open-saved-workouts", in: app)
+        let search = app.textFields["workout-search"]
+        for _ in 0..<4 where !search.isHittable { app.swipeUp() }
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Linked Mobility Screenshot")
+        if app.keyboards.buttons["Return"].exists {
+            app.keyboards.buttons["Return"].tap()
+        }
+
+        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        template.tap()
+        tapButton("skip-linked-warmup", in: app)
+
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        for setIndex in 0..<2 {
+            enterValidValues(for: "Bench Press", set: setIndex, in: app)
+            completeSet("Bench Press", index: setIndex, dismissRest: true, in: app)
+        }
+        enterValidValues(for: "Bench Press", set: 2, in: app)
+        tapButton("complete-set-Bench Press-2", in: app)
+        XCTAssertTrue(app.buttons["finish-workout"].waitForExistence(timeout: 10))
+        tapButton("finish-workout", in: app)
+        tapButton("save-workout", in: app)
+
+        let cooldownStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
+        XCTAssertTrue(cooldownStage.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["start-linked-cooldown"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
+
+        tapButton("linked-mobility-menu", in: app)
+        tapButton("stop-mobility-session", in: app)
+        tapButton("Stop Session", in: app)
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 10))
     }
 
     func testPushFocusFiltersActiveExercisePicker() {
@@ -492,7 +570,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         tapButton("active-workout-menu", in: app)
         tapButton("add-active-exercise-menu", in: app)
-        XCTAssertTrue(app.searchFields["Search exercises"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))
 
         let pushFilter = app.buttons["exercise-focus-Push"]
         XCTAssertTrue(pushFilter.waitForExistence(timeout: 5))
@@ -500,6 +578,114 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         XCTAssertTrue(app.buttons["exercise-link-Arnold Press"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
+    }
+
+    func testActiveExercisePickerSearchAndAddPreservesSelection() {
+        let app = launchFixture("active-empty")
+
+        tapButton("add-first-exercise", in: app)
+        // The picker prompt is product copy and may evolve; the search field
+        // itself is the stable control this flow needs to exercise.
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Arnold Press")
+
+        let result = app.buttons["exercise-link-Arnold Press"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        let add = app.buttons["add-exercise-Arnold Press"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.tap()
+
+        let added = app.descendants(matching: .any)["added-exercise-Arnold Press"]
+        XCTAssertTrue(added.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["add-exercise-Arnold Press"].exists)
+
+        let keyboardSearch = app.keyboards.buttons["Search"].firstMatch
+        let keyboardReturn = app.keyboards.buttons["Return"].firstMatch
+        if keyboardSearch.waitForExistence(timeout: 1) {
+            keyboardSearch.tap()
+        } else if keyboardReturn.waitForExistence(timeout: 1) {
+            keyboardReturn.tap()
+        }
+        let done = app.buttons["Done"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        done.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["active-exercise-Arnold Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["add-set-Arnold Press"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["warm-up-section-Arnold Press"].exists)
+
+        // Reopening the picker must preserve the destination's membership
+        // state; an already-added exercise must not become removable from a
+        // sheet that does not show its working sets.
+        tapButton("active-workout-menu", in: app)
+        tapButton("add-active-exercise-menu", in: app)
+        let reopenedSearch = app.searchFields.firstMatch
+        XCTAssertTrue(reopenedSearch.waitForExistence(timeout: 5))
+        reopenedSearch.tap()
+        reopenedSearch.typeText("Arnold Press")
+        XCTAssertTrue(
+            app.descendants(matching: .any)["added-exercise-Arnold Press"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertFalse(app.buttons["add-exercise-Arnold Press"].exists)
+    }
+
+    func testActiveExercisePickerGroupsRecentFavoritesAndAllWithoutDuplicates() {
+        let app = launchFixture("active-picker-sections")
+        tapButton("add-first-exercise", in: app)
+
+        XCTAssertTrue(app.staticTexts["Recent"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["All Exercises"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons.matching(identifier: "add-exercise-Bench Press").count,
+            1,
+            "A recent exercise must not be repeated in All Exercises."
+        )
+
+        XCTAssertTrue(app.staticTexts["Favorites"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons.matching(identifier: "add-exercise-Arnold Press").count,
+            1,
+            "A favorite must be excluded from All Exercises when it is featured."
+        )
+    }
+
+    func testActiveExercisePickerNoResultsRecoversAndCreatesFromQuery() {
+        let app = launchFixture("active-empty")
+        tapButton("add-first-exercise", in: app)
+
+        let query = "Cobalt Press"
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(query)
+
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-picker-no-results"].waitForExistence(timeout: 5))
+        // SwiftUI's Button identifier can be flattened on some simulator
+        // runtimes; the user-facing label remains a stable accessibility
+        // contract for this query-specific action.
+        let create = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", query)).firstMatch
+        XCTAssertTrue(create.waitForExistence(timeout: 5))
+        scrollToElement(create, in: app)
+
+        // Clearing the query must recover the browse sections instead of
+        // leaving the picker stranded in its empty state.
+        let clearSearch = app.buttons["Clear text"]
+        XCTAssertTrue(clearSearch.waitForExistence(timeout: 5))
+        clearSearch.tap()
+        XCTAssertTrue(app.staticTexts["All Exercises"].waitForExistence(timeout: 5))
+
+        search.tap()
+        search.typeText(query)
+        create.tap()
+        XCTAssertTrue(app.navigationBars["New Exercise"].waitForExistence(timeout: 5))
+        let name = app.textFields["exercise-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, query)
+        tapButton("save-exercise", in: app)
+
+        XCTAssertTrue(app.buttons["added-exercise-\(query)"].waitForExistence(timeout: 5))
     }
 
     /// The plate calculator is offered by the set-entry panel, and only for
@@ -556,6 +742,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFixture("active-draft")
 
         tapButton("weight-field-Bench Press-0", in: app)
+        let exactDigits = app.buttons["plate-keypad-digits"].firstMatch
+        scrollToElement(exactDigits, in: app)
+        exactDigits.tap()
         tapButton("keypad-key-6", in: app)
         tapButton("keypad-key-0", in: app)
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
@@ -572,6 +761,32 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("panel-value-reps", in: app)
         tapButton("keypad-key-5", in: app)
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "5")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
+    }
+
+    func testExactEntryCommitsValueWithoutCompletingSet() {
+        let app = launchFixture("active-draft")
+
+        tapButton("weight-field-Bench Press-0", in: app)
+        XCTAssertTrue(app.buttons["panel-chip-plates"].waitForExistence(timeout: 5))
+
+        let exactDigits = app.descendants(matching: .any)["plate-keypad-digits"]
+        scrollToElement(exactDigits, in: app)
+        XCTAssertTrue(exactDigits.exists)
+        exactDigits.tap()
+        tapButton("keypad-key-6", in: app)
+        tapButton("keypad-key-0", in: app)
+
+        let useValue = app.buttons["panel-use-value"]
+        XCTAssertTrue(useValue.waitForExistence(timeout: 5))
+        XCTAssertTrue(useValue.label.contains("Use 60"))
+        XCTAssertFalse(app.buttons["panel-chip-plates"].exists)
+        XCTAssertFalse(app.buttons["panel-complete-set"].exists)
+
+        useValue.tap()
+
+        XCTAssertFalse(app.buttons["panel-use-value"].exists)
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-0"].waitForExistence(timeout: 5))
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
     }
 
@@ -685,6 +900,98 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("panel-set-type", in: app)
         tapButton("panel-set-type-option-dropSet", in: app)
         XCTAssertTrue(app.buttons["panel-set-type"].label.contains("Drop set"))
+    }
+
+    func testAdvancedSegmentedMethodExposesStableStageIdentifiers() {
+        let app = launchFixture("active-advanced-set")
+
+        tapButton("reps-field-Bench Press-0", in: app)
+        tapButton("panel-details", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["set-advanced-options"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
+
+        let methodPicker = app.descendants(matching: .any)["set-method-picker"]
+        XCTAssertTrue(methodPicker.waitForExistence(timeout: 5))
+        let normalRole = app.buttons["set-type-option-normal"]
+        XCTAssertTrue(normalRole.waitForExistence(timeout: 5))
+        XCTAssertTrue(normalRole.isSelected, "A dropset method must not masquerade as a set role.")
+
+        // Internal method stages are intentionally edited on the exercise
+        // stage, not inside the metadata sheet.
+        tapButton("close-set-details", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["active-set-segment-editor"].waitForExistence(timeout: 5))
+
+        // Segment rows are a method stage, not additional working sets. Their
+        // method-specific labels and add action are the stable user-facing
+        // contract (the surrounding summary may combine child accessibility).
+        XCTAssertTrue(app.staticTexts["DROPSET START"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DROP 1"].waitForExistence(timeout: 5))
+        let addSegment = app.descendants(matching: .any)["add-set-segment"]
+        XCTAssertTrue(addSegment.waitForExistence(timeout: 5))
+    }
+
+    func testAdvancedMethodStagesUseMethodLabelsAndPersistAddedSegment() {
+        let app = launchFixture("active-advanced-set")
+
+        tapButton("reps-field-Bench Press-0", in: app)
+        tapButton("panel-details", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
+        tapButton("close-set-details", in: app)
+        // The set-input keypad remains raised after closing details and covers
+        // the live method editor. Dismiss it before scrolling to the add action.
+        dismissKeypadIfPresent(in: app)
+
+        let editor = app.descendants(matching: .any)["active-set-segment-editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DROPSET START"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DROP 1"].waitForExistence(timeout: 5))
+
+        let addDrop = app.descendants(matching: .any)["add-set-segment"]
+        XCTAssertTrue(addDrop.waitForExistence(timeout: 5))
+        XCTAssertTrue(addDrop.label.localizedCaseInsensitiveContains("Add drop"))
+        scrollToElement(addDrop, in: app)
+        XCTAssertTrue(addDrop.isHittable, "Add drop must be hittable after scrolling; frame=\(addDrop.frame)")
+        addDrop.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["set-segment-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DROP 2"].exists)
+
+        relaunchPreservingData(app)
+        resumeActiveWorkout(in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["active-set-segment-editor"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["set-segment-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["DROP 2"].exists)
+    }
+
+    func testRemovingWarmupBlockPreservesExerciseAndWorkingSets() {
+        let app = launchFixture("active-warmup-expanded")
+
+        XCTAssertTrue(app.buttons["warm-up-section-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-2"].waitForExistence(timeout: 5))
+
+        // Use the semantic identifier family rather than a visible label: the
+        // action may be rendered as a row control, menu item, or disclosure
+        // affordance while the operation remains the same.
+        let removeWarmup = app.descendants(matching: .any).matching(
+            NSPredicate(
+                format: "identifier CONTAINS[c] %@ AND (identifier CONTAINS[c] %@ OR identifier CONTAINS[c] %@)",
+                "remove",
+                "warmup",
+                "warm-up"
+            )
+        ).firstMatch
+        XCTAssertTrue(removeWarmup.waitForExistence(timeout: 5))
+        removeWarmup.tap()
+
+        let confirmation = app.buttons["Remove warm-up sets"].firstMatch
+        if confirmation.waitForExistence(timeout: 2) {
+            confirmation.tap()
+        }
+
+        XCTAssertTrue(app.descendants(matching: .any)["active-exercise-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["warm-up-section-Bench Press"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-2"].waitForNonExistence(timeout: 5))
     }
 
     func testCompletedSetRequiresExplicitEditingAction() {
@@ -810,8 +1117,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["progress-tools-disclosure"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["progress-weightlifting"].exists)
-        tapButton("progress-tools-disclosure", in: app)
-        XCTAssertTrue(app.buttons["progress-weightlifting"].waitForExistence(timeout: 5))
+        tapControl("progress-tools-disclosure", in: app)
+        let weightlifting = app.descendants(matching: .any)["progress-weightlifting"]
+        scrollToElement(weightlifting, in: app)
+        XCTAssertTrue(weightlifting.exists)
     }
 
     func testDiscardsActiveWorkout() {
@@ -867,9 +1176,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         selectTab(.library, in: app)
 
-        app.buttons["Create library item"].tap()
-        XCTAssertTrue(app.buttons["New Training Plan"].waitForExistence(timeout: 5))
-        app.buttons["New Training Plan"].tap()
+        tapButton("library-create", in: app)
+        tapButton("new-plan", in: app)
+        XCTAssertTrue(app.navigationBars["New Training Plan"].waitForExistence(timeout: 5))
 
         let nameField = app.textFields["plan-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -915,6 +1224,16 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         navigateToWorkoutFinish(in: app)
         tapButton("finish-workout", in: app)
         tapButton("save-workout", in: app)
+
+        let linkedCooldown = app.descendants(matching: .any)["active-workout-mobility-stage"]
+        if linkedCooldown.waitForExistence(timeout: 5) {
+            tapButton("linked-mobility-menu", in: app)
+            tapButton("stop-mobility-session", in: app)
+            tapButton("Stop Session", in: app)
+            let nextPlannedWorkout = app.buttons["start-planned-workout"]
+            XCTAssertTrue(nextPlannedWorkout.waitForExistence(timeout: 10))
+            XCTAssertTrue(nextPlannedWorkout.label.contains("Fixture Day 2"))
+        }
 
         relaunchPreservingData(app)
         selectTab(.history, in: app)
@@ -968,7 +1287,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("restore-replace-all-data", in: app)
 
         XCTAssertTrue(app.descendants(matching: .any)["settings-data-screen"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons["Settings"].tap()
+        let back = app.navigationBars["Data & backup"].buttons["BackButton"].firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
         assertUnitSystem("Imperial", in: app)
         assertRestDuration("120", in: app)

@@ -112,9 +112,6 @@ struct HomeView: View {
             ) {
                 Button("Skip Workout", role: .destructive, action: skipPlannedWorkout)
                     .accessibilityIdentifier("today-confirm-skip-workout")
-                // Keep an explicit action here rather than relying on the
-                // platform's implicit cancel row; it remains discoverable to
-                // VoiceOver and UI automation on iOS 26.
                 Button("Cancel") { progressToSkip = nil }
                     .accessibilityIdentifier("today-cancel-skip-workout")
             } message: {
@@ -128,15 +125,10 @@ struct HomeView: View {
             } message: {
                 Text(scheduleActionError?.message ?? "Please try again.")
             }
-            // Moving or skipping a session used to change the card and say
-            // nothing. "Tomorrow" sits eight points from "Reschedule", so a
-            // near-miss silently moved a workout by a day with no way to tell.
             .gymStatusBanner($statusMessage)
             .gymFeedback(.scheduleChanged, trigger: scheduleChangeCount)
             .gymFeedback(.workoutStarted, trigger: workoutStartCount)
             .onDisappear {
-                // Confirmations are scoped to Today; leaving the screen must
-                // not make an old message reappear on a later return.
                 statusMessage = nil
             }
     }
@@ -161,6 +153,7 @@ struct HomeView: View {
                     }
                 )
                 .gymAssembly(index: 0, isActive: isPlayingAssembly)
+
                 HomePrimaryWorkoutCard(
                     activeWorkout: workoutVM.activeWorkout,
                     activePlanRun: activePlanRun,
@@ -173,52 +166,39 @@ struct HomeView: View {
                     onSkip: { progressToSkip = $0 }
                 )
                 .gymAssembly(index: 1, isActive: isPlayingAssembly)
-                // Training data before navigation shortcuts.
-                //
-                // The week summary is the only thing on Today that reports what
-                // the lifter has actually done, and it used to sit last — under
-                // a list of links to other screens. Every daily surface worth
-                // copying leads with the figure and puts shortcuts beneath it,
-                // because "am I on track?" is the question the screen exists to
-                // answer and a shortcut list answers nothing.
+
+                HomeActiveTrainingSupport(
+                    onOpenMobility: onOpenMobility,
+                    onResumeMobility: onResumeMobility
+                )
+
                 HomeWeekSummaryCard(
                     isPrimaryCardOfferingStart: todayWorkoutSummary.offersStartAction,
                     isPlayingAssembly: isPlayingAssembly,
-                    onStartWorkout: { isShowingTemplatePicker = true }
+                    onStartWorkout: { isShowingTemplatePicker = true },
+                    onOpenCalendar: onOpenTrainingCalendar
                 )
                 .gymAssembly(index: 2, isActive: isPlayingAssembly)
-                HomeTodaySection(
+
+                HomeQuickAccessSection(
                     onOpenExercises: onOpenExercises,
-                    onOpenMobility: onOpenMobility,
-                    onResumeMobility: onResumeMobility
+                    onOpenMobility: onOpenMobility
                 )
                 .gymAssembly(index: 3, isActive: isPlayingAssembly)
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, 96)
+            .padding(.bottom, Spacing.xl)
         }
         .scrollIndicators(.hidden)
         .foregroundStyle(Color.trameText)
         .background(Color.trameCanvas)
         .tint(Color.trameStrength)
         .navigationTitle("Today")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(Color.trameCanvas, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: onOpenTrainingCalendar) {
-                    Image(systemName: AppIcon.plan)
-                        .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.trameText)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("open-training-calendar")
-                .accessibilityLabel("Training Calendar")
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onOpenSettings) {
                     Image(systemName: AppIcon.settings)
@@ -260,7 +240,6 @@ struct HomeView: View {
         }
     }
 
-
     private func rescheduleSheet(for progress: PlanWorkoutProgress) -> some View {
         RescheduleWorkoutSheet(
             progress: progress,
@@ -278,19 +257,9 @@ struct HomeView: View {
         workoutStartCount += 1
         onStartWorkout(template)
     }
-
 }
 
 private extension HomeView {
-    /// Today assembles itself on a lifter's first look at it, and never again
-    /// that session.
-    ///
-    /// Gated on having no training history, because that is the state the
-    /// animation is *for*: an empty Today is three headings around a single
-    /// button, and the assembly is what turns it from a screen waiting for
-    /// data into a screen introducing itself. Someone with sessions behind
-    /// them opens Today to start training, and an animation between them and
-    /// the Start button is a toll, not a welcome.
     func resolveAssembly() {
         guard completedWorkoutCount == 0,
               (try? modelContext.fetchCount(FetchDescriptor<Workout>())) ?? 0 == 0,
@@ -318,6 +287,7 @@ private extension HomeView {
             startEmptyWorkout()
         }
     }
+
     func startEmptyWorkout() {
         guard !workoutVM.hasActiveWorkout else {
             isShowingActiveWorkout = true
@@ -345,13 +315,11 @@ private extension HomeView {
             isShowingTemplatePicker = false
             return true
         } catch {
-            // The draft remains available in the presented builder until its
-            // explicit start action dismisses, so this branch only covers an
-            // unexpected persistence or active-workout race.
             isShowingActiveWorkout = workoutVM.hasActiveWorkout
             return false
         }
     }
+
     func run(containing progress: PlanWorkoutProgress) -> PlanRun? {
         planRuns.first { $0.workoutProgress.contains { $0.id == progress.id } }
     }
@@ -361,6 +329,7 @@ private extension HomeView {
         rescheduleShiftsRemaining = false
         reschedulingProgress = progress
     }
+
     func saveReschedule(_ progress: PlanWorkoutProgress) {
         guard let run = run(containing: progress) else {
             scheduleActionError = ValidationIssue(
@@ -383,8 +352,6 @@ private extension HomeView {
         }
         reschedulingProgress = nil
 
-        // The confirmation names the scope of what happened, because "Moved to
-        // Friday" reads identically whether one session moved or twelve did.
         let movedTo = rescheduleDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         confirmScheduleChange(
             rescheduleShiftsRemaining
@@ -392,10 +359,7 @@ private extension HomeView {
                 : String(localized: "Moved to \(movedTo).")
         )
     }
-    /// Decides whether the personalization offer belongs on the page.
-    ///
-    /// Never while a workout is in progress: an offer to answer questions is
-    /// not what someone mid-session came to Today for.
+
     func evaluatePersonalizationPrompt() {
         guard workoutVM.activeWorkout == nil else {
             isShowingPersonalizationPrompt = false
@@ -420,6 +384,7 @@ private extension HomeView {
         else { return }
         beginRescheduling(progress)
     }
+
     func postponePlannedWorkoutUntilTomorrow() {
         guard let run = activePlanRun,
               let progress = activePlanProgress,
@@ -453,12 +418,8 @@ private extension HomeView {
         )
     }
 
-    /// The single success path for a schedule mutation, so the visible, spoken,
-    /// and tactile confirmations can never disagree about whether one happened.
-    /// Called only after the coordinator has reported success.
     func confirmScheduleChange(_ text: String, systemImage: String = AppIcon.checkmarkCircle) {
         statusMessage = GymStatusMessage(text, systemImage: systemImage)
         scheduleChangeCount += 1
     }
-
 }

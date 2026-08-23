@@ -58,10 +58,10 @@ struct ProgressHubView: View {
                         .padding(.bottom, Spacing.l)
 
                     overviewContent
-
-                    exploreGroup
-                        .padding(.top, ProgressLayout.majorBreak)
                 }
+
+                exploreGroup
+                    .padding(.top, ProgressLayout.majorBreak)
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
@@ -227,19 +227,22 @@ struct ProgressHubView: View {
             quietProgressLink(
                 route: .workoutHistory,
                 title: "History",
-                count: "\(completedWorkouts.count)"
+                count: "\(completedWorkouts.count)",
+                rail: Color.trameStrength
             )
 
             quietProgressLink(
                 route: .trainingTrends,
-                title: "Trends"
+                title: "Trends",
+                rail: Color.trameStrength
             )
 
             if featureFlags.isEnabled(.mobilityAssessment) {
                 quietProgressLink(
                     route: .mobilityAssessmentHistory,
                     title: "Assessments",
-                    count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
+                    count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)",
+                    rail: Color.trameMobility
                 )
             }
 
@@ -264,6 +267,12 @@ struct ProgressHubView: View {
                     )
 
                     quietProgressLink(
+                        route: .trainingJourney,
+                        title: "Journey",
+                        isNested: true
+                    )
+
+                    quietProgressLink(
                         route: .weightlifting,
                         title: "Weightlifting",
                         isNested: true
@@ -283,6 +292,10 @@ struct ProgressHubView: View {
                 }
             } label: {
                 HStack {
+                    Rectangle()
+                        .fill(Color.trameSeparator)
+                        .frame(width: 3, height: 24)
+                        .accessibilityHidden(true)
                     Text("More")
                         .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.trameText)
@@ -292,9 +305,12 @@ struct ProgressHubView: View {
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .padding(.vertical, Spacing.s)
                 .contentShape(Rectangle())
+                // Keep the identifier on the disclosure control itself. A
+                // group-level identifier masks the nested destination rows
+                // from VoiceOver and UI automation after expansion.
+                .accessibilityIdentifier("progress-tools-disclosure")
             }
             .tint(Color.trameSubdued)
-            .accessibilityIdentifier("progress-tools-disclosure")
             .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(Color.trameSeparator)
@@ -464,7 +480,8 @@ struct ProgressHubView: View {
         route: ProgressRoute,
         title: String,
         count: String? = nil,
-        isNested: Bool = false
+        isNested: Bool = false,
+        rail: Color? = nil
     ) -> some View {
         NavigationLink(value: route) {
             HStack(spacing: Spacing.m) {
@@ -487,8 +504,17 @@ struct ProgressHubView: View {
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .padding(.vertical, Spacing.s)
-            .padding(.leading, isNested ? Spacing.l : 0)
+            .padding(
+                .leading,
+                (isNested ? Spacing.l : 0) + (rail == nil ? 0 : Spacing.m)
+            )
             .contentShape(Rectangle())
+            .overlay(alignment: .leading) {
+                if let rail {
+                    Rectangle().fill(rail).frame(width: 3)
+                        .accessibilityHidden(true)
+                }
+            }
             .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(Color.trameSeparator)
@@ -608,7 +634,7 @@ struct MobilityHistoryView: View {
 
                         Text(historyDetail(for: session, workoutTitles: workoutTitles))
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                         if let evidenceDetail = evidenceDetail(
                             for: session,
                             evidenceByResultID: evidenceByResultID,
@@ -616,7 +642,7 @@ struct MobilityHistoryView: View {
                         ) {
                             Text(evidenceDetail)
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                     .accessibilityElement(children: .combine)
@@ -626,7 +652,7 @@ struct MobilityHistoryView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
     }
 
     private func evidenceDetail(
@@ -766,7 +792,7 @@ struct NutritionHistoryView: View {
                                 .font(AppFont.subheadlineSemibold)
                             Text("P \(FoodLibraryService.format(summary.totals.protein)) g")
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                         .accessibilityLabel("\(summary.day.rawValue), \(FoodLibraryService.format(summary.totals.calories)) calories, \(FoodLibraryService.format(summary.totals.protein)) grams protein")
                     }
@@ -778,7 +804,7 @@ struct NutritionHistoryView: View {
                             Text(meal.nameSnapshot).font(AppFont.subheadlineSemibold)
                             Text("\(meal.slot.displayName) · \(meal.loggedAt.formatted(.dateTime.month(.abbreviated).day().year()))")
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                 }
@@ -786,7 +812,7 @@ struct NutritionHistoryView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
     }
 
     private var daySummaries: [NutritionHistoryDay] {
@@ -850,14 +876,14 @@ struct JournalHistoryView: View {
                         Text(entry.dayKey).font(AppFont.subheadlineSemibold)
                         Text(entry.status == .completed ? "Check-in complete" : "Check-in skipped")
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
                 }
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
     }
 }
 
@@ -868,20 +894,23 @@ private struct SupportingHistoryEmptyState: View {
 
     var body: some View {
         ScrollView {
-            GymCard {
+            TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator) {
                 HStack(alignment: .top, spacing: Spacing.m) {
-                    GymIconChip(systemImage: systemImage, tint: .gymAccent)
+                    Image(systemName: systemImage)
+                        .foregroundStyle(Color.trameStrength)
+                        .frame(width: ComponentSize.minimumTouchTarget)
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(title)
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                         Text(detail)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
+                .padding(Spacing.l)
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.m)
         }
         .accessibilityElement(children: .combine)

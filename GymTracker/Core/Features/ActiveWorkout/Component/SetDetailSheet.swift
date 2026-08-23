@@ -69,16 +69,16 @@ extension SetType {
     var accentColor: Color? {
         switch self {
         case .normal: nil
-        case .warmup: Color.gymAccent
-        case .dropSet: Color.gymPrimary
-        case .failure: Color.gymDestructive
-        case .backoff: Color.gymSecondary
-        case .topSet: Color.gymPrimary
-        case .amrap: Color.gymAccent
-        case .technique: Color.gymSecondary
-        case .dailyMaximum: Color.gymPrimary
-        case .test: Color.gymAccent
-        case .recovery: Color.gymSecondary
+        case .warmup: Color.trameAttention
+        case .dropSet: Color.trameStrength
+        case .failure: Color.trameDestructiveText
+        case .backoff: Color.trameCompleted
+        case .topSet: Color.trameStrength
+        case .amrap: Color.trameAttention
+        case .technique: Color.trameCompleted
+        case .dailyMaximum: Color.trameStrength
+        case .test: Color.trameAttention
+        case .recovery: Color.trameRecovery
         }
     }
 }
@@ -125,7 +125,8 @@ struct SetDetailSheet: View {
             isShowingAdvancedOptions = hasRecordedOrPrescribedAdvancedData
             // A disclosure must never hide the current answer: if this set is
             // already one of the rarer types, the group opens showing it.
-            isShowingMoreSetTypes = exerciseSet.setType.group == .more
+            let displayedRole = exerciseSet.setType == .dropSet ? SetType.normal : exerciseSet.setType
+            isShowingMoreSetTypes = displayedRole.group == .more
         }
         .confirmationDialog(
             "Switch to \(pendingEffortMeasure == .rpe ? "RPE" : "RIR")?",
@@ -264,8 +265,13 @@ struct SetDetailSheet: View {
                 }
             }
         }
-        .padding(Spacing.l)
-        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+        .padding(.vertical, Spacing.m)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
     }
 
     private var velocitySection: some View {
@@ -403,9 +409,9 @@ struct SetDetailSheet: View {
                     .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
+                    .accessibilityIdentifier("set-type-more-toggle")
             }
             .tint(Color.trameActionDeep)
-            .accessibilityIdentifier("set-type-more-toggle")
         }
     }
 
@@ -426,11 +432,7 @@ struct SetDetailSheet: View {
     /// live elements answering to one identifier is ambiguous for VoiceOver and
     /// unusable from a UI test.
     private func setTypeGrid(_ types: [SetType], isShortcut: Bool = false) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 104), spacing: Spacing.s)],
-            alignment: .leading,
-            spacing: Spacing.s
-        ) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(types, id: \.self) { type in
                 setTypeChip(type, isShortcut: isShortcut)
             }
@@ -446,36 +448,25 @@ struct SetDetailSheet: View {
     private var setMethodSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             eyebrow("Set method")
-            if exerciseSet.resolvedSetMethod == .dropSet {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Drop set structure")
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.trameText)
-                    Text("Configured by the Drop set type above.")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.trameSubdued)
+            Picker("Method", selection: Binding(
+                get: { exerciseSet.resolvedSetMethod },
+                set: selectSetMethod
+            )) {
+                ForEach(SetMethod.allCases, id: \.self) { method in
+                    Text(method.title).tag(method)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("drop-set-structure")
-            } else {
-                Picker("Method", selection: Binding(
-                    get: { exerciseSet.resolvedSetMethod },
-                    set: selectSetMethod
-                )) {
-                    ForEach(SetMethod.allCases.filter { $0 != .dropSet }, id: \.self) { method in
-                        Text(method.title).tag(method)
-                    }
-                }
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("set-method-picker")
             }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("set-method-picker")
 
             if exerciseSet.resolvedSetMethod != .standard {
                 Text(exerciseSet.resolvedSetMethod.detail)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.trameSubdued)
-                segmentEditor
+                Text("Edit this method’s efforts directly on the exercise screen.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.trameText)
+                    .accessibilityIdentifier("drop-set-structure")
             }
         }
     }
@@ -485,6 +476,7 @@ struct SetDetailSheet: View {
             ForEach(exerciseSet.orderedSegments, id: \.persistentModelID) { segment in
                 SetSegmentEditorRow(
                     segment: segment,
+                    method: exerciseSet.resolvedSetMethod,
                     canDelete: exerciseSet.orderedSegments.count > exerciseSet.resolvedSetMethod.minimumSegmentCount,
                     onPersist: onPersist
                 ) {
@@ -639,22 +631,32 @@ struct SetDetailSheet: View {
     }
 
     private func setTypeChip(_ type: SetType, isShortcut: Bool = false) -> some View {
-        let isSelected = exerciseSet.setType == type
+        let displayedRole = exerciseSet.setType == .dropSet ? SetType.normal : exerciseSet.setType
+        let isSelected = displayedRole == type
 
         return Button {
             selectSetType(type)
         } label: {
-            Label(type.title, systemImage: isSelected ? AppIcon.checkmarkCircle : type.icon)
+            HStack(spacing: Spacing.m) {
+                Image(systemName: type.icon)
+                    .frame(width: Spacing.xl)
+                    .accessibilityHidden(true)
+                Text(type.title)
+                Spacer(minLength: Spacing.s)
+                if isSelected {
+                    Image(systemName: AppIcon.checkmark)
+                        .foregroundStyle(Color.trameStrength)
+                        .accessibilityHidden(true)
+                }
+            }
                 .font(AppFont.footnoteMedium)
                 .lineLimit(1)
                 .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(isSelected ? Color.trameCurrent : Color.trameRow)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                        .strokeBorder(isSelected ? Color.trameActionOutline : .clear, lineWidth: 1)
-                )
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
@@ -664,15 +666,12 @@ struct SetDetailSheet: View {
     }
 
     private func selectSetType(_ type: SetType) {
-        exerciseSet.setType = type
-        recentSetTypesRaw = RecentSetTypes.recording(type, into: recentSetTypesRaw)
-        if type == .dropSet {
+        if exerciseSet.setType == .dropSet && exerciseSet.setMethod == nil {
             exerciseSet.setMethod = .dropSet
             exerciseSet.ensureSegmentsForMethod()
-            isShowingAdvancedOptions = true
-        } else if exerciseSet.resolvedSetMethod == .dropSet {
-            exerciseSet.setMethod = .standard
         }
+        exerciseSet.setType = type
+        recentSetTypesRaw = RecentSetTypes.recording(type, into: recentSetTypesRaw)
         onPersist()
     }
 
@@ -954,7 +953,7 @@ struct SetDetailSheet: View {
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.bordered)
-        .tint(Color.gymDestructive)
+        .tint(Color.trameDestructiveText)
         .accessibilityHint(hasLoggedContent ? "Opens confirmation before deleting this set." : "Deletes this empty set.")
         .accessibilityIdentifier("delete-set-\(exerciseName)-\(index)")
     }

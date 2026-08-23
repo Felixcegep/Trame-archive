@@ -40,10 +40,10 @@ struct ExerciseFormView: View {
     @State private var strongmanLoadConvention: LoadConvention?
     @State private var strongmanEventFamily: StrongmanEventFamily?
 
-    init(exercise: Exercise? = nil, onSave: @escaping (Exercise) -> Void) {
+    init(exercise: Exercise? = nil, initialName: String = "", onSave: @escaping (Exercise) -> Void) {
         self.exercise = exercise
         self.onSave = onSave
-        _name = State(initialValue: exercise?.name ?? "")
+        _name = State(initialValue: exercise?.name ?? initialName)
         _category = State(initialValue: exercise?.displayCategory ?? .strength)
         _equipmentType = State(initialValue: exercise?.equipmentType ?? .other)
         _trackingType = State(initialValue: exercise?.trackingType ?? .weightAndReps)
@@ -99,8 +99,8 @@ struct ExerciseFormView: View {
                 } label: {
                     drillDownRow(
                         icon: AppIcon.muscles,
-                        tint: Color.gymPrimary,
-                        surface: Color.gymPrimarySurface,
+                        tint: Color.trameStrength,
+                        surface: Color.trameCurrent,
                         title: "Muscles Worked",
                         subtitle: muscleSummary
                     )
@@ -138,9 +138,9 @@ struct ExerciseFormView: View {
                 } label: {
                     drillDownRow(
                         icon: AppIcon.advanced,
-                        tint: Color.gymAccent,
-                        surface: Color.gymAccentSurface,
-                        title: "Advanced Details",
+                        tint: Color.trameSubdued,
+                        surface: Color.trameRow,
+                        title: "Logging & Classification",
                         subtitle: advancedSummary
                     )
                 }
@@ -148,11 +148,11 @@ struct ExerciseFormView: View {
             } header: {
                 Text("More")
             } footer: {
-                Text("Everything in Advanced Details is optional — sensible defaults are already applied.")
+                Text("Logging and classification already use sensible defaults; change only what this exercise needs.")
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
         .onChange(of: equipmentType) { previousEquipment, equipment in
             handleEquipmentChange(from: previousEquipment, to: equipment)
@@ -284,10 +284,10 @@ struct ExerciseFormView: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(subtitle)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .lineLimit(1)
             }
         }

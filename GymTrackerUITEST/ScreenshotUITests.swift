@@ -36,6 +36,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             screenshot: "progress/03i_Training_History",
             in: app
         )
+        let tools = app.buttons["progress-tools-disclosure"].firstMatch
+        scrollToVisibleElement(tools, in: app)
+        XCTAssertTrue(tools.isHittable)
+        tools.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["progress-records"].waitForExistence(timeout: 5))
         captureProgressDestination(
             "progress-records",
             expected: "history-screen",
@@ -91,18 +96,14 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["progress-overview-current-period"].waitForExistence(timeout: 10))
-        let globalLens = app.descendants(matching: .any)["progress-lens-global"]
-        scrollToElement(globalLens, in: app)
-        XCTAssertTrue(globalLens.waitForExistence(timeout: 5))
-        globalLens.tap()
-        let insufficientEvidence = app.descendants(matching: .any)["progress-sport-focus-insufficient"]
-        scrollToVisibleElement(insufficientEvidence, in: app)
-        XCTAssertTrue(insufficientEvidence.waitForExistence(timeout: 5))
+        let globalOverview = app.descendants(matching: .any)["progress-overview-current-period"]
+        XCTAssertTrue(globalOverview.waitForExistence(timeout: 10))
+        scrollToVisibleElement(globalOverview, in: app)
         saveScreenshot("overview/03g_Progress_Global_Populated")
 
-        let strengthLens = app.buttons["progress-lens-generalStrength"]
-        scrollToElement(strengthLens, in: app)
+        tapControl("progress-sport-lens-picker", in: app)
+        let strengthLens = app.descendants(matching: .any)["progress-lens-generalStrength"].firstMatch
+        XCTAssertTrue(strengthLens.waitForExistence(timeout: 5))
         strengthLens.tap()
         XCTAssertTrue(app.descendants(matching: .any)["progress-sport-lens-generalStrength"].waitForExistence(timeout: 5))
         saveScreenshot("overview/03h_Progress_General_Strength_Lens")
@@ -154,16 +155,41 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     }
 
     func testCaptureWave1LightModeScreenshots() {
-        let overview = launchFreshApp()
+        let overview = launchFreshApp(additionalArguments: ["-appearance", "light"])
         saveScreenshot("overview/01_Today_Light")
 
         selectTab(.train, in: overview)
         saveScreenshot("overview/02_Train_Light")
 
-        let active = launchFixture("active-empty")
+        selectTab(.progress, in: overview)
+        XCTAssertTrue(overview.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/03_Progress_Empty_Light")
+
+        selectTab(.today, in: overview)
+        let openSettings = overview.buttons["open-settings"]
+        XCTAssertTrue(openSettings.waitForExistence(timeout: 5))
+        openSettings.tap()
+        XCTAssertTrue(overview.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/04_Settings_Light")
+
+        let active = launchFixture(
+            "active-empty",
+            additionalArguments: ["-appearance", "light"]
+        )
         tapButton("minimize-workout", in: active)
         XCTAssertTrue(active.buttons["resume-active-workout"].waitForExistence(timeout: 10))
         saveScreenshot("overview/05_Home_With_Active_Workout_Light")
+
+        let nutrition = launchFixture(
+            "nutrition-today",
+            additionalArguments: ["-appearance", "light"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "tab-nutrition"
+        )
+        selectTab(.nutrition, in: nutrition)
+        XCTAssertTrue(nutrition.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+        XCTAssertTrue(nutrition.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20_Nutrition_Today_Light")
     }
 
     func testCaptureLaunchBrandScreenshot() {
@@ -191,11 +217,19 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureLibraryFormsScreenshots() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
-        tapButton("Create library item", in: app)
-        tapButton("New Workout", in: app)
+        tapButton("library-create", in: app)
+        tapButton("new-workout-template", in: app)
 
         let nameField = app.textFields["template-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        let search = app.searchFields["Search exercises"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Arnold Press")
+        let searchKey = app.keyboards.buttons["Search"]
+        XCTAssertTrue(searchKey.waitForExistence(timeout: 5))
+        searchKey.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         tapButton("template-exercise-Arnold Press", in: app)
         saveScreenshot("templates/12b_New_Workout_Form")
 
@@ -203,11 +237,19 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.navigationBars["Filters"].waitForExistence(timeout: 5))
         saveScreenshot("templates/12c_Exercise_Filters")
         tapFirstAvailableButton(["Done"], in: app)
-        tapButton("Cancel", in: app)
+        if app.keyboards.firstMatch.waitForExistence(timeout: 1) {
+            let restoredSearchKey = app.keyboards.buttons["Search"]
+            XCTAssertTrue(restoredSearchKey.waitForExistence(timeout: 5))
+            restoredSearchKey.tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        }
+        let cancel = app.navigationBars["New Workout"].buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        cancel.tap()
         XCTAssertTrue(nameField.waitForNonExistence(timeout: 5))
 
-        tapButton("Create library item", in: app)
-        tapButton("New Exercise", in: app)
+        tapButton("library-create", in: app)
+        tapButton("new-exercise", in: app)
 
         let exerciseNameField = app.textFields["exercise-name-field"]
         XCTAssertTrue(exerciseNameField.waitForExistence(timeout: 5))
@@ -228,10 +270,22 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         tapButton("exercises-browser", in: app)
 
-        let benchPress = app.buttons["exercise-row-Bench Press"]
+        for _ in 0..<6 where !app.buttons["exercise-row-Bench Press"].firstMatch.isHittable {
+            app.swipeUp(velocity: .slow)
+        }
+        let benchPress = app.buttons["exercise-row-Bench Press"].firstMatch
         XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
+        XCTAssertTrue(benchPress.isHittable)
         benchPress.press(forDuration: 1.2)
         tapButton("Hide", in: app)
+
+        let statusAlert = app.alerts["Exercise Status"]
+        XCTAssertTrue(statusAlert.waitForExistence(timeout: 5))
+        XCTAssertTrue(statusAlert.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "archived to preserve")
+        ).firstMatch.exists)
+        statusAlert.buttons["OK"].tap()
+        XCTAssertTrue(statusAlert.waitForNonExistence(timeout: 5))
 
         let rowRemoved = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
@@ -240,11 +294,14 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [rowRemoved], timeout: 5), .completed)
 
         // The context-menu interaction can leave the list scrolled, occluding
-        // the Hidden Exercises row under the top edge. Scroll back first.
-        app.swipeDown()
-
-        let hiddenExercises = app.buttons["hidden-exercises"]
+        // the Hidden Exercises row under the top edge. Re-query while returning
+        // to the start because lazy rows are recycled during the scroll.
+        for _ in 0..<8 where !app.buttons["hidden-exercises"].firstMatch.isHittable {
+            app.swipeDown(velocity: .slow)
+        }
+        let hiddenExercises = app.buttons["hidden-exercises"].firstMatch
         XCTAssertTrue(hiddenExercises.waitForExistence(timeout: 5))
+        XCTAssertTrue(hiddenExercises.isHittable)
         hiddenExercises.tap()
         XCTAssertTrue(app.navigationBars["Hidden Exercises"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
@@ -258,7 +315,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     }
 
 
-    /// Today, the "Start a workout" sheet, the Train secondary states, empty
+    /// Today, the saved-workout picker, the Train secondary states, empty
     /// Progress, and Settings are five destinations of the exact same fresh
     /// seed, navigated by tab and sheet taps. One launch replaces what used
     /// to be three (the plain tab tour, the template sheet, and the Train
@@ -269,11 +326,13 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         saveScreenshot("overview/01_Today")
 
-        tapButton("start-free-workout", in: app)
-        XCTAssertTrue(app.navigationBars["Start a workout"].waitForExistence(timeout: 5))
+        let savedWorkouts = app.descendants(matching: .any)["today-open-saved-workouts"]
+        scrollToElement(savedWorkouts, in: app)
+        savedWorkouts.tap()
+        XCTAssertTrue(app.navigationBars["Start workout"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01b_Home_Template_Sheet")
         tapButton("Cancel", in: app)
-        XCTAssertTrue(app.navigationBars["Start a workout"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Start workout"].waitForNonExistence(timeout: 5))
 
         selectTab(.library, in: app)
         saveScreenshot("overview/02_Train")
@@ -365,7 +424,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureCoachExchangeScreenshots() {
         let app = launchFreshApp()
         selectTab(.progress, in: app)
-        tapButton("progress-coach-exchange", in: app)
+        let tools = app.descendants(matching: .any)["progress-tools-disclosure"].firstMatch
+        scrollToVisibleElement(tools, in: app)
+        tools.tap()
+        openProgressDestination("progress-coach-exchange", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["coach-exchange-screen"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["coach-exchange-package-empty"].waitForExistence(timeout: 5))
         saveScreenshot("coach-exchange/23_Coach_Exchange_Empty")
@@ -450,9 +512,13 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureTrainingJourneyScreenshots() {
         let app = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: app)
-        tapButton("progress-overview-journey", in: app)
+        let tools = app.buttons["progress-tools-disclosure"].firstMatch
+        scrollToVisibleElement(tools, in: app)
+        tools.tap()
+        let journey = app.buttons["progress-training-journey"].firstMatch
+        scrollToElement(journey, in: app)
+        journey.tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["training-journey-screen"].waitForExistence(timeout: 10))
         let chapter = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "training-journey-chapter-")
         ).firstMatch
@@ -645,7 +711,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("reps-field-Bench Press-0", in: advancedSet)
         tapButton("panel-details", in: advancedSet)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
-        XCTAssertFalse(advancedSet.descendants(matching: .any)["set-method-picker"].exists)
+        // Advanced set methods are edited through the method-specific picker;
+        // the redesigned sheet intentionally exposes it in this captured state.
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["set-method-picker"].exists)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["specialized-metric-picker"].exists)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["add-set-segment"].exists)
         saveScreenshot("active-workout/07e_Set_Method_Segments")
@@ -736,7 +804,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         start.tap()
         XCTAssertTrue(app.staticTexts["Enter seconds before starting the timer."].waitForExistence(timeout: 3))
 
-        enterValue("45", field: "duration", for: "Plank", set: 0, in: app)
+        tapButton("duration-field-Plank-0", in: app)
+        tapButton("duration-key-45", in: app)
         dismissKeypadIfPresent(in: app)
         XCTAssertTrue(
             app.staticTexts["Enter seconds before starting the timer."].waitForNonExistence(timeout: 3)
@@ -756,7 +825,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         // value starts a fresh entry, so "2" replaces the 45 already there.
         app.buttons["Reset timer"].tap()
         XCTAssertTrue(start.waitForExistence(timeout: 3))
-        enterValue("2", field: "duration", for: "Plank", set: 0, in: app)
+        tapButton("duration-field-Plank-0", in: app)
+        tapButton("duration-keypad-digits", in: app)
+        tapButton("keypad-key-2", in: app)
         dismissKeypadIfPresent(in: app)
         start.tap()
         XCTAssertTrue(app.staticTexts["Time complete"].waitForExistence(timeout: 8))
@@ -791,7 +862,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         // that same countdown, so waiting for it to actually finish reaches
         // the ready state without manufacturing it.
         XCTAssertTrue(app.descendants(matching: .any)["rest-ready"].waitForExistence(timeout: 60))
-        XCTAssertTrue(app.buttons["Start next set"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Continue to next set"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08c_Rest_Ready")
     }
 
@@ -804,6 +875,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(rest.buttons["rest-pill"].waitForExistence(timeout: 5))
         rest.buttons["rest-pill"].tap()
         XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-just-logged"].exists)
         saveScreenshot("active-workout/08u_Fresh_Rest_Transition")
 
         let finish = launchFixture("active-partial-save")
@@ -839,9 +911,16 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
     func testCaptureWorkoutPreparationLargeDetent() {
         let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
-        tapButton("start-free-workout", in: app)
+        tapButton("today-open-saved-workouts", in: app)
+        let search = app.textFields["workout-search"]
+        for _ in 0..<4 where !search.isHittable { app.swipeUp() }
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Linked Mobility Screenshot")
+        if app.keyboards.buttons["Return"].exists {
+            app.keyboards.buttons["Return"].tap()
+        }
         let template = app.buttons["workout-template-Linked Mobility Screenshot"]
-        for _ in 0..<12 where !template.isHittable { app.swipeUp() }
         XCTAssertTrue(template.waitForExistence(timeout: 10))
         template.tap()
 
@@ -891,10 +970,18 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.history, in: app)
         XCTAssertTrue(app.buttons["history-workout-row"].firstMatch.waitForExistence(timeout: 5))
         saveScreenshot("history/10_History_With_Workout")
-        tapButton("Records", in: app)
-        XCTAssertTrue(app.staticTexts["Format records"].waitForExistence(timeout: 5))
+
+        returnToProgressHub(in: app)
+        let tools = app.buttons["progress-tools-disclosure"].firstMatch
+        scrollToVisibleElement(tools, in: app)
+        tools.tap()
+        openProgressDestination("progress-records", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["history-records-heading"].firstMatch.waitForExistence(timeout: 5))
         saveScreenshot("history/10b_Expanded_Records")
-        tapButton("Workouts", in: app)
+
+        returnToProgressHub(in: app)
+        openProgressDestination("progress-workout-history", in: app)
+        XCTAssertTrue(app.buttons["history-workout-row"].firstMatch.waitForExistence(timeout: 5))
         app.buttons["history-workout-row"].firstMatch.tap()
         saveScreenshot("history/11_History_Detail")
     }
@@ -938,11 +1025,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
     func testCaptureMuscleBalanceScreenshot() {
         let app = launchFixture("muscle-balance", expectsActiveWorkout: false)
-        selectTab(.history, in: app)
-
-        let balanceTab = app.buttons["Volume"]
-        XCTAssertTrue(balanceTab.waitForExistence(timeout: 5))
-        balanceTab.tap()
+        selectTab(.progress, in: app)
+        let tools = app.descendants(matching: .any)["progress-tools-disclosure"].firstMatch
+        scrollToVisibleElement(tools, in: app)
+        tools.tap()
+        openProgressDestination("progress-muscle-group-volume", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-content"].waitForExistence(timeout: 10))
         let chart = app.descendants(matching: .any)["muscle-balance-chart"]
         XCTAssertTrue(chart.exists)
@@ -974,6 +1061,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("progression/10c_Progression_Starting_Weight")
         tapButton("enter-starting-weight-Bench Press", in: insufficient)
         // The keypad is part of the set-entry panel, not a system keyboard.
+        let exactDigits = insufficient.buttons["plate-keypad-digits"].firstMatch
+        scrollToElement(exactDigits, in: insufficient)
+        exactDigits.tap()
         XCTAssertTrue(insufficient.buttons["keypad-key-1"].waitForExistence(timeout: 5))
         saveScreenshot("progression/10d_Progression_Manual_Edit")
     }
@@ -985,26 +1075,38 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureRecommendationWithRestScreenshots() {
         let app = launchFixture("progression-rest-running")
         XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
-        // The recommendation now lives inside the exercise it describes, which
-        // is the next one down while rest belongs to the completed exercise.
+        // The recommendation belongs to the next exercise stage while rest
+        // remains globally available from the command bar.
+        tapButton("collapse-rest-takeover", in: app)
+        XCTAssertTrue(app.buttons["collapse-rest-takeover"].waitForNonExistence(timeout: 5))
+        let benchStage = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "Page 2 of 2", "Bench Press")
+        ).firstMatch
+        XCTAssertTrue(benchStage.waitForExistence(timeout: 5))
+        XCTAssertTrue(benchStage.isHittable)
+        benchStage.tap()
+        XCTAssertTrue(app.staticTexts["active-exercise-Bench Press"].waitForExistence(timeout: 5))
         let card = app.descendants(matching: .any)["progression-recommendation-card-Bench Press"]
         XCTAssertTrue(card.waitForExistence(timeout: 5))
-        scrollToElement(card, in: app)
+        scrollToVisibleElement(card, in: app)
         saveScreenshot("progression/10f_Progression_With_Rest_Running")
 
-        // scrollToElement only scrolls forward (down), so bring the rest
-        // card's Pause control back into view before tapping it.
-        let pauseButton = app.buttons["Pause rest"]
-        for _ in 0..<6 where !pauseButton.isHittable {
-            app.swipeDown()
-        }
-        XCTAssertTrue(pauseButton.isHittable)
-        pauseButton.tap()
+        tapButton("rest-pill", in: app)
+        tapButton("rest-pause-toggle", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["rest-paused"].waitForExistence(timeout: 5))
+        tapButton("collapse-rest-takeover", in: app)
+        if !app.staticTexts["active-exercise-Bench Press"].waitForExistence(timeout: 2) {
+            let pausedBenchStage = app.buttons.matching(
+                NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "Page 2 of 2", "Bench Press")
+            ).firstMatch
+            XCTAssertTrue(pausedBenchStage.waitForExistence(timeout: 5))
+            pausedBenchStage.tap()
+        }
+        XCTAssertTrue(app.staticTexts["active-exercise-Bench Press"].waitForExistence(timeout: 5))
 
         let pausedCard = app.descendants(matching: .any)["progression-recommendation-card-Bench Press"]
         XCTAssertTrue(pausedCard.waitForExistence(timeout: 5))
-        scrollToElement(pausedCard, in: app)
+        scrollToVisibleElement(pausedCard, in: app)
         saveScreenshot("progression/10g_Progression_With_Rest_Paused")
     }
 
@@ -1084,14 +1186,18 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         failedSave.terminate()
 
         let linked = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
-        tapButton("start-free-workout", in: linked)
-        let linkedTemplate = linked.buttons["workout-template-Linked Mobility Screenshot"]
-        // The picker is a lazy List. The fixture template is sorted into the
-        // middle of the catalogue, so it may not be materialized until the
-        // list has been scrolled far enough for its row to enter the viewport.
-        for _ in 0..<12 where !linkedTemplate.isHittable {
+        tapButton("today-open-saved-workouts", in: linked)
+        let linkedSearch = linked.textFields["workout-search"]
+        for _ in 0..<4 where !linkedSearch.isHittable {
             linked.swipeUp()
         }
+        XCTAssertTrue(linkedSearch.waitForExistence(timeout: 5))
+        linkedSearch.tap()
+        linkedSearch.typeText("Linked Mobility Screenshot")
+        if linked.keyboards.buttons["Return"].exists {
+            linked.keyboards.buttons["Return"].tap()
+        }
+        let linkedTemplate = linked.buttons["workout-template-Linked Mobility Screenshot"]
         XCTAssertTrue(linkedTemplate.waitForExistence(timeout: 10))
         XCTAssertTrue(linkedTemplate.isHittable)
         linkedTemplate.tap()
@@ -1099,13 +1205,23 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/08q_Warmup_Preparation_Dialog")
         tapButton("skip-linked-warmup", in: linked)
         XCTAssertTrue(linked.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
-        enterValidValues(for: "Bench Press", set: 0, in: linked)
-        completeSet("Bench Press", index: 0, dismissRest: true, in: linked)
-        navigateToWorkoutFinish(in: linked)
+        for setIndex in 0..<2 {
+            enterValidValues(for: "Bench Press", set: setIndex, in: linked)
+            completeSet("Bench Press", index: setIndex, dismissRest: true, in: linked)
+        }
+        enterValidValues(for: "Bench Press", set: 2, in: linked)
+        tapButton("complete-set-Bench Press-2", in: linked)
+        XCTAssertTrue(linked.buttons["finish-workout"].waitForExistence(timeout: 10))
         tapButton("finish-workout", in: linked)
         tapButton("save-workout", in: linked)
-        XCTAssertTrue(linked.buttons["start-linked-cooldown"].waitForExistence(timeout: 10))
-        saveScreenshot("active-workout/08r_Cooldown_Prompt")
+        let cooldownStage = linked.descendants(matching: .any)["active-workout-mobility-stage"]
+        XCTAssertTrue(cooldownStage.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            linked.buttons["complete-mobility-movement"].exists
+                || linked.buttons["complete-mobility-phase"].exists
+        )
+        XCTAssertFalse(linked.buttons["start-linked-cooldown"].exists)
+        saveScreenshot("active-workout/08r_Cooldown_Stage")
 
         let history = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: history)
@@ -1113,7 +1229,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         scrollToElement(trendsLink, in: history)
         XCTAssertTrue(trendsLink.waitForExistence(timeout: 10))
         trendsLink.tap()
-        XCTAssertTrue(history.navigationBars["History"].waitForExistence(timeout: 10))
+        XCTAssertTrue(history.descendants(matching: .any)["history-screen"].waitForExistence(timeout: 10))
         XCTAssertTrue(history.descendants(matching: .any)["training-frequency-chart"].waitForExistence(timeout: 10))
         saveScreenshot("history/03b_Progress_Trends_Frequency")
         history.swipeUp()
@@ -1382,8 +1498,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.descendants(matching: .any)["mobility-purpose-section-preparation"].waitForExistence(timeout: 5))
 
         let createRoutine = app.buttons["create-mobility-routine"]
-        scrollToElement(createRoutine, in: app)
+        for _ in 0..<8 where !createRoutine.isHittable {
+            app.swipeDown()
+        }
         XCTAssertTrue(createRoutine.waitForExistence(timeout: 5))
+        XCTAssertTrue(createRoutine.isHittable)
         createRoutine.tap()
         let picker = app.buttons["mobility-routine-purpose-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
@@ -1724,17 +1843,36 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         openPlans(.following, in: app)
         tapButton("plan-row-Calendar Fixture Plan", in: app)
-        tapButton("view-plan-schedule", in: app)
+        let window = app.windows.firstMatch
+        for _ in 0..<12 {
+            let schedule = app.buttons["view-plan-schedule"].firstMatch
+            let stickyAction = app.buttons["start-planned-workout"].firstMatch
+            if schedule.exists,
+               app.frame.intersects(schedule.frame),
+               (!stickyAction.exists || schedule.frame.maxY < stickyAction.frame.minY - 4) {
+                break
+            }
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.70))
+                .press(
+                    forDuration: 0.05,
+                    thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.58))
+                )
+        }
+        let schedule = app.buttons["view-plan-schedule"].firstMatch
+        let stickyAction = app.buttons["start-planned-workout"].firstMatch
+        XCTAssertTrue(schedule.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.frame.intersects(schedule.frame))
+        XCTAssertTrue(!stickyAction.exists || schedule.frame.maxY < stickyAction.frame.minY - 4)
+        schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-completed"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-skipped"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-missed"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-in-progress"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-available"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-upcoming"].exists)
-
         let dayRows = app.buttons.matching(identifier: "plan-calendar-day")
         XCTAssertEqual(dayRows.count, 6)
+        let spokenStates = (0..<dayRows.count)
+            .map { dayRows.element(boundBy: $0).label }
+            .joined(separator: " ")
+        for state in ["Completed", "Skipped", "Missed", "In progress", "Ready", "Upcoming"] {
+            XCTAssertTrue(spokenStates.contains(state), "Expected the calendar to speak the \(state) state")
+        }
         dayRows.element(boundBy: 2).tap()
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
         let rescheduleButtons = app.buttons.matching(
@@ -1777,7 +1915,27 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         openPlans(.following, in: app)
         tapButton("plan-row-Calendar Fixture Plan", in: app)
-        tapButton("view-plan-schedule", in: app)
+        let window = app.windows.firstMatch
+        for _ in 0..<12 {
+            let schedule = app.buttons["view-plan-schedule"].firstMatch
+            let stickyAction = app.buttons["start-planned-workout"].firstMatch
+            if schedule.exists,
+               app.frame.intersects(schedule.frame),
+               (!stickyAction.exists || schedule.frame.maxY < stickyAction.frame.minY - 4) {
+                break
+            }
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.70))
+                .press(
+                    forDuration: 0.05,
+                    thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.58))
+                )
+        }
+        let schedule = app.buttons["view-plan-schedule"].firstMatch
+        let stickyAction = app.buttons["start-planned-workout"].firstMatch
+        XCTAssertTrue(schedule.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.frame.intersects(schedule.frame))
+        XCTAssertTrue(!stickyAction.exists || schedule.frame.maxY < stickyAction.frame.minY - 4)
+        schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13e_Plan_Calendar")
 
@@ -1961,14 +2119,26 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedValue: String? = nil
         ) {
             XCTAssertTrue(app.staticTexts["active-exercise-\(exerciseName)"].waitForExistence(timeout: 5))
-            let target = app.buttons["\(field)-field-\(exerciseName)-0"]
-            scrollToElement(target, in: app)
+            let identifier = "\(field)-field-\(exerciseName)-0"
+            scrollToElement(app.buttons[identifier].firstMatch, in: app)
+            var target = app.buttons[identifier].firstMatch
+            XCTAssertTrue(target.waitForExistence(timeout: 5))
+            XCTAssertTrue(target.isHittable)
             target.tap()
 
             let pill = app.buttons["panel-value-\(field)"]
+            if !pill.waitForExistence(timeout: 2) {
+                target = app.buttons[identifier].firstMatch
+                XCTAssertTrue(target.waitForExistence(timeout: 5))
+                XCTAssertTrue(target.isHittable)
+                target.tap()
+            }
             XCTAssertTrue(pill.waitForExistence(timeout: 5), "Panel did not select \(field) for \(exerciseName)")
             XCTAssertTrue(pill.isSelected)
             if let typedDigits {
+                if field == "duration" {
+                    tapButton("duration-keypad-digits", in: app)
+                }
                 for digit in typedDigits {
                     tapButton("keypad-key-\(digit)", in: app)
                 }

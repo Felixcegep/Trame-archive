@@ -10,11 +10,12 @@ import SwiftData
 
 struct ExerciseLibraryView : View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query private var workouts: [Workout]
     
     let isSelectingExercise: Bool
     var selectedExercise: Exercise?
-    var availableExercises: [Exercise]
+    @State private var availableExercises: [Exercise]
     let onSelect: (Exercise) -> Void
 
     @State private var searchText = ""
@@ -25,6 +26,8 @@ struct ExerciseLibraryView : View {
     /// exercise's own card, which is the only place the sets that would be
     /// destroyed are visible.
     @State private var addedExerciseIDs: Set<UUID>
+    @FocusState private var isSearchFocused: Bool
+    @State private var isCreatingExercise = false
 
     init(
         isSelectingExercise: Bool,
@@ -35,7 +38,7 @@ struct ExerciseLibraryView : View {
     ) {
         self.isSelectingExercise = isSelectingExercise
         self.selectedExercise = selectedExercise
-        self.availableExercises = availableExercises
+        _availableExercises = State(initialValue: availableExercises)
         self.onSelect = onSelect
         _addedExerciseIDs = State(initialValue: addedExerciseIDs)
         _workouts = Query(
@@ -57,19 +60,27 @@ struct ExerciseLibraryView : View {
             .listRowSeparator(.hidden)
 
             if results.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+                pickerEmptyState
                     .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("exercise-picker-no-results")
             } else {
-                ForEach(results, id: \.id) { exercise in
-                    exerciseRow(for: exercise)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.visible)
-                        .listRowSeparatorTint(Color.trameSeparator)
+                if showsBrowseSections {
+                    exerciseSections(results)
+                } else {
+                    Section("Results") {
+                        exerciseRows(results)
+                    }
                 }
             }
         }
         .listStyle(.plain)
-        .searchable(text: $searchText, prompt: "Search exercises")
+        .searchable(
+            text: $searchText,
+            placement: isSelectingExercise ? .navigationBarDrawer(displayMode: .always) : .automatic,
+            prompt: "Search by exercise, muscle, or equipment"
+        )
+        .searchFocused($isSearchFocused)
+        .scrollDismissesKeyboard(.interactively)
         // Recent ranking depends on workout history, not on the search query.
         // Project it once per history change so typing does not rescan every
         // completed workout and relationship for each character.
@@ -79,19 +90,132 @@ struct ExerciseLibraryView : View {
         .scrollContentBackground(.hidden)
         .background(Color.trameCanvas)
         .navigationTitle("Add Exercise")
+        .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("exercise-picker-screen", label: "Exercise picker")
         }
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
+        .safeAreaInset(edge: .bottom) {
+            if isSelectingExercise {
+                Button {
                     dismiss()
+                } label: {
+                    HStack(spacing: Spacing.m) {
+                        Text("Done")
+                            .accessibilityIdentifier("close-exercise-picker")
+                        Spacer(minLength: Spacing.s)
+                        Image(systemName: AppIcon.checkmark)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .font(AppFont.body.weight(.semibold))
-                .foregroundStyle(Color.trameText)
-                .accessibilityIdentifier("close-exercise-picker")
+                .buttonStyle(.tramePrimaryAction)
+                .accessibilityLabel("Done")
+                .padding(.horizontal, Spacing.screenInset)
+                .padding(.vertical, Spacing.s)
+                .background(Color.trameSurface)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
             }
         }
+        .toolbar {
+            if !isSelectingExercise {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Done")
+                            .accessibilityIdentifier("close-exercise-picker")
+                    }
+                    .font(AppFont.body.weight(.semibold))
+                    .foregroundStyle(Color.trameText)
+                    .accessibilityLabel("Done")
+                }
+            }
+        }
+        .sheet(isPresented: $isCreatingExercise) {
+            NavigationStack {
+                ExerciseFormView(initialName: searchText) { exercise in
+                    modelContext.insert(exercise)
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        modelContext.delete(exercise)
+                        return
+                    }
+                    availableExercises.append(exercise)
+                    addedExerciseIDs.insert(exercise.id)
+                    onSelect(exercise)
+                }
+            }
+        }
+    }
+
+    private var showsBrowseSections: Bool {
+        isSelectingExercise && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && filter.activeFilterCount == 0
+    }
+
+    @ViewBuilder
+    private func exerciseSections(_ results: [Exercise]) -> some View {
+        let recent = Array(results.filter { recentExerciseRanks[$0.id] != nil }.prefix(6))
+        let recentIDs = Set(recent.map(\.id))
+        let favorites = results.filter { $0.isFavorite && !recentIDs.contains($0.id) }
+        let featuredIDs = recentIDs.union(favorites.map(\.id))
+        let all = results.filter { !featuredIDs.contains($0.id) }
+
+        if !recent.isEmpty { Section("Recent") { exerciseRows(recent) } }
+        if !favorites.isEmpty { Section("Favorites") { exerciseRows(favorites) } }
+        Section("All Exercises") { exerciseRows(all) }
+    }
+
+    @ViewBuilder
+    private func exerciseRows(_ exercises: [Exercise]) -> some View {
+        ForEach(exercises, id: \.id) { exercise in
+            exerciseRow(for: exercise)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.visible)
+                .listRowSeparatorTint(Color.trameSeparator)
+        }
+    }
+
+    @ViewBuilder
+    private var pickerEmptyState: some View {
+        if !searchText.isEmpty {
+            VStack(spacing: Spacing.m) {
+                ContentUnavailableView(
+                    "No matching exercises",
+                    systemImage: AppIcon.search,
+                    description: Text("Try another name, muscle, or equipment type.")
+                )
+                Button("Create “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”") {
+                    isCreatingExercise = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("create-exercise-from-search")
+                if filter.activeFilterCount > 0 { clearFiltersButton }
+            }
+        } else if filter != ExerciseFilterState() {
+            VStack(spacing: Spacing.m) {
+                ContentUnavailableView(
+                    "No exercises in these filters",
+                    systemImage: AppIcon.filters,
+                    description: Text("Clear a filter to see more exercises.")
+                )
+                clearFiltersButton
+            }
+        } else {
+            ContentUnavailableView(
+                "No exercises available",
+                systemImage: AppIcon.exercise,
+                description: Text("Create an exercise in the library, then return here to add it.")
+            )
+        }
+    }
+
+    private var clearFiltersButton: some View {
+        Button("Clear filters") { filter.clear() }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("clear-exercise-filters")
     }
 
     private var filteredExercises: [Exercise] {
@@ -157,10 +281,8 @@ private struct ExerciseLibrarySelectionRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Spacing.s) {
-            Button {
-                isShowingDetails = true
-            } label: {
-                HStack(alignment: .top, spacing: Spacing.m) {
+            Button(action: onAdd) {
+                HStack(alignment: .center, spacing: Spacing.m) {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(exercise.name)
                             .font(AppFont.body.weight(.semibold))
@@ -173,31 +295,31 @@ private struct ExerciseLibrarySelectionRow: View {
                     }
                     .layoutPriority(1)
                     Spacer(minLength: Spacing.s)
+
+                    Image(systemName: isAdded ? AppIcon.checkmarkCircle : AppIcon.plus)
+                        .font(AppFont.headlineSemibold)
+                        .foregroundStyle(isAdded ? Color.trameCompleted : Color.trameStrength)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("exercise-link-\(exercise.name)")
+            .disabled(isAdded)
+            .accessibilityIdentifier(isAdded ? "added-exercise-\(exercise.name)" : "add-exercise-\(exercise.name)")
+            .accessibilityLabel(isAdded ? "\(exercise.name), added" : "Add \(exercise.name)")
 
-            if isAdded {
-                Image(systemName: AppIcon.checkmarkCircle)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.trameCompleted)
+            Button {
+                isShowingDetails = true
+            } label: {
+                Image(systemName: AppIcon.info)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
-                    .accessibilityIdentifier("added-exercise-\(exercise.name)")
-                    .accessibilityLabel("\(exercise.name), already added")
-            } else {
-                Button(action: onAdd) {
-                    Image(systemName: AppIcon.plus)
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.trameStrength)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("add-exercise-\(exercise.name)")
-                .accessibilityLabel("Add \(exercise.name)")
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("exercise-link-\(exercise.name)")
+            .accessibilityLabel("About \(exercise.name)")
         }
         .padding(.vertical, Spacing.xs)
         .navigationDestination(isPresented: $isShowingDetails) {
