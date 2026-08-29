@@ -209,7 +209,7 @@ struct OnboardingProgressHeader: View {
         HStack(spacing: 3) {
             ForEach(0..<max(stepCount, 1), id: \.self) { index in
                 Capsule(style: .continuous)
-                    .fill(index <= stepIndex ? Color.gymPrimary : Color.gymBorder)
+                    .fill(index <= stepIndex ? Color.trameAction : Color.gymBorder)
                     .frame(height: 4)
                     .animation(reduceMotion ? nil : AppMotion.compact, value: stepIndex)
             }
@@ -245,7 +245,7 @@ struct OnboardingBottomAction: View {
 
             if let primaryAction {
                 Button(primaryAction.title, action: primaryAction.perform)
-                    .buttonStyle(.gymPrimaryProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .disabled(!primaryAction.isEnabled)
                     .accessibilityIdentifier("onboarding-continue")
             } else {
@@ -260,11 +260,11 @@ struct OnboardingBottomAction: View {
                 // shift under a finger reaching for them.
                 //
                 // The real button, hidden — not a hardcoded height. A fixed 54
-                // matched `.gymPrimaryProminent` at default type only; at
+                // matched `.tramePrimaryAction` at default type only; at
                 // accessibility sizes the button grows and the placeholder did
                 // not, which brought back the exact jump it exists to prevent.
                 Button("Continue") {}
-                    .buttonStyle(.gymPrimaryProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .hidden()
                     .accessibilityHidden(true)
             }
@@ -340,10 +340,10 @@ struct OnboardingChoiceCard: View {
                 if let icon, !dynamicTypeSize.isAccessibilitySize {
                     Image(systemName: icon)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
+                        .foregroundStyle(isSelected ? Color.trameAction : Color.gymSubduedText)
                         .frame(width: 34, height: 34)
                         .background(
-                            (isSelected ? Color.gymPrimary : Color.gymSubduedText).opacity(0.12),
+                            (isSelected ? Color.trameAction : Color.gymSubduedText).opacity(0.12),
                             in: RoundedRectangle(cornerRadius: Radius.medium)
                         )
                         .accessibilityHidden(true)
@@ -371,7 +371,7 @@ struct OnboardingChoiceCard: View {
                 // an answer never reflows the row it is in.
                 Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                     .font(AppFont.headline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymBorder)
+                    .foregroundStyle(isSelected ? Color.trameAction : Color.gymBorder)
                     .padding(.top, Spacing.xxs)
                     .accessibilityHidden(true)
             }
@@ -379,12 +379,12 @@ struct OnboardingChoiceCard: View {
             .padding(.vertical, Spacing.m)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                isSelected ? Color.trameCurrent : Color.gymCard,
                 in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.clear, lineWidth: 1.5)
+                    .stroke(isSelected ? Color.trameActionOutline : Color.clear, lineWidth: 1.5)
             }
             .contentShape(Rectangle())
         }
@@ -414,7 +414,7 @@ struct OnboardingMultiChoiceTile: View {
                 if let icon {
                     Image(systemName: icon)
                         .font(AppFont.subheadline)
-                        .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
+                        .foregroundStyle(isSelected ? Color.trameAction : Color.gymSubduedText)
                         .frame(width: 22)
                         .accessibilityHidden(true)
                 }
@@ -429,19 +429,19 @@ struct OnboardingMultiChoiceTile: View {
 
                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymBorder)
+                    .foregroundStyle(isSelected ? Color.trameAction : Color.gymBorder)
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, Spacing.m)
             .padding(.vertical, Spacing.m)
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
             .background(
-                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                isSelected ? Color.trameCurrent : Color.gymCard,
                 in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.clear, lineWidth: 1.5)
+                    .stroke(isSelected ? Color.trameActionOutline : Color.clear, lineWidth: 1.5)
             }
             .contentShape(Rectangle())
         }
@@ -487,7 +487,7 @@ struct OnboardingChip: View {
         Button(action: action) {
             Text(title)
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(isSelected ? Color.white : Color.gymText)
+                .foregroundStyle(isSelected ? Color.trameActionInk : Color.gymText)
                 // The token is one or two characters, so it must never wrap —
                 // a weekday initial broken across two lines is not a label. The
                 // frame is a *minimum*, so the chip grows with the type size
@@ -498,12 +498,12 @@ struct OnboardingChip: View {
                 .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
                 .padding(.horizontal, Spacing.s)
                 .background(
-                    isSelected ? Color.gymPrimaryDeep : Color.gymCard,
+                    isSelected ? Color.trameAction : Color.gymCard,
                     in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                        .stroke(isSelected ? Color.gymPrimaryDeep : Color.gymBorder, lineWidth: 1)
+                        .stroke(isSelected ? Color.trameActionOutline : Color.gymBorder, lineWidth: 1)
                 }
                 .contentShape(Rectangle())
         }

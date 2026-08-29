@@ -14,7 +14,7 @@ enum StrengthAnalyticsPolicy {
         entry: ExerciseEntry
     ) -> Bool {
         guard set.done,
-              set.setType != .warmup,
+              !set.setType.isStrengthAnalyticsExcluded,
               set.resolvedSetMethod == .standard,
               set.segments.isEmpty,
               set.complexComponents.isEmpty,
@@ -35,7 +35,7 @@ enum StrengthAnalyticsPolicy {
     static func isEligibleForTraditionalSetRecord(_ set: ExerciseSet) -> Bool {
         guard let entry = set.exerciseEntry else {
             return set.done
-                && set.setType != .warmup
+                && !set.setType.isStrengthAnalyticsExcluded
                 && set.resolvedSetMethod == .standard
                 && set.segments.isEmpty
                 && set.complexComponents.isEmpty

@@ -5,25 +5,28 @@ import SwiftUI
 ///
 /// Seven marks and one total line — deliberately not a chart. Today is a screen
 /// someone opens before a session, not to analyse one, so this states whether
-/// the week is on track and hands anything deeper to Progress.
+/// the week is on track and hands anything deeper to Progress / Calendar.
 struct HomeWeekSummaryCard: View {
     let isPrimaryCardOfferingStart: Bool
     /// Whether Today is playing its first-run assembly. The strip fills left to
     /// right as part of that sequence and is static otherwise.
     var isPlayingAssembly: Bool = false
     let onStartWorkout: () -> Void
-    
+    let onOpenCalendar: () -> Void
+
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query(filter: #Predicate<PlanRun> { $0.endDate == nil }) private var planRuns: [PlanRun]
 
     init(
         isPrimaryCardOfferingStart: Bool,
         isPlayingAssembly: Bool = false,
-        onStartWorkout: @escaping () -> Void
+        onStartWorkout: @escaping () -> Void,
+        onOpenCalendar: @escaping () -> Void = {}
     ) {
         self.isPrimaryCardOfferingStart = isPrimaryCardOfferingStart
         self.isPlayingAssembly = isPlayingAssembly
         self.onStartWorkout = onStartWorkout
+        self.onOpenCalendar = onOpenCalendar
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: .now)
@@ -44,13 +47,6 @@ struct HomeWeekSummaryCard: View {
     }
 
     /// Sessions an active plan still expects.
-    ///
-    /// Only `upcoming` and `available` occurrences: a completed one is already
-    /// counted by the workout it produced, and a skipped one is a decision the
-    /// lifter made — re-advertising it as expected would argue with them.
-    /// Written as a loop rather than a chain: the equivalent
-    /// `filter/flatMap/compactMap` over SwiftData models pushed the expression
-    /// past the type-checker's budget.
     private var scheduledDays: [TrainingWeekSummary.ScheduledDay] {
         var days: [TrainingWeekSummary.ScheduledDay] = []
         for run in planRuns where run.status == .active {
@@ -73,24 +69,25 @@ struct HomeWeekSummaryCard: View {
         let weekSummary = summary
 
         return VStack(alignment: .leading, spacing: Spacing.m) {
-            TrameSectionRule(title: "Week")
+            HomeWeekHeader(
+                sessionCount: weekSummary.workoutCount,
+                onOpenCalendar: onOpenCalendar
+            )
 
-            VStack(alignment: .leading, spacing: Spacing.l) {
-                TrameMetric(
-                    value: "\(weekSummary.workoutCount)",
-                    label: weekSummary.workoutCount == 1 ? "session" : "sessions",
-                    accessibilityLabel: String(
-                        localized: "\(weekSummary.workoutCount) \(weekSummary.workoutCount == 1 ? "session" : "sessions")"
-                    )
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityHidden(true)
-
+            VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack(spacing: Spacing.xs) {
                     ForEach(Array(weekSummary.days.enumerated()), id: \.element.id) { position, day in
                         dayColumn(day)
                             .gymStripFill(position: position, isActive: isPlayingAssembly)
                     }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityLabel(for: weekSummary))
+
+                if let next = weekSummary.nextScheduled,
+                   !Calendar.current.isDateInToday(next.date) {
+                    nextSessionRow(next)
+                        .accessibilityHidden(true)
                 }
 
                 if !weekSummary.hasTraining && !isPrimaryCardOfferingStart {
@@ -108,11 +105,23 @@ struct HomeWeekSummaryCard: View {
             }
             .padding(.top, Spacing.xs)
         }
-        // One stop, not fifteen. Read day by day this card is a stutter of
-        // single letters; read as a sentence it is the same information.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel(for: weekSummary))
         .accessibilityIdentifier("today-week-summary")
+    }
+
+    private func nextSessionRow(_ next: TrainingWeekSummary.ScheduledDay) -> some View {
+        HStack(spacing: Spacing.s) {
+            Rectangle()
+                .fill(Color.trameStrength)
+                .frame(width: Spacing.xs, height: Spacing.xl)
+                .accessibilityHidden(true)
+
+            Text(nextScheduledText(next))
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+
+            Spacer()
+        }
+        .padding(.top, Spacing.xxs)
     }
 
     private func dayColumn(_ day: TrainingWeekSummary.Day) -> some View {
@@ -122,9 +131,6 @@ struct HomeWeekSummaryCard: View {
                 .foregroundStyle(Color.trameSubdued)
 
             mark(for: day)
-                // Today's mark gets the one settle beat, after the sweep has
-                // reached it. It is the mark that means something on an empty
-                // week — the other six are places a session could go.
                 .gymSettleBeat(index: day.isToday ? 7 : 0, isActive: isPlayingAssembly && day.isToday)
 
             Text(day.date.formatted(.dateTime.day()))
@@ -135,26 +141,12 @@ struct HomeWeekSummaryCard: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Four marks, four silhouettes.
-    ///
-    /// Shape carries the state before colour does, so the strip survives
-    /// greyscale, Increase Contrast, and every form of colour blindness:
-    ///
-    /// - trained — filled disc with a checkmark
-    /// - today, untrained — dashed ring
-    /// - scheduled — solid ring, hollow: something is expected but has not
-    ///   happened, which is exactly "an outline of the filled state"
-    /// - nothing — a small dot
-    ///
-    /// Order matters. Trained wins over scheduled, because a completed session
-    /// is not still expected; today wins over scheduled, because "now" is the
-    /// more urgent fact and the card above already names today's session.
     @ViewBuilder
     private func mark(for day: TrainingWeekSummary.Day) -> some View {
         if day.isTrained {
             Image(systemName: AppIcon.checkmark)
                 .font(AppFont.caption2Bold)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.trameActionInk)
                 .frame(width: markDiameter, height: markDiameter)
                 .background(Color.trameCompleted, in: Circle())
         } else if day.isToday {
@@ -167,7 +159,7 @@ struct HomeWeekSummaryCard: View {
                 .frame(width: markDiameter, height: markDiameter)
         } else {
             Circle()
-                .fill(day.isFuture ? Color.gymBorder.opacity(0.6) : Color.gymBorder)
+                .fill(day.isFuture ? Color.trameSeparator.opacity(0.6) : Color.trameSeparator)
                 .frame(width: emptyMarkDiameter, height: emptyMarkDiameter)
                 .frame(width: markDiameter, height: markDiameter)
         }
@@ -182,8 +174,6 @@ struct HomeWeekSummaryCard: View {
             day = String(localized: "Tomorrow")
         } else if let week = calendar.dateInterval(of: .weekOfYear, for: .now),
                   week.contains(next.date) {
-            // Inside this week the weekday alone is unambiguous; beyond it,
-            // "Monday" could be any Monday, so the date is spelled out.
             day = next.date.formatted(.dateTime.weekday(.wide))
         } else {
             day = next.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
@@ -192,14 +182,8 @@ struct HomeWeekSummaryCard: View {
     }
 
     private var markDiameter: CGFloat { ComponentSize.todayWeekMark }
-    private var emptyMarkDiameter: CGFloat { 8 }
+    private var emptyMarkDiameter: CGFloat { Spacing.s }
 
-    /// One sentence, not fifteen marks.
-    ///
-    /// The scheduled days are spoken as their own clause rather than folded in
-    /// with the trained ones: the strip now carries two different kinds of fact,
-    /// and a reader who cannot see the difference in silhouette needs to hear
-    /// the difference in wording.
     private func accessibilityLabel(for summary: TrainingWeekSummary) -> String {
         var sentences = [String(localized: "This week. \(summary.detailText).")]
 
@@ -226,5 +210,46 @@ struct HomeWeekSummaryCard: View {
         }
 
         return sentences.joined(separator: " ")
+    }
+}
+
+/// Interactive week section header serving as the entry point to Training Calendar.
+struct HomeWeekHeader: View {
+    let sessionCount: Int
+    let onOpenCalendar: () -> Void
+
+    var body: some View {
+        Button(action: onOpenCalendar) {
+            HStack(spacing: Spacing.m) {
+                Text("WEEK")
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
+
+                Rectangle()
+                    .fill(Color.trameStrength)
+                    .frame(width: 20, height: 2)
+                    .accessibilityHidden(true)
+
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+
+                Text("\(sessionCount) \(sessionCount == 1 ? "session" : "sessions")")
+                    .font(AppFont.metadata)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.trameSubdued)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("open-training-calendar")
+        .accessibilityLabel(Text("Week, \(sessionCount) \(sessionCount == 1 ? "session" : "sessions"). Open training calendar."))
     }
 }

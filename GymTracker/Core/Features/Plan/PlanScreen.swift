@@ -93,14 +93,13 @@ struct PlanScreen<Overview: View, Path: View, Review: View>: View {
 
             content
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         // A fallback. Each segment's own screen sets a more specific title —
         // the plan's name on Overview, "Plan path", "Weekly review" — and the
         // innermost wins, which is the same title the lifter saw when these
         // were separate pushes.
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("plan-screen")
         // A run can end while its screen is open — ending a plan run from
         // Overview removes both the path and the review out from under the
         // segments that were showing them. Falling back keeps the screen on

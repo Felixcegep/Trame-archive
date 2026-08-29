@@ -64,7 +64,7 @@ struct TemplateExerciseEditorView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(templateExercise.exercise.name)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

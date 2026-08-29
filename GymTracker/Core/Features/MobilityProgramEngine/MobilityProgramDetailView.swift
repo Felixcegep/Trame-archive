@@ -129,8 +129,7 @@ struct MobilityProgramDetailView: View {
                     Spacer()
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.tramePrimaryAction)
             .disabled(isActivating)
             .accessibilityIdentifier("use-mobility-program")
         }

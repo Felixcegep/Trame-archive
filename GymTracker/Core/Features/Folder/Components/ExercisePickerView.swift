@@ -19,7 +19,7 @@ struct ExercisePickerView: View {
         List {
             if exercises.isEmpty {
                 Text("No exercises to add")
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 ForEach(exercises, id: \.self) { exercise in
                     let isAdded = addedExerciseIDs.contains(ObjectIdentifier(exercise))
@@ -32,7 +32,7 @@ struct ExercisePickerView: View {
                             FolderRow(
                                 title: exercise.name,
                                 subtitle: NSLocalizedString(exercise.trackingType.rawValue, comment: ""),
-                                systemImage: "figure.strengthtraining.traditional"
+                                systemImage: AppIcon.exercise
                             )
 
                             Spacer()

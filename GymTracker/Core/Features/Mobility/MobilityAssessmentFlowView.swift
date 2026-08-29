@@ -57,21 +57,30 @@ struct MobilityAssessmentFlowView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(side.displayName)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
 
                     HStack(spacing: Spacing.xs) {
                         ForEach(0..<3, id: \.self) { trialIndex in
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text("Trial \(trialIndex + 1)")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                                 DecimalField(
                                     "Trial \(trialIndex + 1)",
                                     value: trialBinding(for: side, index: trialIndex),
                                     prompt: MobilityAssessmentValueFormatter.placeholder,
                                     range: valueRange(for: definition.unit)
                                 )
-                                .gymFieldStyle()
+                                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                                .padding(.horizontal, Spacing.m)
+                                .background(
+                                    Color.trameRow,
+                                    in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                                )
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                                        .stroke(Color.trameSeparator)
+                                }
                                 .accessibilityLabel(fieldAccessibilityLabel(side: side, unit: definition.unit, trialIndex: trialIndex))
                                 .accessibilityIdentifier(trialIndex == 0 ? "mobility-assessment-value-\(side.rawValue)" : "mobility-assessment-value-\(side.rawValue)-trial-\(trialIndex + 1)")
                             }
@@ -79,7 +88,7 @@ struct MobilityAssessmentFlowView: View {
 
                         Text(MobilityAssessmentValueFormatter.unitSuffix(definition.unit))
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                             .padding(.top, Spacing.m)
                             .accessibilityHidden(true)
                     }
@@ -110,7 +119,7 @@ struct MobilityAssessmentFlowView: View {
 
             Text("Enter up to 3 trials per side for improved accuracy. Three trials allow repeated-measurement comparison.")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -139,7 +148,7 @@ struct MobilityAssessmentFlowView: View {
 
     private var flowSurface: some View {
         scrollingContent
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Assessment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { flowToolbar }
@@ -200,15 +209,15 @@ struct MobilityAssessmentFlowView: View {
 
     private var progressHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            GymEyebrow("Mobility assessment", tint: .gymAccent)
+            GymEyebrow("Mobility assessment", tint: .trameMobility)
             Text(stepCountText)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             ProgressView(
                 value: Double(min(currentIndex, orderedDefinitions.count)),
                 total: Double(max(orderedDefinitions.count, 1))
             )
-            .tint(Color.gymPrimary)
+            .tint(Color.trameMobility)
             .accessibilityHidden(true)
         }
         .accessibilityElement(children: .combine)
@@ -249,10 +258,10 @@ struct MobilityAssessmentFlowView: View {
 
     private func instructionStep(_ definition: MobilityAssessmentDefinition) -> some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
-            GymCard {
+            assessmentSurface(border: .trameMobility) {
                 Text(MobilityAssessmentCopy.name(for: definition))
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 GymTagChip(
                     title: definition.zone.displayName,
                     systemImage: AppIcon.mobilityAssessment,
@@ -279,16 +288,16 @@ struct MobilityAssessmentFlowView: View {
                 )
             }
 
-            GymCard(variant: .accent) {
+            assessmentSurface(border: .trameMobility) {
                 Label {
                     Text("You enter this value yourself and it is recorded as entered by hand.")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .fixedSize(horizontal: false, vertical: true)
                 } icon: {
-                    Image(systemName: AppIcon.edit)
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymAccent)
+                        Image(systemName: AppIcon.edit)
+                            .font(AppFont.subheadline)
+                            .foregroundStyle(Color.trameMobility)
                         .accessibilityHidden(true)
                 }
                 .accessibilityElement(children: .combine)
@@ -299,12 +308,12 @@ struct MobilityAssessmentFlowView: View {
                     prepareDraftForCurrentStep()
                     phase = .entry
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("record-mobility-assessment-result")
 
                 Button("Skip this assessment", action: skipCurrent)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier("skip-mobility-assessment")
             }
@@ -318,7 +327,7 @@ struct MobilityAssessmentFlowView: View {
                 GymEyebrow(title)
                 Text(text)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,15 +339,15 @@ struct MobilityAssessmentFlowView: View {
 
     private func entryStep(_ definition: MobilityAssessmentDefinition) -> some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
-            GymCard {
+            assessmentSurface(border: .trameMobility) {
                 Text(MobilityAssessmentCopy.name(for: definition))
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
 
-                GymEyebrow("Conditions")
+                TrameDomainSectionRule(title: "Conditions", color: .trameMobility)
                 Text("These are recorded with the observation. A later observation is only compared with this one when all of them match.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
 
                 setupControl(definition)
@@ -348,6 +357,7 @@ struct MobilityAssessmentFlowView: View {
                     Text("Passive range").tag(false)
                 }
                 .pickerStyle(.segmented)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .accessibilityIdentifier("mobility-assessment-range-picker")
 
                 Picker("Timing", selection: $draft.isWarm) {
@@ -355,11 +365,12 @@ struct MobilityAssessmentFlowView: View {
                     Text("After training").tag(true)
                 }
                 .pickerStyle(.segmented)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .accessibilityIdentifier("mobility-assessment-timing-picker")
             }
 
-            GymCard {
-                GymEyebrow("What you observed")
+            assessmentSurface(border: .trameMobility) {
+                TrameDomainSectionRule(title: "What you observed", color: .trameMobility)
                 if definition.unit == .criteria {
                     criteriaControls(definition)
                 } else {
@@ -369,18 +380,18 @@ struct MobilityAssessmentFlowView: View {
 
             VStack(spacing: Spacing.m) {
                 Button("Save observation") { save(definition) }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("save-mobility-assessment-result")
 
                 Button("Back to instructions") { phase = .instruction }
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier("mobility-assessment-back-to-instructions")
 
                 Button("Skip this assessment", action: skipCurrent)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier("skip-mobility-assessment-from-entry")
             }
@@ -399,16 +410,17 @@ struct MobilityAssessmentFlowView: View {
                     Text(MobilityAssessmentCopy.setupName(key)).tag(key)
                 }
             }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
             .accessibilityIdentifier("mobility-assessment-setup-picker")
         } else {
             HStack(spacing: Spacing.s) {
                 Text("Setup")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 Spacer(minLength: Spacing.s)
                 Text(MobilityAssessmentCopy.setupName(draft.setupKey))
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .multilineTextAlignment(.trailing)
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
@@ -428,11 +440,11 @@ struct MobilityAssessmentFlowView: View {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
+                            .foregroundStyle(isSelected ? Color.trameMobility : Color.trameSubdued)
                             .accessibilityHidden(true)
                         Text(observation.displayName)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                     }
@@ -451,11 +463,11 @@ struct MobilityAssessmentFlowView: View {
     private func confirmationStep(_ definition: MobilityAssessmentDefinition) -> some View {
         let observations = confirmedObservations
         return VStack(alignment: .leading, spacing: Spacing.l) {
-            GymCard {
-                GymEyebrow("Saved", tint: .gymSecondary)
+            assessmentSurface(border: .trameCompleted) {
+                GymEyebrow("Saved", tint: .trameCompleted)
                 Text(MobilityAssessmentCopy.name(for: definition))
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
 
                 ForEach(observations) { observation in
                     MobilityAssessmentObservationRow(observation: observation, showsTitle: false)
@@ -466,19 +478,19 @@ struct MobilityAssessmentFlowView: View {
                     // observation about two numbers, not a finding about a body.
                     Text(gapText)
                         .font(AppFont.subheadlineSemiboldMonospaced)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .accessibilityIdentifier("mobility-assessment-side-difference")
                 }
             }
 
             VStack(spacing: Spacing.m) {
                 Button(isLastStep ? "Finish assessment" : "Next assessment") { advance() }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("mobility-assessment-next")
 
                 Button("Change these values") { phase = .entry }
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier("mobility-assessment-retake")
             }
@@ -495,16 +507,16 @@ struct MobilityAssessmentFlowView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Assessment complete")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(summaryCountText)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("mobility-assessment-summary")
 
             if groups.isEmpty {
-                GymCard {
+                assessmentSurface {
                     ContentUnavailableView(
                         "Nothing recorded",
                         systemImage: AppIcon.mobilityAssessment,
@@ -514,8 +526,8 @@ struct MobilityAssessmentFlowView: View {
             } else {
                 ForEach(groups) { group in
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        GymSectionHeader(title: group.title)
-                        GymCard {
+                        TrameDomainSectionRule(title: LocalizedStringKey(group.title), color: .trameMobility)
+                        assessmentSurface(border: .trameMobility) {
                             ForEach(group.observations) { observation in
                                 MobilityAssessmentObservationRow(observation: observation)
                             }
@@ -525,8 +537,8 @@ struct MobilityAssessmentFlowView: View {
             }
 
             if skippedNames.isEmpty == false {
-                GymCard {
-                    GymEyebrow("Skipped assessments")
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    TrameDomainSectionRule(title: "Skipped assessments", color: .trameMobility)
                         .accessibilityIdentifier("mobility-assessment-skipped-heading")
                     // Skipped is unknown, never a low value. It is listed by
                     // name so it can be recorded later on purpose.
@@ -539,8 +551,21 @@ struct MobilityAssessmentFlowView: View {
             MobilityAssessmentScopeNote()
 
             Button("Done", action: complete)
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("finish-mobility-assessment")
+        }
+    }
+
+    private func assessmentSurface<Content: View>(
+        border: Color = .trameSeparator,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: border, radius: Radius.card) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.l)
         }
     }
 
@@ -815,18 +840,34 @@ struct MobilityAssessmentFlowView: View {
     }
 
     private var gaugeDegreesText: String? {
-        guard let value = gaugeAngleDegrees else { return nil }
+        guard let value = gaugeResultDegrees else { return nil }
         return value.formatted(.number.precision(.fractionLength(1))) + "°"
+    }
+
+    /// The ray follows the signed device direction one-to-one. It is visual
+    /// placement feedback only; the exact result beside it remains the
+    /// non-negative range magnitude persisted by the assessment domain.
+    private var gaugeAngleDegrees: Double? {
+        switch inclinometerCapture.state {
+        case let .completed(_, degrees):
+            return degrees
+        case .calibrating, .measuring, .rejected:
+            return inclinometerCapture.liveAngleDegrees
+        case .idle, .unavailable:
+            return nil
+        }
     }
 
     /// Assessment range is persisted as a non-negative magnitude. Core
     /// Motion's sign describes phone-coordinate direction and flips with
     /// placement; treating it as left-versus-right evidence would be false.
-    private var gaugeAngleDegrees: Double? {
+    private var gaugeResultDegrees: Double? {
         let signedValue: Double?
         switch inclinometerCapture.state {
-        case let .measuring(degrees, _), let .completed(_, degrees):
+        case let .completed(_, degrees):
             signedValue = degrees
+        case .calibrating, .measuring, .rejected:
+            signedValue = inclinometerCapture.liveAngleDegrees
         default:
             signedValue = nil
         }

@@ -28,13 +28,12 @@ struct MobilityAssessmentProfileView: View {
                 coverageCard(profile)
 
                 if profile.measurements.isEmpty {
-                    GymCard {
-                        ContentUnavailableView(
-                            String(localized: "mobility.profile.empty.title", defaultValue: "No mobility observations"),
-                            systemImage: AppIcon.mobilityAssessment,
-                            description: Text(String(localized: "mobility.profile.empty.detail", defaultValue: "Record an assessment to build your profile."))
-                        )
-                    }
+                    ContentUnavailableView(
+                        String(localized: "mobility.profile.empty.title", defaultValue: "No mobility observations"),
+                        systemImage: AppIcon.mobilityAssessment,
+                        description: Text(String(localized: "mobility.profile.empty.detail", defaultValue: "Record an assessment to build your profile."))
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 220)
                 } else {
                     measurementSection(profile)
                     if profile.sideGaps.isEmpty == false { sideSection(profile) }
@@ -42,32 +41,35 @@ struct MobilityAssessmentProfileView: View {
 
                 Text(String(localized: "mobility.profile.scope", defaultValue: "This profile describes protocol-bound observations. It is not a score, diagnosis, injury-risk estimate, or universal normal range."))
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("mobility-profile-scope")
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(String(localized: "mobility.profile.title", defaultValue: "Mobility profile"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("mobility-assessment-profile")
     }
 
     private func coverageCard(_ profile: MobilityAssessmentProfile) -> some View {
-        GymCard(variant: .current) {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameMobility, radius: Radius.card) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
             Text(String(localized: "mobility.profile.coverage", defaultValue: "Observation coverage"))
                 .font(AppFont.caption2Bold)
                 .textCase(.uppercase)
                 .tracking(0.55)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text("\(profile.coverage.measuredCount) / \(profile.coverage.expectedCount)")
                 .font(AppFont.titleSmall)
-                .foregroundStyle(Color.gymDataEmphasis)
+                .foregroundStyle(Color.trameText)
             Text(String(localized: "mobility.profile.coverage.detail", defaultValue: "Each assessment side is kept separate. Missing observations remain missing."))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
+            }
+            .padding(Spacing.l)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("mobility-profile-coverage")
@@ -75,11 +77,14 @@ struct MobilityAssessmentProfileView: View {
 
     private func measurementSection(_ profile: MobilityAssessmentProfile) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(
-                title: String(localized: "mobility.profile.observations", defaultValue: "Latest observations"),
-                detail: String(localized: "mobility.profile.observations.detail", defaultValue: "Values and comparisons use the recorded setup and method."))
+            TrameDomainSectionRule(title: "Latest observations", color: .trameMobility)
+            Text(String(localized: "mobility.profile.observations.detail", defaultValue: "Values and comparisons use the recorded setup and method."))
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
             ForEach(orderedMeasurements(in: profile)) { measurement in
-                GymCard { measurementRow(measurement) }
+                measurementRow(measurement)
+                    .padding(.vertical, Spacing.s)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
             }
         }
     }
@@ -98,16 +103,16 @@ struct MobilityAssessmentProfileView: View {
 
     private func sideSection(_ profile: MobilityAssessmentProfile) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(
-                title: String(localized: "mobility.profile.sides", defaultValue: "Side differences"),
-                detail: String(localized: "mobility.profile.sides.detail", defaultValue: "Shown only for numeric observations in the same unit."))
-            GymCard {
-                ForEach(profile.sideGaps) { gap in
-                    Text(sideGapText(gap))
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymText)
-                        .accessibilityIdentifier("mobility-profile-side-gap-\(gap.id)")
-                }
+            TrameDomainSectionRule(title: "Side differences", color: .trameMobility)
+            Text(String(localized: "mobility.profile.sides.detail", defaultValue: "Shown only for numeric observations in the same unit."))
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+            ForEach(profile.sideGaps) { gap in
+                Text(sideGapText(gap))
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.trameText)
+                    .padding(.vertical, Spacing.s)
+                    .accessibilityIdentifier("mobility-profile-side-gap-\(gap.id)")
             }
         }
     }
@@ -117,21 +122,21 @@ struct MobilityAssessmentProfileView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(measurement.testName)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Spacer(minLength: Spacing.s)
                 Text(measurement.side.displayName)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             Text(valueText(measurement.value))
                 .font(AppFont.titleSmall)
-                .foregroundStyle(Color.gymDataEmphasis)
+                .foregroundStyle(Color.trameText)
             Text(historyText(measurement.history, unit: measurement.expectedUnit))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text(String(localized: "mobility.profile.no.band", defaultValue: "No population comparison is applied."))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("mobility-profile-measurement-\(measurement.id)")

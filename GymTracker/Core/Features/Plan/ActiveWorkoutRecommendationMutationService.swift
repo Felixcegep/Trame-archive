@@ -132,7 +132,7 @@ enum ActiveWorkoutRecommendationMutationService {
         }
 
         entry.prescribedSets = entry.orderedSets.filter {
-            $0.prescribedSetType != .warmup && $0.setType != .warmup
+            $0.prescribedSetType != .warmup && !$0.setType.isStrengthAnalyticsExcluded
         }.count
         entry.normalizeSetOrder()
         return true

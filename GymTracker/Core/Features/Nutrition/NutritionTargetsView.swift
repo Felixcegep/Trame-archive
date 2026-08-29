@@ -21,7 +21,7 @@ struct NutritionTargetsView: View {
                     Button("Add target") {
                         isCreatingTarget = true
                     }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("create-nutrition-target-empty")
                 }
             } else {

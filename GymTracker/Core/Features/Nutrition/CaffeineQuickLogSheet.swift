@@ -337,19 +337,19 @@ struct CaffeineQuickLogSheet: View {
                 if isSelected {
                     Image(systemName: AppIcon.checkmarkCircle)
                         .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameAction)
                 }
             }
             .foregroundStyle(Color.gymText)
             .padding(.horizontal, Spacing.l)
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .background(
-                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                isSelected ? Color.trameCurrent : Color.gymCard,
                 in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? Color.trameActionOutline : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
             }
         }
         .buttonStyle(.gymPress)
@@ -470,12 +470,12 @@ struct CaffeineQuickLogSheet: View {
                 Spacer(minLength: 0)
                 Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
+                    .foregroundStyle(isSelected ? Color.trameAction : Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
-            .background(isSelected ? Color.gymPrimarySurface : Color.clear)
+            .background(isSelected ? Color.trameCurrent : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

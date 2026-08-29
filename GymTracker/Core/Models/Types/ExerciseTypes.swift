@@ -14,6 +14,10 @@ enum EquipmentType: String, Codable, CaseIterable, Hashable {
     case machine = "Machine"
     case bodyweight = "Bodyweight"
     case cardioMachine = "Cardio Machine"
+    case battleRopes = "Battle Ropes"
+    case sandbag = "Sandbag"
+    case sled = "Sled"
+    case rings = "Rings"
     case other = "Other"
 }
 
@@ -42,6 +46,24 @@ enum MovementPattern: String, Codable, CaseIterable {
     case antiExtension = "Anti-Extension"
     case antiLateralFlexion = "Anti-Lateral Flexion"
     case locomotion = "Locomotion"
+    case spinalFlexion = "Spinal Flexion"
+    case spinalExtension = "Spinal Extension"
+    case lateralFlexion = "Lateral Flexion"
+    case shoulderFlexion = "Shoulder Flexion"
+    case shoulderExtension = "Shoulder Extension"
+    case shoulderAbduction = "Shoulder Abduction"
+    case horizontalAdduction = "Horizontal Adduction"
+    case horizontalAbduction = "Horizontal Abduction"
+    case elbowFlexion = "Elbow Flexion"
+    case elbowExtension = "Elbow Extension"
+    case hipAbduction = "Hip Abduction"
+    case hipAdduction = "Hip Adduction"
+    case plantarFlexion = "Plantar Flexion"
+    case dorsiflexion = "Dorsiflexion"
+    case jump = "Jump"
+    case throwMovement = "Throw"
+    case olympicLift = "Olympic Lift"
+    case isometricSupport = "Isometric Support"
     case other = "Other"
 }
 
@@ -53,11 +75,13 @@ enum Difficulty: String, Codable, CaseIterable {
 
 enum ExerciseCategory: String, Codable, CaseIterable {
     case strength = "Strength"
+    case power = "Power"
     case cardio = "Cardio"
     case mobility = "Mobility"
     case flexibility = "Flexibility"
     case balance = "Balance"
     case sport = "Sport"
+    case skill = "Skill"
     case other = "Other"
 }
 

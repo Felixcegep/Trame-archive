@@ -108,7 +108,7 @@ extension SetInputAccessoryPanel {
             Button {
                 isShowingSetDetails = true
             } label: {
-                Label("More options", systemImage: AppIcon.advanced)
+                Label("Set details", systemImage: AppIcon.advanced)
             }
         } label: {
             chipLabel(
@@ -123,37 +123,68 @@ extension SetInputAccessoryPanel {
         .accessibilityIdentifier("panel-effort")
     }
 
+    /// Working sets land at the top of the scale almost every time, so the
+    /// menu opened onto eleven RPE rows the lifter had to read past to reach
+    /// the three or four they actually use. The values a hard set produces are
+    /// promoted; the light end stays one tap away rather than in the way.
+    private static let commonRIRValues = [0, 1, 2]
+    private static let remainingRIRValues = [3, 4, 5, 6]
+    private static let commonRPEValues = [10.0, 9.5, 9.0, 8.5, 8.0]
+    private static let remainingRPEValues = [7.5, 7.0, 6.5, 6.0, 5.5, 5.0]
+
     @ViewBuilder
     private func effortQuickPicks(set: ExerciseSet) -> some View {
         switch effortMeasure {
         case .rir:
-            ForEach(0...6, id: \.self) { value in
-                Button {
-                    set.recordRIR(value)
-                    viewModel.noteSetEntryTool(.effortChip)
-                    viewModel.persistChanges()
-                } label: {
-                    if set.rir == value {
-                        Label("RIR \(value) · \(RIRScale.meaning(for: value))", systemImage: AppIcon.checkmark)
-                    } else {
-                        Text("RIR \(value) · \(RIRScale.meaning(for: value))")
-                    }
-                }
+            Section(String(localized: "Common")) {
+                rirOptions(Self.commonRIRValues, set: set)
+            }
+            Menu(String(localized: "More effort values")) {
+                rirOptions(Self.remainingRIRValues, set: set)
             }
         case .rpe:
-            ForEach(Array(stride(from: 10.0, through: 6.0, by: -0.5)), id: \.self) { value in
-                Button {
-                    set.recordRPE(value)
-                    viewModel.noteSetEntryTool(.effortChip)
-                    viewModel.persistChanges()
-                } label: {
-                    if set.rpe == value {
-                        Label("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))", systemImage: AppIcon.checkmark)
-                    } else {
-                        Text("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))")
-                    }
+            Section(String(localized: "Common")) {
+                rpeOptions(Self.commonRPEValues, set: set)
+            }
+            Menu(String(localized: "More effort values")) {
+                rpeOptions(Self.remainingRPEValues, set: set)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rirOptions(_ values: [Int], set: ExerciseSet) -> some View {
+        ForEach(values, id: \.self) { value in
+            Button {
+                set.recordRIR(value)
+                viewModel.noteSetEntryTool(.effortChip)
+                viewModel.persistChanges()
+            } label: {
+                if set.rir == value {
+                    Label("RIR \(value) · \(RIRScale.meaning(for: value))", systemImage: AppIcon.checkmark)
+                } else {
+                    Text("RIR \(value) · \(RIRScale.meaning(for: value))")
                 }
             }
+            .accessibilityIdentifier("panel-effort-rir-\(value)")
+        }
+    }
+
+    @ViewBuilder
+    private func rpeOptions(_ values: [Double], set: ExerciseSet) -> some View {
+        ForEach(values, id: \.self) { value in
+            Button {
+                set.recordRPE(value)
+                viewModel.noteSetEntryTool(.effortChip)
+                viewModel.persistChanges()
+            } label: {
+                if set.rpe == value {
+                    Label("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))", systemImage: AppIcon.checkmark)
+                } else {
+                    Text("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))")
+                }
+            }
+            .accessibilityIdentifier("panel-effort-rpe-\(Formatters.formatFloat(Float(value)))")
         }
     }
 

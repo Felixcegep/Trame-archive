@@ -34,7 +34,7 @@ struct ProgramDefinitionPayloadPreviewView: View {
                                     systemImage: AppIcon.relationship
                                 )
                                 .font(AppFont.captionBold)
-                                .foregroundStyle(Color.gymPrimary)
+                                .foregroundStyle(Color.trameAction)
                             }
                             if !row.stageNames.isEmpty {
                                 Text("Stages: \(row.stageNames.joined(separator: " → "))")
@@ -49,7 +49,7 @@ struct ProgramDefinitionPayloadPreviewView: View {
                             ForEach(row.transitions) { transition in
                                 Text(transitionText(transition))
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymPrimary)
+                                    .foregroundStyle(Color.trameAction)
                             }
                         }
                         .padding(.vertical, Spacing.xxs)

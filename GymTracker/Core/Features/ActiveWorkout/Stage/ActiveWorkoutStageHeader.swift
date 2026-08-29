@@ -11,6 +11,11 @@ struct ActiveWorkoutStageHeader: View {
     let onDiscard: () -> Void
     let onAddExercise: () -> Void
     let onAddBlock: () -> Void
+    /// Whether the session can be committed right now. The control stays on
+    /// screen while it cannot, because a finish that disappears reads as a
+    /// missing feature rather than as unfinished work.
+    let isFinishEnabled: Bool
+    let onFinish: () -> Void
 
     private var workoutName: String {
         let name = workout.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -73,6 +78,10 @@ struct ActiveWorkoutStageHeader: View {
                     .foregroundStyle(Color.trameSubdued)
                     .accessibilityLabel("Elapsed time")
 
+                if !workout.exercises.isEmpty {
+                    finishButton
+                }
+
                 Menu {
                     Button {
                         onAddExercise()
@@ -114,8 +123,8 @@ struct ActiveWorkoutStageHeader: View {
             if !workPages.isEmpty {
                 HStack(spacing: Spacing.m) {
                     Text("\(displayedPosition) / \(workPages.count)")
-                        .font(AppFont.metricCompact)
-                        .foregroundStyle(Color.trameText)
+                        .font(AppFont.micro.monospacedDigit())
+                        .foregroundStyle(Color.trameSubdued)
                         .monospacedDigit()
                         .fixedSize()
                         .accessibilityLabel(
@@ -131,10 +140,35 @@ struct ActiveWorkoutStageHeader: View {
         .background(Color.trameCanvas)
     }
 
+    /// Finishing happens once a session and ends it. It used to own the
+    /// full-width bar at the thumb, which is the best real estate on a screen
+    /// whose actual repeated action — logging a set, fifteen to forty times —
+    /// had to share it. An exit belongs in the chrome, so this is the only
+    /// place it lives; the command bar keeps the log action.
+    private var finishButton: some View {
+        Button(action: onFinish) {
+            Text("Finish")
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(isFinishEnabled ? Color.trameAction : Color.trameSubdued)
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, Spacing.xs)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .disabled(!isFinishEnabled)
+        .accessibilityLabel("Finish workout")
+        .accessibilityHint(
+            Text(isFinishEnabled ? "" : String(localized: "Complete at least one set before finishing."))
+        )
+        .accessibilityIdentifier("finish-workout")
+    }
+
     /// A thin segmented rail preserves direct page jumping while reading as
     /// progress rather than a second row of controls. Each segment retains a
-    /// 44-point target; selection also changes thickness so it survives without
-    /// color.
+    /// 44-point target; selection changes thickness and tone so it survives
+    /// without color while remaining visually subordinate to the exercise.
     private var progressRail: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
@@ -164,8 +198,8 @@ struct ActiveWorkoutStageHeader: View {
         } label: {
             RoundedRectangle(cornerRadius: Radius.icon, style: .continuous)
                 .fill(railColor(for: progress))
-                .frame(width: Spacing.xxxl)
-                .frame(height: isSelected ? Spacing.xs : Spacing.xxs)
+                .frame(width: Spacing.xxl)
+                .frame(height: isSelected ? 3 : 1)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
         }
@@ -178,7 +212,7 @@ struct ActiveWorkoutStageHeader: View {
     private func railColor(for progress: WorkoutStagePlan.Progress) -> Color {
         switch progress {
         case .complete: return Color.trameCompleted
-        case .started: return Color.trameAction
+        case .started: return Color.trameText
         case .untouched: return Color.trameSeparator
         }
     }

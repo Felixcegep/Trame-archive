@@ -3,6 +3,9 @@ import Foundation
 nonisolated struct AppIcon {
     // Navigation & Global Action Icons
     static let home = "house.fill"
+    /// The Train tab: represents the training space / hub containing training
+    /// tools, workouts, exercises, plans, and mobility routines.
+    static let train = "square.grid.2x2.fill"
     static let folders = "folder.fill"
     static let history = "clock.arrow.circlepath"
     static let settings = "gearshape"
@@ -76,6 +79,8 @@ nonisolated struct AppIcon {
     
     // Specific Features
     static let workout = "dumbbell.fill"
+    /// Strength exercises / movements as a library category and item.
+    static let exercise = "figure.strengthtraining.traditional"
     static let mobility = "figure.flexibility"
     /// The live device-steadiness panel during a mobility hold — reuses the
     /// system symbol literally named for the sensor behind the feature.

@@ -134,6 +134,14 @@ class GymTrackerUITestCase: XCTestCase {
     }
 
     @discardableResult
+    func focusPlansSearch(in app: XCUIApplication) -> XCUIElement {
+        let search = app.searchFields["Search plans"].firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        return search
+    }
+
+    @discardableResult
     func tapButton(
         _ identifier: String,
         in app: XCUIApplication,
@@ -185,8 +193,39 @@ class GymTrackerUITestCase: XCTestCase {
         XCTFail("None of the expected buttons existed: \(identifiers)", file: file, line: line)
     }
 
+    /// The workout menu and its destructive confirmation can briefly expose the
+    /// same accessibility identifier. Query the sheet the dialog presents.
+    func XCTAssertDiscardConfirmationVisible(
+        in app: XCUIApplication,
+        timeout: TimeInterval = 8,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let confirm = app.sheets.buttons["confirm-discard-workout"].firstMatch
+        XCTAssertTrue(
+            confirm.waitForExistence(timeout: timeout),
+            "Expected discard confirmation sheet",
+            file: file,
+            line: line
+        )
+    }
+
+    func dismissDiscardConfirmation(in app: XCUIApplication) {
+        let cancelByID = app.descendants(matching: .any)["cancel-discard-workout"].firstMatch
+        if cancelByID.waitForExistence(timeout: 2) {
+            cancelByID.tap()
+            return
+        }
+        let cancelByLabel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == 'Cancel'"))
+            .firstMatch
+        if cancelByLabel.waitForExistence(timeout: 2) {
+            cancelByLabel.tap()
+        }
+    }
+
     func selectExerciseFromOpenPicker(_ name: String, in app: XCUIApplication) {
-        let search = app.searchFields["Search exercises"]
+        let search = exerciseLibrarySearchField(in: app)
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText(name)
@@ -298,17 +337,13 @@ class GymTrackerUITestCase: XCTestCase {
         return app
     }
 
-    /// Starts a blank session from Home. The primary card now opens the unified
-    /// "Start a workout" sheet, so an empty workout is one tap deeper: open the
-    /// sheet, then choose "Start empty workout".
+    /// Starts a blank session from Home. The free-state primary command is
+    /// intentionally direct; saved-workout selection has its own Today route.
     func startEmptyWorkout(in app: XCUIApplication) {
         let card = app.buttons["start-free-workout"]
         XCTAssertTrue(card.waitForExistence(timeout: 5))
         card.tap()
-
-        let empty = app.buttons["start-empty-workout"]
-        XCTAssertTrue(empty.waitForExistence(timeout: 5))
-        empty.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
     func launchFixture(
@@ -327,8 +362,21 @@ class GymTrackerUITestCase: XCTestCase {
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
         XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        let onboarding = app.descendants(matching: .any)["onboarding"]
+        if onboarding.exists {
+            // Simulator launch services can reactivate the previous app
+            // process with its stale welcome payload. Relaunching the same
+            // fixture once mirrors `launchFreshApp` and keeps ordinary fixture
+            // tests deterministic without ever tapping through onboarding.
+            app.terminate()
+            app.launchWithGymTrackerUITestArguments()
+            XCTAssertTrue(
+                app.descendants(matching: .any)["app-preparing"]
+                    .waitForNonExistence(timeout: 30)
+            )
+        }
         XCTAssertTrue(
-            app.descendants(matching: .any)["onboarding"].waitForNonExistence(timeout: 5),
+            onboarding.waitForNonExistence(timeout: 5),
             "Ordinary fixture launches must not be covered by onboarding."
         )
         if expectsMobilitySession {
@@ -399,6 +447,12 @@ class GymTrackerUITestCase: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
     }
 
+    /// The exercise picker prompt is a full search hint, not the older
+    /// "Search exercises" label still used on template/plan forms.
+    func exerciseLibrarySearchField(in app: XCUIApplication) -> XCUIElement {
+        app.searchFields["Search by exercise, muscle, or equipment"]
+    }
+
     func addExercise(_ name: String, in app: XCUIApplication) {
         let emptyStateAction = app.buttons["add-active-exercise"]
         if emptyStateAction.waitForExistence(timeout: 2) {
@@ -408,7 +462,7 @@ class GymTrackerUITestCase: XCTestCase {
             tapButton("add-active-exercise-menu", in: app)
         }
 
-        let search = app.searchFields["Search exercises"]
+        let search = exerciseLibrarySearchField(in: app)
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText(name)
@@ -455,22 +509,27 @@ class GymTrackerUITestCase: XCTestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 5), .completed)
     }
 
-    /// Finish is a terminal Stage page, not a toolbar action repeated on every
-    /// exercise page.
+    /// Walks to the terminal review page. `finish-workout` is a header control
+    /// available from every page, so the page itself — its summary, or the
+    /// empty-session state — is what identifies arrival.
     func navigateToWorkoutFinish(in app: XCUIApplication) {
-        let finish = app.buttons["finish-workout"]
-        if !finish.exists {
-            let finishDot = app.buttons.matching(
-                NSPredicate(
-                    format: "identifier BEGINSWITH %@ AND label == %@",
-                    "stage-dot-",
-                    "Finish and review"
-                )
-            ).firstMatch
-            XCTAssertTrue(finishDot.waitForExistence(timeout: 5))
-            finishDot.tap()
+        let summary = app.descendants(matching: .any)["finish-summary"]
+        let emptySession = app.descendants(matching: .any)["empty-workout-state"]
+
+        // The progress rail intentionally contains work stages only. Advance
+        // through the command bar—the same accessible path available to the
+        // lifter—until the terminal review stage appears.
+        for _ in 0..<20 where !summary.exists && !emptySession.exists {
+            let next = app.buttons["stage-next"]
+            XCTAssertTrue(next.waitForExistence(timeout: 5))
+            XCTAssertTrue(next.isEnabled)
+            next.tap()
         }
-        XCTAssertTrue(finish.waitForExistence(timeout: 5))
+
+        XCTAssertTrue(
+            summary.waitForExistence(timeout: 5) || emptySession.exists,
+            "Expected the terminal review stage"
+        )
     }
 
     /// Set values are buttons that select themselves, and the panel's keypad is

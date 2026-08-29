@@ -74,7 +74,7 @@ struct RepeatingPlanDetailView: View {
                     } label: {
                         Label("Activate Rotation", systemImage: AppIcon.play)
                     }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("activate-repeating-plan")
                     .disabled(!plan.validationIssues.isEmpty)
                     .accessibilityHint(activationAccessibilityHint)
@@ -308,7 +308,7 @@ struct RepeatingPlanDetailView: View {
                 } label: {
                     Label("Start Next Workout", systemImage: AppIcon.play)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("start-repeating-plan-workout")
                 .disabled(nextWorkoutIsUnavailable(in: run))
                 .accessibilityHint(startNextWorkoutAccessibilityHint(for: run))
@@ -333,7 +333,7 @@ struct RepeatingPlanDetailView: View {
                 } label: {
                     Label("Resume Rotation", systemImage: AppIcon.play)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("resume-repeating-plan")
             } footer: {
                 Text("The app will ask before changing an active guided plan.")

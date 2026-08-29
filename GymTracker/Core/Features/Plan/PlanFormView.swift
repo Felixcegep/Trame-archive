@@ -54,7 +54,7 @@ struct PlanFormView: View {
             optionsSection
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("New Training Plan")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -102,11 +102,13 @@ private extension PlanFormView {
         Section {
             TextField("Name", text: $name)
                 .accessibilityIdentifier("plan-name-field")
+        } header: {
+            TrameDomainSectionRule(title: "Plan", color: Color.trameStrength)
         }
     }
 
     var lengthSection: some View {
-        Section("Structure") {
+        Section {
             Picker("Structure", selection: $length) {
                 ForEach(Length.allCases, id: \.self) { option in
                     Text(option.title).tag(option)
@@ -120,20 +122,22 @@ private extension PlanFormView {
                     .accessibilityIdentifier("plan-duration-weeks")
                 Text("Program — my sessions are scheduled across weeks.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 Text("Rotation — I always do the next workout, regardless of weekday.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
+        } header: {
+            TrameDomainSectionRule(title: "Structure", color: Color.trameStrength)
         }
     }
 
     var trainingDaysSection: some View {
-        Section("Training days") {
+        Section {
             if availableTemplates.isEmpty {
                 Text("Create a workout with at least one exercise before building a plan.")
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 WeekdayStrip(selection: daySelectionBinding)
                     .listRowInsets(EdgeInsets(
@@ -150,7 +154,7 @@ private extension PlanFormView {
                                 Text(template.name)
                                 Text(exerciseCountText(for: template))
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                             .tag(Optional(template.persistentModelID))
                         }
@@ -164,9 +168,11 @@ private extension PlanFormView {
                 if selectedDayOffsets.isEmpty {
                     Text("Pick at least one day to train.")
                         .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
+        } header: {
+            TrameDomainSectionRule(title: "Training days", color: Color.trameStrength)
         }
     }
 
@@ -211,6 +217,8 @@ private extension PlanFormView {
                     deloadControls
                 }
             }
+        } header: {
+            TrameDomainSectionRule(title: "Options", color: Color.trameAttention)
         }
     }
 
@@ -243,7 +251,7 @@ private extension PlanFormView {
 
             Text("The deload changes only the prescription snapshot for that future week's workouts. Your completed workouts stay unchanged.")
                 .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityIdentifier("plan-deload-description")
         }
     }

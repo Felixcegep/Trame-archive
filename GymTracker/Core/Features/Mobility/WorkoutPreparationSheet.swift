@@ -47,7 +47,7 @@ struct WorkoutPreparationSheet: View {
 
             actions
         }
-        .padding(.horizontal, Spacing.xl)
+        .padding(.horizontal, Spacing.screenInset)
         // Clearance for the drag indicator, which the presentation draws inside
         // the sheet's own top edge without reserving space for it.
         //
@@ -61,8 +61,8 @@ struct WorkoutPreparationSheet: View {
         .padding(.top, Spacing.xxxl + Spacing.s)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymBackground)
-        .tint(Color.gymPrimary)
+        .background(Color.trameCanvas)
+        .tint(Color.trameMobility)
         // Sized to the content rather than to half the screen.
         //
         // `.medium` was a half sheet holding an eyebrow, a title, two lines of
@@ -86,16 +86,16 @@ struct WorkoutPreparationSheet: View {
             Label("OPTIONAL PREPARATION", systemImage: AppIcon.mobilityPurposePreparation)
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameMobilityText)
 
             title
                 .font(AppFont.titleMedium)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(explanation)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -104,6 +104,10 @@ struct WorkoutPreparationSheet: View {
     private var facts: some View {
         if let routine, !hasActiveMobilitySession {
             VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+
                 factRow("Movements", value: Text(routine.items.count, format: .number))
 
                 Divider().overlay(Color.trameSeparator)
@@ -117,8 +121,11 @@ struct WorkoutPreparationSheet: View {
                     Divider().overlay(Color.trameSeparator)
                     factRow("Purpose", value: Text(purpose.displayName))
                 }
+
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
             }
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         }
     }
 
@@ -126,13 +133,13 @@ struct WorkoutPreparationSheet: View {
         VStack(spacing: Spacing.m) {
             if hasActiveMobilitySession {
                 Button("Resume mobility", action: onResumeActive)
-                    .buttonStyle(.gymPrimaryProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("resume-active-mobility-before-workout")
             } else if routine != nil {
                 Button("Start preparation", action: onStart)
-                    .buttonStyle(.gymPrimaryProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("start-linked-warmup")
-                    .accessibilityHint("Starts the linked warm-up first. The workout begins after you leave mobility.")
+                    .accessibilityHint("Starts the linked warm-up as the first stage of this workout.")
             }
 
             // Outlined, not filled. It is still a full-width action — the sheet
@@ -141,7 +148,7 @@ struct WorkoutPreparationSheet: View {
             // one choice offered twice. The recommended path is the one the
             // sheet was raised to offer; this is the alternative to it.
             Button("Skip and start workout", action: onSkip)
-                .buttonStyle(.gymOutlineProminent)
+                .buttonStyle(WorkoutPreparationSecondaryActionButtonStyle())
                 .accessibilityIdentifier("skip-linked-warmup")
                 .accessibilityHint("Starts the workout without the optional warm-up.")
 
@@ -150,6 +157,7 @@ struct WorkoutPreparationSheet: View {
             // reliably as a button.
             Button("Cancel", role: .cancel, action: onCancel)
                 .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                 .accessibilityIdentifier("cancel-workout-preparation")
         }
@@ -172,21 +180,40 @@ struct WorkoutPreparationSheet: View {
         guard !hasActiveMobilitySession else {
             return "Finish or stop it before starting this linked warm-up, or start the workout without it."
         }
-        return "It is recorded as its own mobility session, separate from the workout."
+        return "It runs inside this workout flow while its mobility evidence stays separate from strength sets."
     }
 
     private func factRow(_ label: LocalizedStringKey, value: Text) -> some View {
         LabeledContent {
             value
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .monospacedDigit()
         } label: {
             Text(label)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .padding(.horizontal, Spacing.l)
         .frame(minHeight: 44)
+    }
+}
+
+private struct WorkoutPreparationSecondaryActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(AppFont.sectionTitle)
+            .foregroundStyle(isEnabled ? Color.trameText : Color.trameSubdued)
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .padding(.horizontal, Spacing.l)
+            .background(Color.trameCanvas)
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .stroke(isEnabled ? Color.trameActionOutline : Color.trameSeparator)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+            .weightedPulse(isPressed: configuration.isPressed)
     }
 }

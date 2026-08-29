@@ -26,10 +26,10 @@ struct MobilityAssessmentLandingView: View {
                 historyLink
                 MobilityAssessmentScopeNote()
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Assessment")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -41,41 +41,37 @@ struct MobilityAssessmentLandingView: View {
     @ViewBuilder
     private var heroCard: some View {
         if let activeSession {
-            GymCard(variant: .current) {
-                GymEyebrow("In progress", tint: .gymPrimary)
+            assessmentField(fill: .trameMobility, ink: .trameSemanticFieldInk, border: .trameMobility) {
+                GymEyebrow("In progress", tint: .trameSemanticFieldInk)
                 Text("Assessment in progress")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text(progressDetail(for: activeSession))
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button("Continue assessment") { onStart(activeSession) }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("resume-mobility-assessment")
             }
         } else if let lastRecordedSession {
-            GymCard {
+            assessmentField {
                 GymEyebrow("Last assessment")
                 Text(dateText(for: lastRecordedSession))
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text(observationCountText(for: lastRecordedSession))
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 startLink(title: String(localized: "Record a new assessment"))
             }
         } else {
-            GymCard {
+            assessmentField {
                 GymEyebrow("Mobility assessment")
                 Text("Record your first observations")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text("Work through the assessments you choose and enter what you observe. Nothing is recorded until you save it.")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
 
                 startLink(title: String(localized: "Choose assessments"))
@@ -89,15 +85,15 @@ struct MobilityAssessmentLandingView: View {
         } label: {
             Text(title)
         }
-        .buttonStyle(.gymPrimary)
+        .buttonStyle(.tramePrimaryAction)
         .accessibilityIdentifier("start-mobility-assessment")
     }
 
     // MARK: - Supporting content
 
     private var whatItRecordsCard: some View {
-        GymCard {
-            GymSectionHeader(title: String(localized: "What an assessment records"))
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameDomainSectionRule(title: "What an assessment records", color: .trameMobility)
 
             // Each line is a property of the record, not a benefit claim. The
             // conditions line is the load-bearing one: without it a later
@@ -123,6 +119,7 @@ struct MobilityAssessmentLandingView: View {
                 text: String(localized: "In this version you enter every value yourself, and each observation is labelled that way.")
             )
         }
+        .padding(.vertical, Spacing.s)
     }
 
     private var historyLink: some View {
@@ -130,28 +127,26 @@ struct MobilityAssessmentLandingView: View {
             MobilityAssessmentHistoryView()
         } label: {
             HStack(spacing: Spacing.m) {
-                GymIconChip(systemImage: AppIcon.history)
+                Image(systemName: AppIcon.history)
+                    .foregroundStyle(Color.trameMobility)
+                    .frame(width: ComponentSize.minimumTouchTarget)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Assessment history")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(historyDetail)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 Spacer(minLength: Spacing.s)
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .padding(Spacing.l)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+            .padding(.vertical, Spacing.s)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("open-mobility-assessment-history")
@@ -162,31 +157,41 @@ struct MobilityAssessmentLandingView: View {
             MobilityAssessmentProfileView()
         } label: {
             HStack(spacing: Spacing.m) {
-                GymIconChip(systemImage: AppIcon.mobilityAssessment)
+                Image(systemName: AppIcon.mobilityAssessment)
+                    .foregroundStyle(Color.trameMobility)
+                    .frame(width: ComponentSize.minimumTouchTarget)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(String(localized: "mobility.profile.title", defaultValue: "Mobility profile"))
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(String(localized: "mobility.profile.entry.detail", defaultValue: "Latest observations, side differences, and comparison conditions"))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 Spacer(minLength: Spacing.s)
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .padding(Spacing.l)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+            .padding(.vertical, Spacing.s)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("open-mobility-assessment-profile")
+    }
+
+    private func assessmentField<Content: View>(
+        fill: Color = .trameSurface,
+        ink: Color = .trameText,
+        border: Color = .trameSeparator,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        TrameColorField(fill: fill, ink: ink, border: border, radius: Radius.card) {
+            VStack(alignment: .leading, spacing: Spacing.s, content: content)
+                .padding(Spacing.l)
+        }
     }
 
     // MARK: - Derived state
@@ -234,12 +239,12 @@ struct MobilityAssessmentBulletRow: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: systemImage)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameMobility)
                 .frame(width: Spacing.xl, alignment: .center)
                 .accessibilityHidden(true)
             Text(text)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -284,7 +289,7 @@ struct MobilityAssessmentSelectionView: View {
 
             Section {
                 Button("Start assessment", action: start)
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .disabled(selectedKeys.isEmpty)
                     .accessibilityIdentifier("begin-mobility-assessment")
                     .listRowInsets(EdgeInsets())
@@ -294,7 +299,7 @@ struct MobilityAssessmentSelectionView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Choose assessments")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -335,15 +340,15 @@ struct MobilityAssessmentSelectionView: View {
                 // survives greyscale and VoiceOver alike.
                 Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
+                    .foregroundStyle(isSelected ? Color.trameMobility : Color.trameSubdued)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(MobilityAssessmentCopy.name(for: definition))
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(sidesDetail(definition))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 Spacer(minLength: 0)
             }

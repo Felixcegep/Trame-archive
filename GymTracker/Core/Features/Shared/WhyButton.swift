@@ -21,7 +21,8 @@ struct WhyButton: View {
                 Text("Why?")
             }
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameActionDeep)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)

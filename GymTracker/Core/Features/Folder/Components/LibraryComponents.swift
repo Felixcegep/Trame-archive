@@ -17,7 +17,7 @@ struct LibraryBrowserList<Content: View>: View {
             LazyVStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(spacing: Spacing.s) {
                     Image(systemName: AppIcon.search)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                     TextField(String(localized: "Search \(NSLocalizedString(title.lowercased(), comment: ""))"), text: $searchText)
                 }
                 .padding(.horizontal, Spacing.m)

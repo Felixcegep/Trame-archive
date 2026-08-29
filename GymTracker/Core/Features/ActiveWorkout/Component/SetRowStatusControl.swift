@@ -30,9 +30,6 @@ struct SetRowStatusControl: View {
             .font(AppFont.subheadlineSemiboldMonospaced)
             .foregroundStyle(Color.trameStrength)
             .frame(width: 36, height: 36)
-            .overlay {
-                Circle().stroke(Color.trameStrength, lineWidth: 1.5)
-            }
             .frame(width: 44, height: 44)
             .accessibilityLabel(String(localized: "Editing set \(index + 1)"))
             .accessibilityIdentifier("editing-set-\(exerciseEntry.exercise.name)-\(index)")
@@ -50,11 +47,6 @@ struct SetRowStatusControl: View {
             .font(AppFont.subheadlineSemiboldMonospaced)
             .foregroundStyle(badgeForeground)
             .frame(width: 36, height: 36)
-            .background(badgeFill)
-            .clipShape(Circle())
-            .overlay {
-                Circle().stroke(badgeStroke, lineWidth: badgeStrokeWidth)
-            }
         }
         .buttonStyle(.borderless)
         .frame(width: 44, height: 44)
@@ -80,21 +72,8 @@ struct SetRowStatusControl: View {
     // inline conditionals made the whole chain expensive to type-check.
 
     private var badgeForeground: Color {
-        if exerciseSet.done { return .trameSemanticFieldInk }
-        return isCurrentSet ? Color.trameActionOutline : Color.trameSubdued
-    }
-
-    private var badgeFill: Color {
-        exerciseSet.done ? Color.trameCompleted : Color.clear
-    }
-
-    private var badgeStroke: Color {
-        if exerciseSet.done { return .clear }
-        return isCurrentSet ? Color.trameActionOutline : Color.trameSeparator
-    }
-
-    private var badgeStrokeWidth: CGFloat {
-        isCurrentSet && !exerciseSet.done ? 1.5 : 1
+        if exerciseSet.done { return .trameCompleted }
+        return isCurrentSet ? Color.trameText : Color.trameSubdued
     }
 
     private var completionAccessibilityLabel: String {
@@ -105,19 +84,24 @@ struct SetRowStatusControl: View {
         return "\(base), \(exerciseSet.setType.title)"
     }
 
+    /// Which role this set plays, when it plays one other than normal.
+    ///
+    /// This was the type's initial — W, T, Q, M, B — with nothing on the screen
+    /// that mapped a letter back to a name. "Q" is technique, chosen because
+    /// "T" was already the top set; that reasoning is sound and completely
+    /// invisible to the lifter reading the row. The symbol is the one the set
+    /// type picker and the panel's set-type chip already show beside the name,
+    /// so the badge is learned where the choice is made rather than guessed
+    /// here, and VoiceOver reads the name itself.
     @ViewBuilder
     private var setTypeAccessory: some View {
-        if let shortLabel = exerciseSet.setType.shortLabel {
-            Text(shortLabel)
+        if exerciseSet.setType != .normal {
+            Image(systemName: exerciseSet.setType.icon)
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(exerciseSet.setType.accentColor ?? Color.trameSubdued)
-                .frame(width: 18, height: 18)
-                .background(Color.trameSurface)
-                .clipShape(Circle())
-                .overlay {
-                    Circle().stroke(Color.trameSeparator, lineWidth: 1)
-                }
-                .accessibilityLabel("\(exerciseSet.setType.title) badge \(shortLabel)")
+                .padding(.horizontal, Spacing.xxs)
+                .background(Color.trameCanvas)
+                .accessibilityLabel(exerciseSet.setType.title)
                 .accessibilityIdentifier("set-type-badge-\(exerciseEntry.exercise.name)-\(index)")
         }
     }

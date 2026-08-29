@@ -109,7 +109,7 @@ struct ExerciseSwapPicker: View {
             }
             .padding(Spacing.l)
         }
-        .background(Color.gymBackground.ignoresSafeArea())
+        .background(Color.trameCanvas.ignoresSafeArea())
         .navigationTitle("Swap Exercise")
         .navigationBarTitleDisplayMode(.inline)
     }

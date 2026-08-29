@@ -133,5 +133,5 @@ struct MobilityHoldRingView: View {
 #Preview {
     MobilityHoldRingView(elapsedSeconds: 42, targetSeconds: 60, movementName: "Couch Stretch")
         .padding()
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
 }

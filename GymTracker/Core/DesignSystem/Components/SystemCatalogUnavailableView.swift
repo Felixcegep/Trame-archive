@@ -33,8 +33,7 @@ struct SystemCatalogUnavailableView: View {
                     Text("Retry")
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.gymAccent)
+            .buttonStyle(.tramePrimaryAction)
             .disabled(isRetrying)
             .accessibilityIdentifier("retry-system-catalog-install")
         }

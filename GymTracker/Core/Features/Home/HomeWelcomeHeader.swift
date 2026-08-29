@@ -3,9 +3,10 @@ import SwiftUI
 /// Date plus the training context — active plan, active rotation, or personalization offer.
 ///
 /// This header provides orientation (the date) and trailing training context.
-/// When a plan or rotation is active, it presents the plan badge and week/cycle.
+/// When a plan or rotation is active, it presents the plan name and week/cycle with
+/// a structural Strength indicator rail.
 /// When no plan is active and the lifter is eligible, it presents a compact,
-/// solid Trame competition color block offering personalization.
+/// solid Performance block offering personalization.
 struct HomeWelcomeHeader: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -34,8 +35,6 @@ struct HomeWelcomeHeader: View {
     }
 
     private var dateLabel: some View {
-        // Subdued ink keeps orientation available without spending a semantic
-        // training color on information that never needs action.
         Text(todayLabel)
             .font(AppFont.eyebrow)
             .tracking(1.1)
@@ -46,20 +45,18 @@ struct HomeWelcomeHeader: View {
     @ViewBuilder
     private var trainingContext: some View {
         if let activePlanRun {
-            planChip(
+            planContextButton(
                 planID: activePlanRun.sourcePlanID,
-                icon: AppIcon.plan,
                 name: activePlanRun.sourcePlanName,
-                stage: "Week \(activePlanRun.currentWeekIndex + 1)",
+                stage: "W\(activePlanRun.currentWeekIndex + 1)",
                 accessibilityLabel: "Active plan: \(activePlanRun.sourcePlanName), week \(activePlanRun.currentWeekIndex + 1)",
                 accessibilityIdentifier: "active-plan-badge"
             )
         } else if let activeRepeatingPlanRun {
-            planChip(
+            planContextButton(
                 planID: activeRepeatingPlanRun.sourcePlanID,
-                icon: AppIcon.routine,
                 name: activeRepeatingPlanRun.sourcePlanName,
-                stage: "Cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
+                stage: "C\(activeRepeatingPlanRun.completedCycleCount + 1)",
                 accessibilityLabel: "Active rotation: \(activeRepeatingPlanRun.sourcePlanName), cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
                 accessibilityIdentifier: "active-repeating-plan-badge"
             )
@@ -115,9 +112,8 @@ struct HomeWelcomeHeader: View {
             .uppercased(with: .current)
     }
 
-    private func planChip(
+    private func planContextButton(
         planID: UUID,
-        icon: String,
         name: String,
         stage: String,
         accessibilityLabel: String,
@@ -127,27 +123,27 @@ struct HomeWelcomeHeader: View {
             onOpenPlan(planID)
         } label: {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: icon)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.trameStrength)
+                Rectangle()
+                    .fill(Color.trameStrength)
+                    .frame(width: 3, height: 18)
+                    .accessibilityHidden(true)
 
-                Text(name)
-                    .font(AppFont.metadata)
+                Text(name.uppercased())
+                    .font(AppFont.micro)
                     .foregroundStyle(Color.trameText)
                     .lineLimit(1)
-                    .truncationMode(.tail)
 
                 Text(stage)
                     .font(AppFont.micro)
-                    .foregroundStyle(Color.trameSubdued)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.trameStrength)
 
                 Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.captionBold)
+                    .font(AppFont.micro)
                     .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)

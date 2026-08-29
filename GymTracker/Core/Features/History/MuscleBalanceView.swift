@@ -62,7 +62,7 @@ struct HistoryMuscleBalanceView: View {
                 .accessibilityIdentifier("muscle-balance-empty")
             }
         }
-        .background(Color.gymBackground.ignoresSafeArea())
+        .background(Color.trameCanvas.ignoresSafeArea())
     }
 
     private var content: some View {
@@ -87,24 +87,24 @@ struct HistoryMuscleBalanceView: View {
 
                 methodology
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.l)
             .padding(.bottom, Spacing.xxxl)
         }
     }
 
     private var methodology: some View {
-        GymCard {
-            HStack(alignment: .top, spacing: Spacing.s) {
-                Image(systemName: AppIcon.info)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .accessibilityHidden(true)
-                Text("Primary muscles count as 1.0 estimated set and secondary muscles as 0.5. Warm-ups are excluded. Distribution does not measure physiological response.")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
+        HStack(alignment: .top, spacing: Spacing.s) {
+            Image(systemName: AppIcon.info)
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.trameSubdued)
+                .accessibilityHidden(true)
+            Text("Primary muscles count as 1.0 estimated set and secondary muscles as 0.5. Warm-ups are excluded. Distribution does not measure physiological response.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
         }
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .top) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
         .accessibilityIdentifier("muscle-balance-explanation")
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("muscle-balance-content", label: "Muscle-group volume content")
@@ -113,15 +113,15 @@ struct HistoryMuscleBalanceView: View {
 
     private var observation: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(title: "Worth noticing")
-            GymCard(variant: .accent) {
+            TrameSectionRule(title: "Worth noticing")
+            TrameColorField(fill: .trameAttention, ink: .trameAttentionInk, border: .trameAttention) {
                 Label {
                     Text(observationText)
                         .font(AppFont.subheadline)
                 } icon: {
                     Image(systemName: AppIcon.warning)
-                        .foregroundStyle(Color.gymAccent)
                 }
+                .padding(Spacing.l)
             }
         }
         .accessibilityIdentifier("muscle-balance-callouts")
@@ -161,13 +161,13 @@ private struct MuscleGroupRankingSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(
-                title: "Training distribution",
-                detail: "Estimated sets per week over the last four weeks. Select a bar for weekly evidence."
-            )
-            GymCard {
+            TrameSectionRule(title: "Training distribution")
+            Text("Estimated sets per week over the last four weeks. Select a bar for weekly evidence.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+            VStack(spacing: 0) {
                 ForEach(Array(visibleSummaries.enumerated()), id: \.element.id) { index, summary in
-                    if index > 0 { Divider() }
+                    if index > 0 { Divider().overlay(Color.trameSeparator) }
                     Button {
                         selectedGroup = summary.group
                     } label: {
@@ -182,12 +182,12 @@ private struct MuscleGroupRankingSection: View {
                     .accessibilityAddTraits(selectedGroup == summary.group ? .isSelected : [])
                 }
                 if summaries.count > 4 {
-                    Divider()
+                    Divider().overlay(Color.trameSeparator)
                     Button(showsAllGroups ? "Show fewer muscle groups" : "Show all \(summaries.count) muscle groups") {
                         showsAllGroups.toggle()
                     }
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("muscle-balance-show-all")
@@ -208,27 +208,27 @@ private struct MuscleGroupSummaryRow: View {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
                 Text(summary.group.displayName)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Spacer()
                 Text("\(Formatters.formatFloat(Float(summary.recentAverage))) / wk")
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
 
             ProgressView(value: summary.recentAverage, total: maximumAverage)
                 .progressViewStyle(.linear)
-                .tint(isSelected ? Color.gymPrimary : Color.gymPrimary.opacity(0.38))
+                .tint(isSelected ? Color.trameStrength : Color.trameStrengthTrack)
                 .accessibilityHidden(true)
 
             HStack(spacing: Spacing.xs) {
                 if isSelected {
                     Text("Selected")
                         .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameStrength)
                 }
                 Text(changeText)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
         .padding(.vertical, Spacing.xs)
@@ -291,12 +291,12 @@ private struct MuscleGroupVolumeChart: View {
                     y: .value("Estimated sets", week.count(for: group)),
                     width: .ratio(0.6)
                 )
-                .foregroundStyle(week.count(for: group) == 0 ? Color.gymRowSurface : Color.gymPrimary)
+                .foregroundStyle(week.count(for: group) == 0 ? Color.trameRow : Color.trameStrength)
                 .cornerRadius(Radius.small)
 
                 if selectedWeek?.id == week.id {
                     RuleMark(x: .value("Selected week", week.weekStart))
-                        .foregroundStyle(Color.gymPrimary.opacity(0.42))
+                        .foregroundStyle(Color.trameStrengthTrack)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
             }
@@ -304,18 +304,18 @@ private struct MuscleGroupVolumeChart: View {
             .chartXSelection(value: $selectedDate)
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
-                    AxisValueLabel().font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                    AxisGridLine().foregroundStyle(Color.trameSeparator)
+                    AxisTick().foregroundStyle(Color.trameSeparator)
+                    AxisValueLabel().font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisGridLine().foregroundStyle(Color.trameSeparator)
+                    AxisTick().foregroundStyle(Color.trameSeparator)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
             .accessibilityElement(children: .ignore)

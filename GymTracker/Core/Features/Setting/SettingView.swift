@@ -303,7 +303,7 @@ private struct PersonalDetailsSettingsView: View {
             } header: {
                 Text("Caffeine Reference")
             } footer: {
-                Text("Used only to personalize the daily caffeine reference amount shown in Nutrition. Never required, and never shared.")
+                Text("Used only to personalize the daily caffeine reference amount shown when logging caffeine. Never required, and never shared.")
             }
         }
         .scrollContentBackground(.hidden)

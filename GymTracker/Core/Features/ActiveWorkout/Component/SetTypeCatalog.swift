@@ -1,18 +1,18 @@
 import Foundation
 
-/// How the eleven set types are presented for selection.
+/// How the twelve set types are presented for selection.
 ///
-/// The list is a genuine expert vocabulary, but showing all eleven at once
+/// The list is a genuine expert vocabulary, but showing all twelve at once
 /// turns a routine mid-set action into a scanning problem. Grouping does not
 /// remove anything — every type stays one interaction away — it just stops the
-/// four types most people use from competing with the seven they rarely touch.
+/// four types most people use from competing with the eight they rarely touch.
 ///
 /// The grouping is presentation only. Nothing persisted knows about it, so a
 /// regrouping is never a migration.
 enum SetTypeGroup: String, CaseIterable, Hashable {
     /// What a normal session is built from.
     case common
-    /// Deliberate intensity techniques — reached for on purpose, not by default.
+    /// Deliberate roles a lifter reaches for on purpose, not by default.
     case special
     /// Testing, structure, and recovery roles that most sessions never use.
     case more
@@ -28,8 +28,8 @@ enum SetTypeGroup: String, CaseIterable, Hashable {
     var members: [SetType] {
         switch self {
         case .common: [.normal, .warmup, .topSet, .backoff]
-        case .special: [.amrap, .failure, .technique]
-        case .more: [.test, .dailyMaximum, .recovery]
+        case .special: [.amrap, .failure, .technique, .stretch]
+        case .more: [.dropSet, .test, .dailyMaximum, .recovery]
         }
     }
 }
@@ -40,7 +40,7 @@ extension SetType {
     var group: SetTypeGroup {
         switch self {
         case .normal, .warmup, .topSet, .backoff: .common
-        case .amrap, .failure, .technique: .special
+        case .amrap, .failure, .technique, .stretch: .special
         case .dropSet, .test, .dailyMaximum, .recovery: .more
         }
     }

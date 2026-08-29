@@ -6,11 +6,10 @@ import XCTest
 final class WorkoutMobilityLinkServiceTests: XCTestCase {
     func testTemplateLinksCanBeAttachedReplacedAndRemovedIndependently() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
-        let preparation = MobilityRoutine(name: "Preparation")
-        let replacement = MobilityRoutine(name: "Replacement")
-        let cooldown = MobilityRoutine(name: "Cooldown")
+        let preparation = makeRunnableRoutine(named: "Preparation", in: context)
+        let replacement = makeRunnableRoutine(named: "Replacement", in: context)
+        let cooldown = makeRunnableRoutine(named: "Cooldown", in: context)
         let template = WorkoutTemplate(name: "Full Body", exercises: [])
-        [preparation, replacement, cooldown].forEach(context.insert)
         context.insert(template)
         try context.save()
 
@@ -53,8 +52,8 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
 
     func testSlotMutationRefreshesSnapshotsWithoutRewritingExistingRunSlot() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
-        let original = MobilityRoutine(name: "Original")
-        let replacement = MobilityRoutine(name: "Replacement")
+        let original = makeRunnableRoutine(named: "Original", in: context)
+        let replacement = makeRunnableRoutine(named: "Replacement", in: context)
         let template = WorkoutTemplate(
             name: "Upper",
             exercises: [],
@@ -63,8 +62,6 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
         let slot = RepeatingPlanSlot(orderIndex: 0, workoutTemplate: template)
         let plan = RepeatingPlan(name: "Rotation", slots: [slot])
         let run = RepeatingPlanRun(plan: plan)
-        context.insert(original)
-        context.insert(replacement)
         context.insert(template)
         context.insert(plan)
         context.insert(run)
@@ -102,15 +99,13 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
 
     func testArchivedRoutineIsRejectedWithoutChangingExistingLink() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
-        let existing = MobilityRoutine(name: "Existing")
-        let archived = MobilityRoutine(name: "Archived", isArchived: true)
+        let existing = makeRunnableRoutine(named: "Existing", in: context)
+        let archived = makeRunnableRoutine(named: "Archived", isArchived: true, in: context)
         let template = WorkoutTemplate(
             name: "Lower",
             exercises: [],
             preWorkoutMobilityRoutine: existing
         )
-        context.insert(existing)
-        context.insert(archived)
         context.insert(template)
         try context.save()
 
@@ -123,6 +118,32 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
             )
         ) { error in
             XCTAssertEqual(error as? WorkoutMobilityLinkMutationError, .archivedRoutine)
+        }
+        XCTAssertEqual(template.preWorkoutMobilityRoutine?.id, existing.id)
+    }
+
+    func testEmptyRoutineIsRejectedWithoutChangingExistingLink() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let existing = makeRunnableRoutine(named: "Existing", in: context)
+        let empty = MobilityRoutine(name: "Empty")
+        let template = WorkoutTemplate(
+            name: "Lower",
+            exercises: [],
+            preWorkoutMobilityRoutine: existing
+        )
+        context.insert(empty)
+        context.insert(template)
+        try context.save()
+
+        XCTAssertThrowsError(
+            try WorkoutMobilityLinkService.set(
+                empty,
+                for: .beforeWorkout,
+                on: template,
+                using: context
+            )
+        ) { error in
+            XCTAssertEqual(error as? WorkoutMobilityLinkMutationError, .emptyRoutine)
         }
         XCTAssertEqual(template.preWorkoutMobilityRoutine?.id, existing.id)
     }
@@ -160,7 +181,7 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
                 side: .left
             )
         ]
-        let replacement = MobilityRoutine(name: "Replacement Preparation")
+        let replacement = makeRunnableRoutine(named: "Replacement Preparation", in: context)
         let template = WorkoutTemplate(
             name: "Lower",
             exercises: [],
@@ -168,7 +189,6 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
         )
         context.insert(definition)
         context.insert(completedRoutine)
-        context.insert(replacement)
         context.insert(template)
         try context.save()
 
@@ -230,6 +250,26 @@ final class WorkoutMobilityLinkServiceTests: XCTestCase {
             perceivedIntensity: result.perceivedIntensity,
             discomfortNote: result.discomfortNote
         )
+    }
+
+    private func makeRunnableRoutine(
+        named name: String,
+        isArchived: Bool = false,
+        in context: ModelContext
+    ) -> MobilityRoutine {
+        let definition = MobilityDefinition(name: "\(name) movement")
+        let routine = MobilityRoutine(name: name, isArchived: isArchived)
+        routine.items = [
+            MobilityRoutineItem(
+                definition: definition,
+                orderIndex: 0,
+                targetDurationSeconds: 30,
+                side: .left
+            )
+        ]
+        context.insert(definition)
+        context.insert(routine)
+        return routine
     }
 }
 

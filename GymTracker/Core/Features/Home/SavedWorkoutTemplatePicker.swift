@@ -5,12 +5,9 @@ import SwiftData
 
 /// The one door into starting an unplanned session.
 ///
-/// It used to be a flat list: two undifferentiated entry rows on top of every
-/// saved workout in name-agnostic query order, each row reading "5 exercises".
-/// With the seeded library installed that is a twenty-row scroll where nothing
-/// distinguishes one row from the next, so this screen is built around the two
-/// ways a lifter actually resolves it — "build me one" and "find the one I
-/// mean" — with search, a focus filter, and recency doing the finding.
+/// Designed as a Trame open canvas: one editorial personalized entry,
+/// a subordinate empty workout entry, an integrated search and focus instrument,
+/// and quiet, compact template rows with automatic word deduplication in metadata.
 struct SavedWorkoutTemplatePicker: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -39,22 +36,55 @@ struct SavedWorkoutTemplatePicker: View {
     private static let recentTemplateLimit = 3
 
     var body: some View {
-        VStack(spacing: 0) {
-            if showsFocusFilter {
-                focusFilterStrip
-            }
+        let sections = makeBrowseSections()
 
-            list
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                entryArea
+
+                libraryControls
+                    .padding(.top, Spacing.xxxl)
+
+                if templates.isEmpty {
+                    emptyLibraryState
+                        .padding(.top, Spacing.xxxl)
+                } else if sections.visibleCount == 0 {
+                    noMatchesState
+                        .padding(.top, Spacing.xxxl)
+                } else {
+                    templateSection(
+                        "Recent",
+                        items: sections.recent
+                    )
+
+                    templateSection(
+                        "Yours",
+                        items: sections.own
+                    )
+
+                    templateSection(
+                        "Starter",
+                        items: sections.starter
+                    )
+                }
+            }
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.top, Spacing.s)
+            .padding(.bottom, Spacing.xxxl)
         }
-        .background(Color.gymBackground)
-        .navigationTitle("Start a workout")
-        // Inline, not large: the hero card below is the screen's title in
-        // everything but name, and a large title pushed the first saved
-        // workout off the bottom of the sheet.
+        .scrollIndicators(.hidden)
+        .background(Color.trameCanvas)
+        .foregroundStyle(Color.trameText)
+        .navigationTitle("Start workout")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Search workouts or exercises")
-        .onAppear(perform: rebuildItems)
-        .onChange(of: templateRevision) { _, _ in rebuildItems() }
+        .toolbarBackground(
+            Color.trameCanvas,
+            for: .navigationBar
+        )
+        .toolbarBackground(
+            .visible,
+            for: .navigationBar
+        )
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -62,12 +92,19 @@ struct SavedWorkoutTemplatePicker: View {
                 }
             }
         }
+        .onAppear(perform: rebuildItems)
+        .onChange(of: templateRevision) { _, _ in
+            rebuildItems()
+        }
         .sheet(item: $builderPresentation) { presentation in
             PersonalizedWorkoutBuilderView(
                 availableExercises: availableExercises,
                 launchRequest: presentation.launchRequest,
                 onStart: { draft in
-                    guard onStartPersonalized(draft) else { return false }
+                    guard onStartPersonalized(draft) else {
+                        return false
+                    }
+
                     builderPresentation = nil
                     return true
                 }
@@ -76,7 +113,7 @@ struct SavedWorkoutTemplatePicker: View {
     }
 }
 
-// MARK: - Presentation
+// MARK: - Presentation Types
 
 private extension SavedWorkoutTemplatePicker {
     /// Identity for the builder sheet, so a quick-start chip can carry its
@@ -103,453 +140,542 @@ private extension SavedWorkoutTemplatePicker {
     ]
 }
 
-// MARK: - List
+// MARK: - Entry Area
 
 private extension SavedWorkoutTemplatePicker {
-    var list: some View {
-        let sections = makeBrowseSections()
-
-        return List {
-            Section {
-                if isGenerationOffered {
-                    generateCard
-                        .modifier(FullBleedRow())
-                }
-
-                // Promoted to the hero slot when generation is off, so a build
-                // without Apple Intelligence still opens on an invitation
-                // rather than on a quiet row above a wall of saved workouts.
-                startEmptyCard(isHero: !isGenerationOffered)
-                    .modifier(FullBleedRow())
-            }
-
-            if templates.isEmpty {
-                emptyLibrarySection
-            } else if sections.visibleCount == 0 {
-                noMatchesSection
-            } else {
-                templateSection("RECENTLY USED", items: sections.recent, showsBuiltInBadge: true)
-                templateSection("YOUR WORKOUTS", items: sections.own, showsBuiltInBadge: false)
-                templateSection("STARTER WORKOUTS", items: sections.starter, showsBuiltInBadge: false)
-            }
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
-        // iOS 26 floats the search field over the bottom of the sheet. Without
-        // this the last saved workout can never be scrolled out from under it.
-        .contentMargins(.bottom, Spacing.xxxl + Spacing.l, for: .scrollContent)
-        .accessibilityIdentifier("start-workout-list")
-    }
-
     @ViewBuilder
-    func templateSection(
-        _ title: LocalizedStringKey,
-        items sectionItems: [BrowseItem],
-        showsBuiltInBadge: Bool
-    ) -> some View {
-        if !sectionItems.isEmpty {
-            Section {
-                ForEach(sectionItems) { item in
-                    templateRow(item, showsBuiltInBadge: showsBuiltInBadge)
-                        .listRowBackground(Color.gymCard)
-                }
-            } header: {
-                HStack {
-                    Text(title)
-                        .font(AppFont.captionBold)
-                        .tracking(0.8)
-                    Spacer()
-                    // The count is what tells a lifter whether the section
-                    // below is a shortlist or the whole seeded library.
-                    Text(sectionItems.count.formatted())
-                        .font(AppFont.captionSemiboldMonospaced)
-                }
-                .foregroundStyle(Color.gymSubduedText)
-            }
+    private var entryArea: some View {
+        if isGenerationOffered {
+            personalizedEntry
+
+            startEmptyRow
+                .padding(.top, Spacing.xl)
+        } else {
+            startEmptyHero
         }
     }
 
-    var emptyLibrarySection: some View {
-        Section {
-            ContentUnavailableView(
-                "No saved workouts",
-                systemImage: "rectangle.stack.badge.plus",
-                description: Text("Build a personalized one above, or create a workout in Library.")
-            )
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-        }
-    }
-
-    var noMatchesSection: some View {
-        Section {
-            ContentUnavailableView {
-                Label("No matching workouts", systemImage: AppIcon.search)
-            } description: {
-                Text("Try another search term, or clear the focus filter.")
-            } actions: {
-                Button("Clear filters") {
-                    searchText = ""
-                    selectedFocus = nil
-                }
-                .accessibilityIdentifier("clear-workout-filters")
-            }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-        }
-    }
-}
-
-// MARK: - Entry cards
-
-/// Lets a card own its own inset and corner radius inside a grouped list,
-/// instead of inheriting the list's row chrome on top of the card's.
-private struct FullBleedRow: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .listRowInsets(EdgeInsets(
-                top: Spacing.s,
-                leading: Spacing.l,
-                bottom: Spacing.s,
-                trailing: Spacing.l
-            ))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-    }
-}
-
-private extension SavedWorkoutTemplatePicker {
-    /// The screen's hero. Filled `gymPrimaryDeep` rather than a gradient, for
-    /// the same reason as the Today card: white body text clears 4.5:1 at every
-    /// point of a flat fill and at only one end of any gradient across this hue.
-    var generateCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    private var personalizedEntry: some View {
+        VStack(spacing: 0) {
             Button {
-                builderPresentation = BuilderPresentation(launchRequest: nil)
+                builderPresentation = BuilderPresentation(
+                    launchRequest: nil
+                )
             } label: {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    Label("PERSONALIZED", systemImage: AppIcon.recipeGenerate)
-                        .font(AppFont.captionBold)
-                        .tracking(0.8)
+                HStack(
+                    alignment: .center,
+                    spacing: Spacing.l
+                ) {
+                    Rectangle()
+                        .fill(Color.trameStrength)
+                        .frame(width: 6, height: 52)
+                        .accessibilityHidden(true)
 
-                    Text("Build today's workout")
-                        .font(AppFont.titleMedium)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(
+                        alignment: .leading,
+                        spacing: Spacing.xs
+                    ) {
+                        Text("PERSONALISED")
+                            .font(AppFont.eyebrow)
+                            .tracking(1)
+                            .foregroundStyle(Color.trameStrength)
 
-                    Text("Tell it your goal, gear, and time. You review the workout before it starts.")
-                        .font(AppFont.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    // White on the blue card, not a second blue on blue: the
-                    // filled-primary pill sat two shades from its own
-                    // background and read as disabled chrome rather than as
-                    // the screen's main action.
-                    HStack(spacing: Spacing.s) {
-                        Text("Build workout")
-                            .font(AppFont.subheadlineBold)
-                        Image(systemName: AppIcon.chevronRight)
-                            .font(AppFont.captionBold)
+                        Text("Build for today")
+                            .font(AppFont.titleMedium)
+                            .foregroundStyle(Color.trameText)
                     }
-                    .foregroundStyle(Color.gymPrimaryDeep)
-                    .padding(.vertical, Spacing.md)
-                    .padding(.horizontal, Spacing.xl)
-                    .background(Color.white, in: Capsule())
-                    .padding(.top, Spacing.xs)
+
+                    Spacer(minLength: Spacing.l)
+
+                    Image(
+                        systemName: AppIcon.chevronRight
+                    )
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Spacing.l)
+                .padding(.vertical, Spacing.l)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: ComponentSize.minimumTouchTarget,
+                    alignment: .leading
+                )
+                .contentShape(Rectangle())
             }
             .buttonStyle(.gymPress)
-            .accessibilityIdentifier("build-personalized-workout-entry")
-            .accessibilityHint("Builds an editable workout draft before you start.")
+            .accessibilityIdentifier(
+                "build-personalized-workout-entry"
+            )
+            .accessibilityLabel(
+                "Build a personalised workout for today"
+            )
+            .accessibilityHint(
+                "Opens the workout builder."
+            )
 
-            quickStartRow
-        }
-        .background(Color.gymPrimaryDeep)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
-    }
-
-    /// Three equal pills, not a scroller. Horizontally scrolling three short
-    /// labels clipped the third one against the card edge, which reads as a
-    /// layout bug rather than as an invitation to swipe.
-    var quickStartRow: some View {
-        VStack(spacing: 0) {
             Divider()
-                .overlay(Color.white.opacity(0.25))
+                .overlay(Color.trameSeparator)
 
-            HStack(spacing: Spacing.s) {
-                ForEach(Self.quickStarts) { quickStart in
-                    Button {
-                        builderPresentation = BuilderPresentation(
-                            launchRequest: WorkoutGenerationLaunchRequest(request: quickStart.request)
-                        )
-                    } label: {
-                        Text(quickStart.focus.title)
-                            .font(AppFont.footnoteMedium)
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: ComponentSize.iconChip)
-                            .background(Color.white.opacity(0.18), in: Capsule())
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("quick-build-\(quickStart.focus.rawValue)")
-                    .accessibilityHint("Starts the builder with this focus filled in.")
+            quickBuildRow
+        }
+    }
+
+    private var quickBuildRow: some View {
+        HStack(spacing: 0) {
+            ForEach(
+                Array(Self.quickStarts.enumerated()),
+                id: \.element.id
+            ) { index, quickStart in
+                if index > 0 {
+                    Rectangle()
+                        .fill(Color.trameSeparator)
+                        .frame(width: 1)
+                        .accessibilityHidden(true)
                 }
-            }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
-        }
-    }
 
-    /// Quiet under the generation hero, and the hero itself without it. Free
-    /// training stays one tap away either way.
-    @ViewBuilder
-    func startEmptyCard(isHero: Bool) -> some View {
-        if isHero {
-            startEmptyHeroCard
-        } else {
-            startEmptyRowCard
-        }
-    }
-
-    var startEmptyHeroCard: some View {
-        Button(action: onStartEmpty) {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Label("FREE WORKOUT", systemImage: AppIcon.play)
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .foregroundStyle(Color.gymPrimary)
-
-                Text("Start an empty workout")
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(Color.gymText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Add exercises as you go, or start from a saved workout below.")
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(spacing: Spacing.s) {
-                    Text("Start workout")
-                        .font(AppFont.subheadlineBold)
-                    Image(systemName: AppIcon.chevronRight)
-                        .font(AppFont.captionBold)
+                Button {
+                    builderPresentation = BuilderPresentation(
+                        launchRequest:
+                            WorkoutGenerationLaunchRequest(
+                                request: quickStart.request
+                            )
+                    )
+                } label: {
+                    Text(
+                        quickStart.focus.startPickerTitle
+                    )
+                    .font(AppFont.metadata)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight:
+                            ComponentSize.minimumTouchTarget
+                    )
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(.white)
-                .padding(.vertical, Spacing.md)
-                .padding(.horizontal, Spacing.xl)
-                .background(Color.gymPrimaryDeep, in: Capsule())
-                .padding(.top, Spacing.xs)
+                .buttonStyle(.gymPress)
+                .accessibilityIdentifier(
+                    "quick-build-\(quickStart.focus.rawValue)"
+                )
+                .accessibilityLabel(
+                    "\(quickStart.focus.title) personalised workout"
+                )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.l)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
-        .buttonStyle(.gymPress)
-        .accessibilityIdentifier("start-empty-workout")
-        .accessibilityHint("Starts a new session with no exercises.")
     }
 
-    var startEmptyRowCard: some View {
+    private var startEmptyRow: some View {
         Button(action: onStartEmpty) {
             HStack(spacing: Spacing.m) {
                 Image(systemName: AppIcon.plus)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSecondary)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(Color.gymSecondarySurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameStrength)
+                    .frame(width: ComponentSize.iconChip)
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Start empty workout")
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymText)
-                    Text("Add exercises as you go")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
+                Text("Start empty")
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameText)
 
-                Spacer(minLength: Spacing.s)
-
-                Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                Spacer(minLength: Spacing.m)
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymBorder, lineWidth: 1)
+            .padding(.vertical, Spacing.md)
+            .frame(
+                minHeight: ComponentSize.minimumTouchTarget
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .overlay(alignment: .bottom) {
+            Divider()
+                .overlay(Color.trameSeparator)
+        }
+        .accessibilityIdentifier("start-empty-workout")
+        .accessibilityLabel("Start an empty workout")
+        .accessibilityHint(
+            "Starts with no exercises. Add exercises as you go."
+        )
+    }
+
+    private var startEmptyHero: some View {
+        Button(action: onStartEmpty) {
+            HStack(spacing: Spacing.l) {
+                Rectangle()
+                    .fill(Color.trameStrength)
+                    .frame(width: 6, height: 52)
+                    .accessibilityHidden(true)
+
+                Text("Start empty")
+                    .font(AppFont.titleMedium)
+                    .foregroundStyle(Color.trameText)
+
+                Spacer()
+
+                Image(systemName: AppIcon.play)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameStrength)
             }
-            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .padding(.vertical, Spacing.l)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: 76
+            )
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("start-empty-workout")
-        .accessibilityHint("Starts a new session with no exercises.")
+        .accessibilityLabel("Start an empty workout")
     }
 }
 
-// MARK: - Focus filter
+// MARK: - Library Controls (Search & Focus)
 
 private extension SavedWorkoutTemplatePicker {
-    /// A filter bar attached to the navigation bar, the way Mail and Files
-    /// attach theirs: a hairline underneath so it reads as chrome belonging to
-    /// the screen rather than as a row of pills floating over the content.
-    var focusFilterStrip: some View {
-        VStack(spacing: 0) {
-            ScrollView(.horizontal) {
-                HStack(spacing: Spacing.s) {
-                    focusChip(title: Text("All"), icon: nil, isSelected: selectedFocus == nil, identifier: "all") {
-                        selectedFocus = nil
-                    }
+    private var libraryControls: some View {
+        HStack(spacing: Spacing.s) {
+            searchField
 
-                    ForEach(availableFocuses) { focus in
-                        focusChip(
-                            title: Text(focus.title),
-                            icon: focus.icon,
-                            isSelected: selectedFocus == focus,
-                            identifier: focus.rawValue
-                        ) {
-                            // Tapping the active chip clears it: the strip is
-                            // the only affordance on screen for undoing a
-                            // filter that hid the workout the user wanted.
-                            selectedFocus = selectedFocus == focus ? nil : focus
-                        }
-                    }
-                }
-                .padding(.vertical, Spacing.s)
+            if showsFocusFilter {
+                focusMenu
             }
-            .scrollIndicators(.hidden)
-            // Margins rather than padding, so a chip scrolled to the edge stops
-            // clear of it instead of being sliced by it.
-            .contentMargins(.horizontal, Spacing.l, for: .scrollContent)
-
-            Divider()
-                .overlay(Color.gymBorder)
         }
-        .background(Color.gymBackground)
     }
 
-    func focusChip(
-        title: Text,
-        icon: String?,
-        isSelected: Bool,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
+    private var searchField: some View {
+        HStack(spacing: Spacing.s) {
+            Image(systemName: AppIcon.search)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+
+            TextField(
+                "Search",
+                text: $searchText
+            )
+            .font(AppFont.bodyMedium)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .accessibilityIdentifier(
+                "workout-search"
+            )
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(
+                        systemName: AppIcon.failureCircle
+                    )
+                    .foregroundStyle(Color.trameSubdued)
+                }
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, Spacing.xs)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+        }
+    }
+
+    private var focusMenu: some View {
+        Menu {
+            Picker(
+                "Focus",
+                selection: $selectedFocus
+            ) {
+                Text("All")
+                    .tag(
+                        Optional<WorkoutTemplateFocus>.none
+                    )
+
+                ForEach(availableFocuses) { focus in
+                    Text(focus.title)
+                        .tag(Optional(focus))
+                }
+            }
+        } label: {
             HStack(spacing: Spacing.xs) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(AppFont.caption)
-                }
-                title
-                    .font(AppFont.footnoteMedium)
+                Text(selectedFocus?.title ?? String(localized: "All"))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(selectedFocus == nil ? Color.trameSubdued : Color.trameText)
+
+                Image(systemName: AppIcon.chevronDown)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
             }
-            .foregroundStyle(isSelected ? .white : Color.gymText)
-            .padding(.horizontal, Spacing.m)
-            .frame(minHeight: ComponentSize.iconChip)
-            .background {
-                Capsule()
-                    .fill(isSelected ? Color.gymPrimaryDeep : Color.gymCard)
-                    .stroke(isSelected ? Color.clear : Color.gymBorder, lineWidth: 1)
+            .padding(.horizontal, Spacing.s)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(selectedFocus == nil ? Color.trameSeparator : Color.trameStrength)
+                    .frame(height: selectedFocus == nil ? 1 : 2)
             }
-            .contentShape(Capsule())
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("workout-focus-\(identifier)")
-        // Selection is carried by the trait, not only by the fill, so VoiceOver
-        // and Increase Contrast users can tell which filter is active.
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityLabel("Filter by focus")
+        .accessibilityValue(
+            selectedFocus?.title ?? "All"
+        )
     }
 }
 
-// MARK: - Rows
+// MARK: - Sections & Rows
 
 private extension SavedWorkoutTemplatePicker {
-    func templateRow(_ item: BrowseItem, showsBuiltInBadge: Bool) -> some View {
-        let isStartable = item.summary.exerciseCount > 0
-        // Assembled from two already-localized parts, so it is passed as a
-        // plain string rather than as a "%@. %@" catalog key.
-        let rowLabel = "\(item.template.name). \(item.summary.detailText)"
+    private func pickerSectionHeader(
+        _ title: LocalizedStringKey,
+        count: Int
+    ) -> some View {
+        HStack(spacing: Spacing.m) {
+            Text(title)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+                .textCase(.uppercase)
+
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+                .accessibilityHidden(true)
+
+            Text(count.formatted())
+                .font(AppFont.metadata)
+                .monospacedDigit()
+                .foregroundStyle(Color.trameSubdued)
+        }
+    }
+
+    @ViewBuilder
+    private func templateSection(
+        _ title: LocalizedStringKey,
+        items sectionItems: [BrowseItem]
+    ) -> some View {
+        if !sectionItems.isEmpty {
+            VStack(
+                alignment: .leading,
+                spacing: 0
+            ) {
+                pickerSectionHeader(
+                    title,
+                    count: sectionItems.count
+                )
+                .padding(.bottom, Spacing.s)
+
+                ForEach(sectionItems) { item in
+                    templateRow(item)
+
+                    Divider()
+                        .overlay(Color.trameSeparator)
+                }
+            }
+            .padding(.top, Spacing.xxxl)
+        }
+    }
+
+    private func templateRow(
+        _ item: BrowseItem
+    ) -> some View {
+        let isStartable =
+            item.summary.exerciseCount > 0
+
+        let visibleDetail =
+            compactMetadata(for: item)
+
+        let accessibilityLabel =
+            "\(item.template.name). \(item.summary.detailText)"
 
         return Button {
             onStartWorkout(item.template)
             dismiss()
         } label: {
             HStack(spacing: Spacing.m) {
-                Image(systemName: item.summary.focus?.icon ?? AppIcon.workout)
-                    .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                Rectangle()
+                    .fill(
+                        isStartable
+                            ? Color.trameStrength
+                            : Color.trameSeparator
+                    )
+                    .frame(
+                        width: 4,
+                        height: 40
+                    )
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    // The name owns the full width. Pairing it inline with the
-                    // "Starter" badge wrapped almost every seeded name onto a
-                    // second line and left a ragged column of two-line titles.
+                VStack(
+                    alignment: .leading,
+                    spacing: Spacing.xs
+                ) {
                     Text(item.template.name)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymText)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(
+                            isStartable
+                                ? Color.trameText
+                                : Color.trameSubdued
+                        )
                         .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .fixedSize(
+                            horizontal: false,
+                            vertical: true
+                        )
 
-                    HStack(spacing: Spacing.xs) {
-                        if showsBuiltInBadge && item.template.isBuiltIn {
-                            BuiltInBadge()
-                        }
-
-                        Text(item.summary.detailText)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                            .lineLimit(2)
+                    if !visibleDetail.isEmpty {
+                        Text(visibleDetail)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(
+                                Color.trameSubdued
+                            )
+                            .lineLimit(1)
                     }
                 }
 
-                Spacer(minLength: Spacing.s)
+                Spacer(minLength: Spacing.m)
 
-                // Dropped at accessibility sizes: the whole row already starts
-                // the workout, so the glyph is reinforcement, and the width it
-                // costs is width the wrapped name and metadata need.
-                if !dynamicTypeSize.isAccessibilitySize {
+                if isStartable &&
+                    !dynamicTypeSize.isAccessibilitySize {
                     Image(systemName: AppIcon.play)
-                        .font(AppFont.caption)
-                        .foregroundStyle(isStartable ? Color.gymPrimary : Color.gymSubduedText)
-                        .frame(width: 32, height: 32)
-                        .background(isStartable ? Color.gymPrimarySurface : Color.gymRowSurface, in: Circle())
+                        .font(AppFont.micro)
+                        .foregroundStyle(
+                            Color.trameStrength
+                        )
+                        .accessibilityHidden(true)
                 }
             }
-            .padding(.vertical, Spacing.xxs)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(.vertical, Spacing.m)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: 64,
+                alignment: .leading
+            )
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.gymPress)
         .disabled(!isStartable)
-        .accessibilityIdentifier("workout-template-\(item.template.name)")
-        // Stated rather than left to the four child views, which read the name,
-        // the badge, and the metadata line as separate stops.
-        .accessibilityLabel(rowLabel)
-        .accessibilityHint(isStartable
-            ? "Starts a new session from this saved workout."
-            : "Add an exercise before starting this workout.")
+        .accessibilityIdentifier(
+            "workout-template-\(item.template.name)"
+        )
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(
+            isStartable
+                ? "Starts this workout."
+                : "Add an exercise before starting."
+        )
+    }
+
+    private func compactMetadata(
+        for item: BrowseItem
+    ) -> String {
+        let summary = item.summary
+
+        guard summary.exerciseCount > 0 else {
+            return String(localized: "Empty")
+        }
+
+        var parts: [String] = []
+
+        if let minutes = summary.estimatedMinutes {
+            parts.append(
+                String(localized: "~\(minutes) min")
+            )
+        }
+
+        if let focus = summary.focus,
+           !titleAlreadyContains(
+                focus,
+                title: item.template.name
+           ) {
+            parts.append(focus.title)
+        }
+
+        // Only use exercise count as a fallback.
+        // It is intentionally not repeated on every row.
+        if parts.isEmpty {
+            if summary.exerciseCount == 1 {
+                parts.append(
+                    String(localized: "1 exercise")
+                )
+            } else {
+                parts.append(
+                    String(
+                        localized:
+                            "\(summary.exerciseCount) exercises"
+                    )
+                )
+            }
+        }
+
+        return parts.joined(separator: " · ")
+    }
+
+    private func titleAlreadyContains(
+        _ focus: WorkoutTemplateFocus,
+        title: String
+    ) -> Bool {
+        let normalized = title
+            .lowercased()
+            .replacingOccurrences(
+                of: "—",
+                with: " "
+            )
+            .replacingOccurrences(
+                of: "-",
+                with: " "
+            )
+
+        switch focus {
+        case .fullBody:
+            return normalized.contains("full body")
+
+        case .upperBody:
+            return normalized.contains("upper body")
+
+        case .lowerBody:
+            return normalized.contains("lower body")
+
+        case .core:
+            return normalized.contains("core")
+        }
     }
 }
 
-// MARK: - Data
+// MARK: - Empty States
+
+private extension SavedWorkoutTemplatePicker {
+    private var emptyLibraryState: some View {
+        ContentUnavailableView(
+            "No saved workouts",
+            systemImage:
+                "rectangle.stack.badge.plus",
+            description: Text(
+                "Build one above or create one in Train."
+            )
+        )
+    }
+
+    private var noMatchesState: some View {
+        ContentUnavailableView {
+            Label(
+                "No matches",
+                systemImage: AppIcon.search
+            )
+        } actions: {
+            Button("Clear") {
+                searchText = ""
+                selectedFocus = nil
+            }
+            .accessibilityIdentifier(
+                "clear-workout-filters"
+            )
+        }
+    }
+}
+
+// MARK: - Data Layer
 
 private extension SavedWorkoutTemplatePicker {
     struct BrowseItem: Identifiable {
@@ -682,7 +808,22 @@ private extension SavedWorkoutTemplatePicker {
     }
 }
 
-// MARK: - Focus presentation
+// MARK: - Focus Helpers
+
+private extension WorkoutTemplateFocus {
+    var startPickerTitle: LocalizedStringKey {
+        switch self {
+        case .fullBody:
+            "Full"
+        case .upperBody:
+            "Upper"
+        case .lowerBody:
+            "Lower"
+        case .core:
+            "Core"
+        }
+    }
+}
 
 extension WorkoutTemplateFocus {
     var icon: String {

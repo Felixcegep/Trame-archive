@@ -352,7 +352,11 @@ struct MobilityInclinometerStableHoldEvaluator: Sendable {
         return .accepted(valueDegrees: median, holdProgress: 1)
     }
 
-    private func measuredAngle(for sample: MobilityInclinometerMotionSample) -> Double? {
+    /// The signed device angle relative to this capture's calibrated baseline.
+    /// This is intentionally available before hold acceptance so the UI can
+    /// track the phone directly while the evaluator independently decides
+    /// whether the sample is stable enough to record.
+    func measuredAngle(for sample: MobilityInclinometerMotionSample) -> Double? {
         switch configuration.mode {
         case .gravityReferenced:
             guard let raw = sample.gravityReferencedAngle(for: configuration.axis) else { return nil }
@@ -426,7 +430,14 @@ final class MobilityCoreMotionManager: MobilityDeviceMotionManaging {
     }
 
     func startDeviceMotionUpdates(to queue: OperationQueue, withHandler handler: @escaping CMDeviceMotionHandler) {
-        manager.startDeviceMotionUpdates(to: queue, withHandler: handler)
+        // Yaw is used only as a short relative rotation. Pinning the reference
+        // frame makes that contract explicit and avoids magnetometer-dependent
+        // headings in a gym environment.
+        manager.startDeviceMotionUpdates(
+            using: .xArbitraryZVertical,
+            to: queue,
+            withHandler: handler
+        )
     }
 
     func stopDeviceMotionUpdates() {
@@ -438,6 +449,9 @@ final class MobilityCoreMotionManager: MobilityDeviceMotionManaging {
 final class MobilityInclinometerCaptureService: ObservableObject {
     @Published private(set) var state: InclinometerCaptureState = .idle
     @Published private(set) var lastError: MobilityInclinometerCaptureError?
+    /// Live signed device rotation for visual feedback only. Persisted results
+    /// still come exclusively from the stable-hold evaluator.
+    @Published private(set) var liveAngleDegrees: Double?
 
     private let motionManager: MobilityDeviceMotionManaging
     private var evaluator: MobilityInclinometerStableHoldEvaluator?
@@ -461,6 +475,7 @@ final class MobilityInclinometerCaptureService: ObservableObject {
         self.configuration = configuration
         captureStartedAt = nil
         lastError = nil
+        liveAngleDegrees = nil
         state = .idle
 
         let requiredHardwareAvailable: Bool
@@ -540,11 +555,15 @@ final class MobilityInclinometerCaptureService: ObservableObject {
                 configuration: configuration,
                 baseline: baseline
             )
+            liveAngleDegrees = 0
             state = .measuring(axisDegrees: 0, holdProgress: 0)
             return
         }
 
         var updatedEvaluator = currentEvaluator
+        if let liveAngle = updatedEvaluator.measuredAngle(for: sample), liveAngle.isFinite {
+            liveAngleDegrees = liveAngle
+        }
         let result = updatedEvaluator.consume(sample)
         self.evaluator = updatedEvaluator
         switch result {
@@ -563,6 +582,7 @@ final class MobilityInclinometerCaptureService: ObservableObject {
             return
         }
         captureGeneration &+= 1
+        liveAngleDegrees = value
         state = .completed(axis: configuration.axis, valueDegrees: value)
     }
 
@@ -577,6 +597,7 @@ final class MobilityInclinometerCaptureService: ObservableObject {
         configuration = nil
         captureStartedAt = nil
         lastError = nil
+        liveAngleDegrees = nil
         state = .idle
     }
 
@@ -590,6 +611,7 @@ final class MobilityInclinometerCaptureService: ObservableObject {
         }
         stopUpdates()
         lastError = .manualFallbackRequired(reason)
+        liveAngleDegrees = nil
         state = .unavailable(reason: reason)
     }
 

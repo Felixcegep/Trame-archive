@@ -192,6 +192,7 @@ enum NutritionSeedData {
             FoodSeed(name: "Silken tofu", categoryName: "Legumes & Plant Proteins", calories: 55.0, protein: 4.8, carbs: 2.1, fat: 2.7, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Tempeh", categoryName: "Legumes & Plant Proteins", calories: 192.0, protein: 20.3, carbs: 7.6, fat: 10.8, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Textured vegetable protein", categoryName: "Legumes & Plant Proteins", calories: 330.0, protein: 52.0, carbs: 32.0, fat: 1.0, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
+            FoodSeed(name: "Whey protein powder", categoryName: "Legumes & Plant Proteins", calories: 373.0, protein: 80.0, carbs: 8.0, fat: 1.5, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Seitan", categoryName: "Legumes & Plant Proteins", calories: 370.0, protein: 75.0, carbs: 14.0, fat: 1.9, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Soybeans", categoryName: "Legumes & Plant Proteins", calories: 172.0, protein: 16.6, carbs: 9.9, fat: 9.0, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Refried beans", categoryName: "Legumes & Plant Proteins", calories: 91.0, protein: 5.4, carbs: 15.3, fat: 1.4, servingName: "100 g portion", servingAmount: 100, equivalentRefAmount: 100),
@@ -570,9 +571,9 @@ enum NutritionSeedData {
                 prepState: .cooked,
                 finalWeight: nil,
                 items: [
-                    ("Cooked chicken breast", 1.5),
-                    ("Cooked rice", 1.25),
-                    ("Cooked broccoli", 1.0)
+                    ("Chicken breast", 1.5),
+                    ("White rice", 1.25),
+                    ("Broccoli", 1.0)
                 ]
             ),
             RecipeSeed(
@@ -580,9 +581,9 @@ enum NutritionSeedData {
                 prepState: .raw,
                 finalWeight: nil,
                 items: [
-                    ("Dry rolled oats", 2.0),
+                    ("Rolled oats", 2.0),
                     ("Whey protein powder", 1.0),
-                    ("Banana", 1.0),
+                    ("Bananas", 1.0),
                     ("Peanut butter", 1.0)
                 ]
             ),
@@ -591,9 +592,9 @@ enum NutritionSeedData {
                 prepState: .cooked,
                 finalWeight: nil,
                 items: [
-                    ("Cooked sirloin steak", 1.0),
-                    ("Cooked sweet potato", 1.5),
-                    ("Cooked green beans", 1.0)
+                    ("Beef sirloin", 1.0),
+                    ("Sweet potatoes", 1.5),
+                    ("Green beans", 1.0)
                 ]
             ),
             RecipeSeed(
@@ -612,9 +613,9 @@ enum NutritionSeedData {
                 prepState: .cooked,
                 finalWeight: nil,
                 items: [
-                    ("Whole wheat tortilla", 1.0),
-                    ("Liquid egg whites", 1.25),
-                    ("Whole egg", 1.0),
+                    ("Whole-wheat tortillas", 1.0),
+                    ("Egg whites", 1.25),
+                    ("Whole eggs", 1.0),
                     ("Avocado", 0.5)
                 ]
             ),
@@ -623,27 +624,58 @@ enum NutritionSeedData {
                 prepState: .cooked,
                 finalWeight: nil,
                 items: [
-                    ("Cooked salmon fillet", 1.0),
-                    ("Cooked quinoa", 1.0),
-                    ("Raw spinach", 1.0)
+                    ("Fresh salmon", 1.0),
+                    ("Quinoa", 1.0),
+                    ("Spinach", 1.0)
                 ]
             )
         ]
 
+        func resolvedItems(for recipe: RecipeSeed, key: String) throws -> [MealTemplateItem] {
+            try recipe.items.enumerated().map { index, item in
+                guard let food = foodByName[item.foodName.lowercased()] else {
+                    throw SystemSeedError.unresolvedDependency(key: key, dependency: item.foodName)
+                }
+                return MealTemplateItem(
+                    food: food,
+                    orderIndex: index,
+                    servingID: food.servings.first?.id,
+                    quantity: item.qty
+                )
+            }
+        }
+
+        func matchesSeed(_ template: MealTemplate, items: [MealTemplateItem]) -> Bool {
+            let actual = template.orderedItems
+            guard actual.count == items.count else { return false }
+            return zip(actual, items).allSatisfy { existing, expected in
+                existing.food.id == expected.food.id
+                    && existing.quantity == expected.quantity
+                    && existing.servingID == expected.servingID
+            }
+        }
+
+        func replaceItems(on template: MealTemplate, with items: [MealTemplateItem]) {
+            for old in template.items {
+                context.delete(old)
+            }
+            template.items = items
+            template.updatedAt = .now
+        }
+
         var didInsertRecipe = false
         for recipe in recipeList {
-            var templateItems: [MealTemplateItem] = []
-            for (idx, item) in recipe.items.enumerated() {
-                if let food = foodByName[item.foodName.lowercased()] {
-                    let servingID = food.servings.first?.id
-                    templateItems.append(MealTemplateItem(food: food, orderIndex: idx, servingID: servingID, quantity: item.qty))
-                }
-            }
-            guard !templateItems.isEmpty else { continue }
             let key = SystemSeedKey.make(namespace: "meal-template", legacyName: recipe.name)
+            let templateItems = try resolvedItems(for: recipe, key: key)
             if let record = try registry.record(for: key, expectedKind: .mealTemplate) {
-                guard existingTemplates.contains(where: { $0.id == record.entityID }) else {
+                guard let template = existingTemplates.first(where: { $0.id == record.entityID }) else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                // Repair bundled v1 recipes whose ingredients failed to resolve
+                // against the food catalog. User revisions keep their own items.
+                if template.isCurrent, template.version == 1, template.isArchived == false,
+                   matchesSeed(template, items: templateItems) == false {
+                    replaceItems(on: template, with: templateItems)
                 }
                 continue
             }

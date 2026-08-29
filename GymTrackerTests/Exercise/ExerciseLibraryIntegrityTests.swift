@@ -76,6 +76,191 @@ final class ExerciseLibraryIntegrityTests: XCTestCase {
         XCTAssertFalse(lateralityFilter.matches(benchPress, searchText: ""))
     }
 
+    func testExerciseFocusFilterPushAndPullAreMutuallyExclusiveAndAccurate() {
+        let benchPress = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.middleChest],
+            secondaryMuscles: [.frontDeltoid, .tricepLateralHead],
+            movementPattern: .horizontalPush,
+            forceType: .push
+        )
+        let overheadPress = Exercise(
+            name: "Overhead Press",
+            primaryMuscles: [.frontDeltoid, .lateralDeltoid],
+            secondaryMuscles: [.tricepLongHead],
+            movementPattern: .verticalPush,
+            forceType: .push
+        )
+        let lateralRaise = Exercise(
+            name: "Lateral Raise",
+            primaryMuscles: [.lateralDeltoid],
+            movementPattern: .verticalPush,
+            forceType: .push
+        )
+        let tricepsPushdown = Exercise(
+            name: "Triceps Pushdown",
+            primaryMuscles: [.tricepLateralHead, .tricepMedialHead],
+            secondaryMuscles: [.tricepLongHead],
+            movementPattern: .verticalPush,
+            forceType: .push
+        )
+        let barbellRow = Exercise(
+            name: "Barbell Row",
+            primaryMuscles: [.latissimusDorsi, .rhomboids],
+            secondaryMuscles: [.rearDeltoid, .bicep, .forearms],
+            movementPattern: .horizontalPull,
+            forceType: .pull
+        )
+        let facePull = Exercise(
+            name: "Face Pull",
+            primaryMuscles: [.rearDeltoid],
+            secondaryMuscles: [.trapezius, .rhomboids],
+            movementPattern: .horizontalPull,
+            forceType: .pull
+        )
+        let rearDeltFly = Exercise(
+            name: "Rear Delt Fly",
+            primaryMuscles: [.rearDeltoid],
+            secondaryMuscles: [.rhomboids],
+            movementPattern: .horizontalPull,
+            forceType: .pull
+        )
+        let latPulldown = Exercise(
+            name: "Lat Pulldown",
+            primaryMuscles: [.latissimusDorsi],
+            secondaryMuscles: [.bicep, .teresMajor],
+            movementPattern: .verticalPull,
+            forceType: .pull
+        )
+        let pullUp = Exercise(
+            name: "Pull Up",
+            primaryMuscles: [.latissimusDorsi],
+            secondaryMuscles: [.bicep, .rhomboids],
+            movementPattern: .verticalPull,
+            forceType: .pull
+        )
+        let barbellCurl = Exercise(
+            name: "Barbell Curl",
+            primaryMuscles: [.bicep],
+            secondaryMuscles: [.brachialis, .brachioradialis],
+            movementPattern: .other,
+            forceType: .pull
+        )
+        let backSquat = Exercise(
+            name: "Back Squat",
+            primaryMuscles: [.quadriceps, .gluteMaximus],
+            secondaryMuscles: [.hamstrings, .erectorSpinae],
+            movementPattern: .squat,
+            forceType: .push
+        )
+        let deadlift = Exercise(
+            name: "Deadlift",
+            primaryMuscles: [.erectorSpinae, .gluteMaximus, .hamstrings],
+            secondaryMuscles: [.trapezius, .forearms],
+            movementPattern: .hinge,
+            forceType: .pull
+        )
+        let plank = Exercise(
+            name: "Plank",
+            primaryMuscles: [.transverseAbdominis],
+            secondaryMuscles: [.rectusAbdominis, .obliques],
+            movementPattern: .antiExtension,
+            forceType: .staticHold
+        )
+        let treadmillRun = Exercise(
+            name: "Treadmill Run",
+            primaryMuscles: [.quadriceps, .hamstrings, .calves],
+            category: .cardio,
+            movementPattern: .locomotion
+        )
+
+        let pushExercises = [benchPress, overheadPress, lateralRaise, tricepsPushdown]
+        let pullExercises = [barbellRow, facePull, rearDeltFly, latPulldown, pullUp, barbellCurl]
+        let legExercises = [backSquat, deadlift]
+
+        var pushFilter = ExerciseFilterState()
+        pushFilter.focus = .push
+
+        for ex in pushExercises {
+            XCTAssertTrue(pushFilter.matches(ex, searchText: ""), "Push filter should match \(ex.name)")
+        }
+        for ex in pullExercises {
+            XCTAssertFalse(pushFilter.matches(ex, searchText: ""), "Push filter MUST NOT match pull exercise \(ex.name)")
+        }
+        for ex in legExercises {
+            XCTAssertFalse(pushFilter.matches(ex, searchText: ""), "Push filter MUST NOT match leg exercise \(ex.name)")
+        }
+        XCTAssertFalse(pushFilter.matches(plank, searchText: ""), "Push filter MUST NOT match plank")
+        XCTAssertFalse(pushFilter.matches(treadmillRun, searchText: ""), "Push filter MUST NOT match cardio")
+
+        var pullFilter = ExerciseFilterState()
+        pullFilter.focus = .pull
+
+        for ex in pullExercises {
+            XCTAssertTrue(pullFilter.matches(ex, searchText: ""), "Pull filter should match \(ex.name)")
+        }
+        for ex in pushExercises {
+            XCTAssertFalse(pullFilter.matches(ex, searchText: ""), "Pull filter MUST NOT match push exercise \(ex.name)")
+        }
+        XCTAssertFalse(pullFilter.matches(backSquat, searchText: ""), "Pull filter MUST NOT match squat")
+        XCTAssertFalse(pullFilter.matches(plank, searchText: ""), "Pull filter MUST NOT match plank")
+        XCTAssertFalse(pullFilter.matches(treadmillRun, searchText: ""), "Pull filter MUST NOT match cardio")
+
+        var legsFilter = ExerciseFilterState()
+        legsFilter.focus = .legs
+
+        XCTAssertTrue(legsFilter.matches(backSquat, searchText: ""))
+        XCTAssertTrue(legsFilter.matches(deadlift, searchText: ""))
+        XCTAssertFalse(legsFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(legsFilter.matches(overheadPress, searchText: ""))
+        XCTAssertFalse(legsFilter.matches(barbellRow, searchText: ""))
+        XCTAssertFalse(legsFilter.matches(pullUp, searchText: ""))
+
+        var coreFilter = ExerciseFilterState()
+        coreFilter.focus = .core
+
+        XCTAssertTrue(coreFilter.matches(plank, searchText: ""))
+        XCTAssertFalse(coreFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(coreFilter.matches(barbellRow, searchText: ""))
+        XCTAssertFalse(coreFilter.matches(backSquat, searchText: ""))
+
+        var cardioFilter = ExerciseFilterState()
+        cardioFilter.focus = .cardio
+
+        XCTAssertTrue(cardioFilter.matches(treadmillRun, searchText: ""))
+        XCTAssertFalse(cardioFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(cardioFilter.matches(barbellRow, searchText: ""))
+    }
+
+    func testSeededCatalogPushAndPullExercisesNeverCrossCategories() {
+        let allExercises = ExerciseSeedData.templates()
+        let pushExercises = ExerciseSeedData.pushTemplates()
+        let pullExercises = ExerciseSeedData.pullTemplates()
+
+        var pushFilter = ExerciseFilterState()
+        pushFilter.focus = .push
+
+        var pullFilter = ExerciseFilterState()
+        pullFilter.focus = .pull
+
+        for pushEx in pushExercises {
+            XCTAssertTrue(pushFilter.matches(pushEx, searchText: ""), "Push filter must match seeded push exercise \(pushEx.name)")
+            XCTAssertFalse(pullFilter.matches(pushEx, searchText: ""), "Pull filter MUST NOT match seeded push exercise \(pushEx.name)")
+        }
+
+        for pullEx in pullExercises {
+            XCTAssertTrue(pullFilter.matches(pullEx, searchText: ""), "Pull filter must match seeded pull exercise \(pullEx.name)")
+            XCTAssertFalse(pushFilter.matches(pullEx, searchText: ""), "Push filter MUST NOT match seeded pull exercise \(pullEx.name)")
+        }
+
+        // Verify across the entire combined seed catalog that no exercise matches both Push and Pull
+        for exercise in allExercises {
+            let isPush = pushFilter.matches(exercise, searchText: "")
+            let isPull = pullFilter.matches(exercise, searchText: "")
+            XCTAssertFalse(isPush && isPull, "Exercise '\(exercise.name)' matched both Push and Pull! Focus categories must be mutually exclusive.")
+        }
+    }
+
     func testSeededExerciseFamiliesDescribeRelatedVariantsWithoutCollapsingIdentity() throws {
         let exercises = ExerciseSeedData.templates()
         let benchPress = try XCTUnwrap(exercises.first { $0.name == "Bench Press" })

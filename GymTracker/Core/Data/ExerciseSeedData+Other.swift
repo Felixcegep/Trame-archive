@@ -27,6 +27,7 @@ extension ExerciseSeedData {
                 trackingType: .repsOnly,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
+                movementPattern: .spinalFlexion,
                 forceType: .pull,
                 mechanics: .isolation,
                 difficulty: .beginner
@@ -62,6 +63,8 @@ extension ExerciseSeedData {
                 trackingType: .repsOnly,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
+                movementPattern: .hipAbduction,
+                forceType: .push,
                 mechanics: .isolation,
                 difficulty: .beginner,
                 tags: ["hip-stability", "rehabilitation"]

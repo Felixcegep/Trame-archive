@@ -24,7 +24,7 @@ struct WorkoutCollectionDetailView: View {
             Section("Workouts") {
                 if collection.workoutTemplates.isEmpty {
                     Text("No workouts in this folder")
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 } else {
                     ForEach(collection.workoutTemplates, id: \.self) { template in
                         StartableWorkoutRow(
@@ -46,7 +46,7 @@ struct WorkoutCollectionDetailView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(collection.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

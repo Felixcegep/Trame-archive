@@ -74,7 +74,7 @@ struct TrainingJourneyTimelineView: View {
             .padding(.vertical, Spacing.l)
         }
         .scrollIndicators(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .accessibilityIdentifier("training-journey-timeline")
         .animation(reduceMotion ? nil : AppMotion.compact, value: selectedDate)
     }
@@ -200,11 +200,11 @@ struct TrainingJourneyTimelineView: View {
             ForEach(visibleTicks(chartWidth: chartWidth)) { tick in
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Rectangle()
-                        .fill(tick.kind == .year ? Color.gymText : Color.gymBorder)
+                        .fill(tick.kind == .year ? Color.trameText : Color.trameSeparator)
                         .frame(width: Spacing.xxs, height: tick.kind == .year ? Spacing.m : Spacing.s)
                     Text(tickLabel(tick))
                         .font(tick.kind == .year ? AppFont.captionSemiboldMonospaced : AppFont.caption2)
-                        .foregroundStyle(tick.kind == .year ? Color.gymText : Color.gymSubduedText)
+                        .foregroundStyle(tick.kind == .year ? Color.trameText : Color.trameSubdued)
                         .fixedSize()
                 }
                 .offset(x: min(tick.position * chartWidth, max(0, chartWidth - Spacing.xxxl)))
@@ -251,7 +251,7 @@ struct TrainingJourneyTimelineView: View {
             ForEach(Array(transitionMarkerRows.enumerated()), id: \.offset) { _, row in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color.gymBorder)
+                        .fill(Color.trameSeparator)
                         .frame(height: Spacing.xxs)
                         .offset(y: transitionMarkerHeight - Spacing.xs)
 
@@ -297,7 +297,7 @@ struct TrainingJourneyTimelineView: View {
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.small)
                     .stroke(
-                        isMarkerSelected(marker) ? Color.gymText : transitionTint(marker),
+                        isMarkerSelected(marker) ? Color.trameText : transitionTint(marker),
                         lineWidth: isMarkerSelected(marker) ? Spacing.xs : Spacing.xxs
                     )
             }
@@ -320,7 +320,7 @@ struct TrainingJourneyTimelineView: View {
         }()
         return Label(copy.visible, systemImage: copy.icon)
             .font(AppFont.captionBold)
-            .foregroundStyle(Color.gymText)
+            .foregroundStyle(Color.trameText)
             .labelStyle(.titleAndIcon)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityElement(children: .combine)
@@ -334,7 +334,7 @@ struct TrainingJourneyTimelineView: View {
         let trackHeight = laneHeight(for: lane)
         return ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(Color.gymBorder)
+                .fill(Color.trameSeparator)
                 .frame(height: Spacing.xxs)
                 .offset(y: trackHeight - Spacing.xxs)
 
@@ -352,7 +352,7 @@ struct TrainingJourneyTimelineView: View {
                             HStack(spacing: Spacing.xs) {
                                 Text(segment.title)
                                     .font(AppFont.captionBold)
-                                    .foregroundStyle(Color.gymText)
+                                    .foregroundStyle(Color.trameText)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
                                 if segment.isOpenEnded,

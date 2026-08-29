@@ -32,7 +32,7 @@ struct HistoryWorkoutView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
-            .padding(.bottom, 96)
+            .padding(.bottom, Spacing.xxxl)
         }
         .background(Color.trameCanvas)
         .navigationTitle(workout.displayTitle)

@@ -296,7 +296,7 @@ struct OnboardingRecommendationsView: View {
                 if let answer {
                     Text(answer)
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                         .lineLimit(1)
                 }
 
@@ -310,12 +310,12 @@ struct OnboardingRecommendationsView: View {
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .background(
-                isAnswered ? Color.gymPrimarySurface : Color.gymCard,
+                isAnswered ? Color.trameCurrent : Color.gymCard,
                 in: Capsule(style: .continuous)
             )
             .overlay {
                 Capsule(style: .continuous)
-                    .stroke(isAnswered ? Color.gymPrimary : Color.gymBorder, lineWidth: 1)
+                    .stroke(isAnswered ? Color.trameActionOutline : Color.gymBorder, lineWidth: 1)
             }
             .contentShape(Capsule(style: .continuous))
         }
@@ -499,7 +499,7 @@ struct OnboardingRecommendationsView: View {
 
             Button("Find a mobility plan") { isShowingMobilityIntake = true }
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameActionDeep)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .buttonStyle(.gymPress)
                 .accessibilityIdentifier("onboarding-mobility-invitation-open")
@@ -609,7 +609,7 @@ struct OnboardingRecommendationsView: View {
                     Text("Set up \(leadingResult.name)")
                         .lineLimit(2)
                 }
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.tramePrimaryAction)
                 .padding(.horizontal, Spacing.xl)
                 .padding(.top, Spacing.m)
                 .padding(.bottom, Spacing.s)
@@ -653,11 +653,11 @@ struct OnboardingRecommendationsView: View {
             // was added to fix, not a second copy of it.
             if results.isEmpty {
                 Button("Start a free workout", action: onStartFreeWorkout)
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("onboarding-start-free-workout")
             } else if leadingResult == nil {
                 Button("See every plan", action: onBrowseAll)
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("onboarding-browse-all")
             } else {
                 Button("See every plan", action: onBrowseAll)
@@ -794,7 +794,7 @@ struct OnboardingRecommendationCard: View {
                             .padding(.top, Spacing.xs)
                         }
                         .font(AppFont.footnote)
-                        .tint(Color.gymPrimary)
+                        .tint(Color.trameActionDeep)
                     }
                 }
             }
@@ -865,12 +865,12 @@ struct OnboardingRecommendationCard: View {
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            isLeading ? Color.gymPrimarySurface : Color.gymCard,
+            isLeading ? Color.trameCurrent : Color.gymCard,
             in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(isLeading ? Color.gymPrimary : Color.gymBorder, lineWidth: isLeading ? 1.5 : 1)
+                .stroke(isLeading ? Color.trameActionOutline : Color.gymBorder, lineWidth: isLeading ? 1.5 : 1)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("onboarding-recommendation-\(result.programID.uuidString)")
@@ -1096,12 +1096,12 @@ struct MobilityRecommendationCard: View {
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            isLeading ? Color.gymPrimarySurface : Color.gymCard,
+            isLeading ? Color.trameCurrent : Color.gymCard,
             in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(isLeading ? Color.gymPrimary : Color.gymBorder, lineWidth: isLeading ? 1.5 : 1)
+                .stroke(isLeading ? Color.trameActionOutline : Color.gymBorder, lineWidth: isLeading ? 1.5 : 1)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("onboarding-mobility-recommendation-\(result.programID.uuidString)")
@@ -1117,7 +1117,7 @@ struct MobilityRecommendationCard: View {
                 .accessibilityIdentifier(actionIdentifier)
         } else if isLeading {
             Button("Set up this plan", action: action)
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier(actionIdentifier)
         } else {
             Button(action: action) {

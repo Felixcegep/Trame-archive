@@ -189,6 +189,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.nutrition, in: nutrition)
         XCTAssertTrue(nutrition.navigationBars["Nutrition"].waitForExistence(timeout: 5))
         XCTAssertTrue(nutrition.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
+        XCTAssertTrue(nutrition.buttons["open-caffeine-log"].waitForExistence(timeout: 5))
         saveScreenshot("nutrition/20_Nutrition_Today_Light")
     }
 
@@ -349,6 +350,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText("not-a-real-library-item")
+        XCTAssertTrue(app.descendants(matching: .any)["train-search-empty"].waitForExistence(timeout: 5))
         saveScreenshot("overview/02d_Train_Empty_Search")
 
         // Submit the focused single-line search field to resign it. The
@@ -656,10 +658,13 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureActiveWorkoutStatesScreenshots() {
         let empty = launchFixture("active-empty")
         XCTAssertTrue(empty.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 10))
+        XCTAssertTrue(empty.staticTexts["Add your first exercise"].waitForExistence(timeout: 2))
         XCTAssertTrue(empty.buttons["add-first-exercise"].waitForExistence(timeout: 5))
         XCTAssertFalse(empty.descendants(matching: .any)["finish-summary"].exists)
         saveScreenshot("active-workout/05_Active_Workout_Empty")
         tapButton("minimize-workout", in: empty)
+        XCTAssertTrue(empty.buttons["resume-active-workout"].waitForExistence(timeout: 10))
+        XCTAssertFalse(empty.staticTexts["EXERCISES"].exists)
         saveScreenshot("overview/05_Home_With_Active_Workout")
 
         let inProgress = launchFixture("active-in-progress")
@@ -696,11 +701,13 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07c_Execution_Block_Builder")
         tapButton("Cancel", in: inProgress)
         XCTAssertTrue(inProgress.navigationBars["Execution Block"].waitForNonExistence(timeout: 5))
+        dismissKeypadIfPresent(in: inProgress)
 
         tapButton("active-workout-menu", in: inProgress)
-        tapButton("discard-workout", in: inProgress)
-        XCTAssertTrue(inProgress.buttons["confirm-discard-workout"].waitForExistence(timeout: 5))
+        tapControl("discard-workout", in: inProgress)
+        XCTAssertDiscardConfirmationVisible(in: inProgress)
         saveScreenshot("active-workout/08e_Discard_Workout")
+        dismissDiscardConfirmation(in: inProgress)
 
         let executionBlockActive = launchFixture("active-execution-block")
         XCTAssertTrue(executionBlockActive.staticTexts["Power circuit"].waitForExistence(timeout: 10))
@@ -710,7 +717,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let advancedSet = launchFixture("active-advanced-set")
         tapButton("reps-field-Bench Press-0", in: advancedSet)
         tapButton("panel-details", in: advancedSet)
-        XCTAssertTrue(advancedSet.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["set-method-stage-hint"].waitForExistence(timeout: 5))
         // Advanced set methods are edited through the method-specific picker;
         // the redesigned sheet intentionally exposes it in this captured state.
         XCTAssertTrue(advancedSet.descendants(matching: .any)["set-method-picker"].exists)
@@ -863,6 +870,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         // the ready state without manufacturing it.
         XCTAssertTrue(app.descendants(matching: .any)["rest-ready"].waitForExistence(timeout: 60))
         XCTAssertTrue(app.buttons["Continue to next set"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Rest continues"].exists)
         saveScreenshot("active-workout/08c_Rest_Ready")
     }
 
@@ -884,6 +892,46 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/08v_Stage_Finish_Summary")
     }
 
+    /// Pale is the authored appearance and Dark is its low-light counterpart,
+    /// so the stage's two load-bearing states are captured in both. Everything
+    /// on these screens resolves through dual-appearance tokens; this is what
+    /// verifies that rather than assuming it.
+    func testCaptureActiveWorkoutPaleAppearanceScreenshots() {
+        let completedSet = launchFixture(
+            "active-completed-set",
+            additionalArguments: ["-appearance", "light"]
+        )
+        XCTAssertTrue(completedSet.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/08_Active_Workout_With_Set_Pale")
+
+        let rest = launchFixture(
+            "active-rest-running",
+            additionalArguments: ["-appearance", "light"]
+        )
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 10))
+        XCTAssertTrue(rest.buttons["Pause rest"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/08_Rest_Countdown_Pale")
+    }
+
+    /// AX5 on the two densest stage surfaces: the rest takeover, whose
+    /// countdown and controls compete for one screen, and an expanded warm-up
+    /// ramp, which is the longest set ledger the stage renders.
+    func testCaptureActiveWorkoutAccessibilitySizeScreenshots() {
+        let rest = launchFixture(
+            "active-rest-running",
+            additionalArguments: ["-ui-testing-dynamic-type", "accessibility5"]
+        )
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/08w_Rest_Countdown_AX5")
+
+        let warmUp = launchFixture(
+            "active-warmup-expanded",
+            additionalArguments: ["-ui-testing-dynamic-type", "accessibility5"]
+        )
+        XCTAssertTrue(warmUp.buttons["warm-up-section-Bench Press"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/07l_Warmup_Expanded_AX5")
+    }
+
     func testCaptureActiveWorkoutPanelAndGroupingStates() {
         let expanded = launchFixture("active-warmup-expanded")
         XCTAssertTrue(expanded.buttons["warm-up-section-Bench Press"].waitForExistence(timeout: 5))
@@ -896,8 +944,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07h_Warmup_Collapsed")
 
         let badges = launchFixture("active-set-type-badges")
-        XCTAssertEqual(badges.staticTexts["set-type-badge-Bench Press-0"].label, "Top set badge T")
-        XCTAssertEqual(badges.staticTexts["set-type-badge-Bench Press-1"].label, "Technique badge Q")
+        XCTAssertEqual(badges.images["set-type-badge-Bench Press-0"].label, "Top set")
+        XCTAssertEqual(badges.images["set-type-badge-Bench Press-1"].label, "Technique")
         saveScreenshot("active-workout/07i_Top_And_Technique_Badges")
 
         let complex = launchFixture("active-complex-unresolved")
@@ -1258,12 +1306,14 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         selectTab(.nutrition, in: repeatMeal)
         XCTAssertTrue(repeatMeal.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 10))
-        let repeatButton = repeatMeal.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "repeat-logged-meal-")
+        let loggedMeal = repeatMeal.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "logged-meal-")
         ).firstMatch
-        scrollToElement(repeatButton, in: repeatMeal)
-        XCTAssertTrue(repeatButton.waitForExistence(timeout: 10))
-        repeatButton.tap()
+        scrollToElement(loggedMeal, in: repeatMeal)
+        XCTAssertTrue(loggedMeal.waitForExistence(timeout: 10))
+        loggedMeal.tap()
+        XCTAssertTrue(repeatMeal.navigationBars["Food entry"].waitForExistence(timeout: 10))
+        tapButton("repeat-logged-meal", in: repeatMeal)
         XCTAssertTrue(repeatMeal.navigationBars["Repeat meal"].waitForExistence(timeout: 10))
         saveScreenshot("nutrition/20d_Repeat_Meal_Sheet")
 
@@ -1314,6 +1364,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedHomeControl: "resume-active-workout"
         )
         XCTAssertTrue(conflict.staticTexts["An active workout is already in progress"].waitForExistence(timeout: 5))
+        XCTAssertTrue(conflict.buttons["Resume"].waitForExistence(timeout: 2))
+        XCTAssertTrue(conflict.buttons["Cancel"].waitForExistence(timeout: 2))
         saveScreenshot("overview/01c_Home_Workout_Conflict")
     }
 
@@ -1385,6 +1437,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedHomeControl: "start-planned-workout"
         )
         XCTAssertTrue(app.descendants(matching: .any)["active-plan-badge"].waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Next · Today'")).firstMatch.exists
+        )
         saveScreenshot("overview/01d_Home_Active_Plan")
 
         tapButton("today-reschedule-planned-workout", in: app)
@@ -1519,7 +1574,32 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.nutrition, in: app)
         XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["open-caffeine-log"].waitForExistence(timeout: 5))
         saveScreenshot("nutrition/20_Nutrition_Today")
+
+        // Open the food-entry sheet before any other sheet. Presenting Log food
+        // first and then this one left SwiftUI with a stale item binding, so
+        // the entry screen never appeared.
+        let loggedMeal = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "logged-meal-")
+        ).firstMatch
+        scrollToElement(loggedMeal, in: app)
+        XCTAssertTrue(loggedMeal.waitForExistence(timeout: 5))
+        loggedMeal.tap()
+        let foodEntryPresented = app.navigationBars["Food entry"].waitForExistence(timeout: 10)
+            || app.buttons["delete-logged-meal"].waitForExistence(timeout: 2)
+        XCTAssertTrue(foodEntryPresented)
+        guard foodEntryPresented else { return }
+        saveScreenshot("nutrition/20l_Food_Entry")
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+
+        let quickLog = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quick-log-food-")).firstMatch
+        scrollToElement(quickLog, in: app)
+        XCTAssertTrue(quickLog.waitForExistence(timeout: 5))
+        quickLog.tap()
+        XCTAssertTrue(app.navigationBars["Log food"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20k_Food_Intake")
     }
 
     func testCaptureNutritionTargetsEmptyScreenshot() {
@@ -1629,12 +1709,18 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         // it through the tab bar so this test follows the shipped navigation
         // contract instead of depending on a removed Home affordance.
         selectTab(.nutrition, in: app)
-        let quickLog = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quick-log-food-")).firstMatch
-        XCTAssertTrue(quickLog.waitForExistence(timeout: 5))
-        quickLog.tap()
+        tapButton("open-food-library", in: app)
+        XCTAssertTrue(app.navigationBars["Food library"].waitForExistence(timeout: 5))
+        let search = app.searchFields["Search foods"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Chicken breast")
+        let result = app.staticTexts["Chicken breast"].firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        result.tap()
         XCTAssertTrue(app.navigationBars["Log food"].waitForExistence(timeout: 5))
         tapButton("confirm-log-food", in: app)
-        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Food library"].waitForExistence(timeout: 5))
     }
 
     func testTodayCanSkipPlannedWorkoutWithoutChangingThePlan() {

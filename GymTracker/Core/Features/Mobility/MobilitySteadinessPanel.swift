@@ -17,11 +17,10 @@ import SwiftUI
 /// What *is* honest: the same service's stable-hold evaluator already
 /// separates "the device stopped moving" from "the device is moving", using
 /// only rotation-rate and acceleration noise — nothing that depends on where
-/// the phone is. That's a legitimate ambient signal on its own, so this panel
-/// asks only that question. It never shows the captured degrees, only whether
-/// the device is currently steady, which is why the axis is fixed to `.yaw`
-/// in relative-rotation mode — the one axis this service can measure without
-/// a gravity reference, i.e. without caring how the phone is oriented.
+/// the phone is. The rotor therefore follows the phone's short relative yaw
+/// and labels it as device rotation, never joint range. The axis is fixed to
+/// `.yaw` because it can be shown relative to the calibrated start without
+/// claiming an anatomical reference.
 ///
 /// Strictly opt-in and disposable: nothing here is written to a
 /// `MobilityResult`. Starting it costs a CoreMotion session for the length of
@@ -38,6 +37,7 @@ struct MobilitySteadinessPanel: View {
     @StateObject private var capture = MobilityInclinometerCaptureService()
     @State private var isExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         // Hidden outright, not disabled, when the hardware can't do this —
@@ -45,11 +45,13 @@ struct MobilitySteadinessPanel: View {
         // asked to see yet. The one place it does speak up is once the lifter
         // has opted in and it turns out unavailable (`unavailableNotice`).
         if isDeviceCapable {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                toggle
-                if isExpanded {
-                    content
-                }
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                TrameDomainSectionRule(title: "Steadiness", color: .trameMobility)
+                rotorButton
+                Text(rotorDetail)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .onDisappear { stop() }
         }
@@ -60,129 +62,172 @@ struct MobilitySteadinessPanel: View {
             && MobilityCoreMotionManager.shared.isGyroAvailable
     }
 
-    private var toggle: some View {
+    /// Diagram contract:
+    ///
+    /// QUESTION      Is the phone still enough to support this timed hold?
+    /// DATA          Relative device yaw, capture state, and stable-hold time.
+    ///               No joint angle or performed result is inferred or saved.
+    /// ENCODING      Needle rotation is signed device rotation; the outer arc
+    ///               is stable-hold progress; text and symbol carry state.
+    /// INTERACTION   Tap starts or stops this optional sensor session. The
+    ///               needle itself is read-only and cannot be dragged.
+    /// DETAIL        Signed device degrees and the state label are visible.
+    /// EMPTY STATE   Sensor-off is explicit and is not rendered as zero ROM.
+    /// ACCESSIBILITY A single button exposes start/stop, state, and purpose;
+    ///               live 50 Hz values are intentionally not announced.
+    private var rotorButton: some View {
         Button {
-            isExpanded.toggle()
-            if isExpanded {
-                start()
-            } else {
-                stop()
-            }
+            toggleSensor()
         } label: {
-            Label("Steadiness", systemImage: AppIcon.gyroscope)
-                .font(AppFont.metadata)
-                .tracking(0.6)
-                .foregroundStyle(isExpanded ? Color.trameMobility : Color.trameSubdued)
-                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-                .contentShape(Rectangle())
+            ZStack {
+                Circle()
+                    .fill(Color.trameRow)
+
+                Circle()
+                    .stroke(Color.trameSeparator, lineWidth: 1)
+
+                rotorTicks
+
+                if isExpanded, let rotorAngle {
+                    Capsule()
+                        .fill(rotorTint)
+                        .frame(width: rotorSize * 0.32, height: Spacing.xs)
+                        .offset(x: rotorSize * 0.16)
+                        .rotationEffect(.degrees(reduceMotion ? 0 : rotorAngle))
+                }
+
+                Circle()
+                    .trim(from: 0, to: rotorProgress)
+                    .stroke(
+                        rotorTint,
+                        style: StrokeStyle(lineWidth: Spacing.xs, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .padding(Spacing.xs)
+
+                Circle()
+                    .fill(Color.trameSurface)
+                    .frame(width: rotorSize * 0.52, height: rotorSize * 0.52)
+                    .overlay {
+                        rotorCenter
+                    }
+            }
+            .frame(width: rotorSize, height: rotorSize)
+            .contentShape(Circle())
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("mobility-steadiness-toggle")
-        .accessibilityHint(Text("An optional, ambient sense of how still the device is holding — not a measurement of the movement."))
+        .accessibilityLabel(Text("Steadiness"))
+        .accessibilityValue(Text(rotorStatus))
+        .accessibilityHint(Text(rotorDetail))
     }
 
-    @ViewBuilder
-    private var content: some View {
+    private var rotorTicks: some View {
+        ForEach(0..<12, id: \.self) { index in
+            Capsule()
+                .fill(index.isMultiple(of: 3) ? Color.trameSubdued : Color.trameSeparator)
+                .frame(width: index.isMultiple(of: 3) ? 2 : 1, height: index.isMultiple(of: 3) ? Spacing.m : Spacing.s)
+                .offset(y: -(rotorSize * 0.42))
+                .rotationEffect(.degrees(Double(index) * 30))
+        }
+    }
+
+    private var rotorCenter: some View {
+        VStack(spacing: Spacing.xxs) {
+            if isExpanded {
+                Text(rotorAngleText)
+                    .font(AppFont.metricCompact)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.trameText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            } else {
+                Image(systemName: AppIcon.gyroscope)
+                    .font(AppFont.titleMedium)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
+            }
+
+            Text(rotorStatus)
+                .font(AppFont.micro)
+                .textCase(.uppercase)
+                .tracking(0.5)
+                .foregroundStyle(rotorTint)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .padding(Spacing.s)
+    }
+
+    private var rotorStatus: String {
+        guard isExpanded else { return String(localized: "Ready") }
         switch capture.state {
         case .idle, .calibrating:
-            statusRow(
-                title: String(localized: "Settling…"),
-                detail: String(localized: "Hold the device still for a moment to begin."),
-                fraction: 0,
-                tint: Color.trameSubdued,
-                symbol: AppIcon.gyroscope
-            )
-
+            return String(localized: "Settling…")
         case .measuring(_, let holdProgress):
-            statusRow(
-                title: holdProgress >= 1
-                    ? String(localized: "Steady")
-                    : String(localized: "Holding…"),
-                detail: nil,
-                fraction: holdProgress,
-                tint: Color.trameMobility,
-                symbol: holdProgress >= 1 ? AppIcon.checkmarkCircle : AppIcon.gyroscope
-            )
-
+            return holdProgress >= 1 ? String(localized: "Steady") : String(localized: "Holding…")
         case .rejected:
-            statusRow(
-                title: String(localized: "Moving"),
-                detail: nil,
-                fraction: 0,
-                tint: Color.trameText,
-                symbol: AppIcon.warningCircle
-            )
-
+            return String(localized: "Moving")
         case .completed, .unavailable:
-            unavailableNotice
+            return String(localized: "Unavailable")
         }
     }
 
-    private func statusRow(
-        title: String,
-        detail: String?,
-        fraction: Double,
-        tint: Color,
-        symbol: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: symbol)
-                    .font(AppFont.metadata)
-                    .foregroundStyle(tint)
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(AppFont.metadata)
-                    .foregroundStyle(tint)
-                Spacer(minLength: 0)
-                Text(
-                    String(
-                        format: String(localized: "Hold %lld%%"),
-                        Int64((max(0, min(1, fraction)) * 100).rounded())
-                    )
-                )
-                .font(AppFont.micro)
-                .monospacedDigit()
-                .foregroundStyle(Color.trameSubdued)
-            }
-            Capsule()
-                .fill(Color.trameRow)
-                .frame(height: 6)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(tint)
-                            .frame(width: proxy.size.width * max(0, min(1, fraction)))
-                    }
-                }
-                .animation(reduceMotion ? nil : AppMotion.compact, value: fraction)
-            if let detail {
-                Text(detail)
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
-            }
+    private var rotorTint: Color {
+        guard isExpanded else { return Color.trameSubdued }
+        switch capture.state {
+        case .rejected:
+            return Color.trameDestructiveText
+        case .completed:
+            return Color.trameCompleted
+        case .idle, .calibrating, .measuring:
+            return Color.trameMobility
+        case .unavailable:
+            return Color.trameSubdued
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            Text(
-                [
-                    title,
-                    String(
-                        format: String(localized: "Hold %lld%%"),
-                        Int64((max(0, min(1, fraction)) * 100).rounded())
-                    ),
-                    detail
-                ]
-                .compactMap { $0 }
-                .joined(separator: ". ")
-            )
-        )
     }
 
-    private var unavailableNotice: some View {
-        Text("Motion sensing stopped responding for this hold.")
-            .font(AppFont.metadata)
-            .foregroundStyle(Color.trameSubdued)
+    private var rotorProgress: CGFloat {
+        switch capture.state {
+        case let .measuring(_, progress):
+            return CGFloat(max(0, min(1, progress)))
+        case .completed:
+            return 1
+        case .idle, .calibrating, .rejected, .unavailable:
+            return 0
+        }
+    }
+
+    private var rotorAngle: Double? {
+        guard let value = capture.liveAngleDegrees, value.isFinite else { return nil }
+        return MobilityInclinometerBaseline.wrappedDegrees(value)
+    }
+
+    private var rotorAngleText: String {
+        guard let angle = rotorAngle else { return "—" }
+        let sign = angle > 0 ? "+" : angle < 0 ? "−" : ""
+        return sign + abs(angle).formatted(.number.precision(.fractionLength(1))) + "°"
+    }
+
+    private var rotorDetail: String {
+        if isExpanded {
+            return String(localized: "The dial follows device rotation only. It does not measure or save joint range.")
+        }
+        return String(localized: "Tap the dial to check whether the phone stays steady during this hold.")
+    }
+
+    private var rotorSize: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 148 : 172
+    }
+
+    private func toggleSensor() {
+        if isExpanded {
+            stop()
+        } else {
+            isExpanded = true
+            start()
+        }
     }
 
     private func start() {
@@ -203,7 +248,11 @@ struct MobilitySteadinessPanel: View {
     }
 
     private func stop() {
-        capture.cancelMeasurement()
+        if isExpanded {
+            capture.cancelMeasurement()
+        } else {
+            capture.reset()
+        }
         isExpanded = false
     }
 }
@@ -211,5 +260,5 @@ struct MobilitySteadinessPanel: View {
 #Preview {
     MobilitySteadinessPanel(targetSeconds: 60)
         .padding()
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
 }

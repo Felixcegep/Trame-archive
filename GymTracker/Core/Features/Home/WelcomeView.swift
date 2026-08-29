@@ -44,7 +44,7 @@ struct WelcomeView: View {
                     welcomeHero
 
                     VStack(alignment: .leading, spacing: Spacing.m) {
-                        GymEyebrow("Choose a starting point", tint: .gymPrimary)
+                        GymEyebrow("Choose a starting point", tint: .trameAction)
 
                         optionCard(
                             title: "Follow a program",
@@ -77,7 +77,7 @@ struct WelcomeView: View {
 
                         Text("Your choice is editable anytime. Completed training never changes.")
                             .font(AppFont.footnote)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -87,7 +87,7 @@ struct WelcomeView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .accessibilityIdentifier("welcome")
     }
 
@@ -95,18 +95,18 @@ struct WelcomeView: View {
         VStack(spacing: Spacing.m) {
             TrameMarkView(height: 40)
 
-            GymEyebrow("Welcome to Trame", tint: .gymPrimary)
+            GymEyebrow("Welcome to Trame", tint: .trameAction)
 
             Text("Choose how you want to train")
                 .font(AppFont.displayMedium)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
 
             Text("Trame can guide your week or simply help you log what you do.")
                 .font(AppFont.body)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -148,11 +148,11 @@ struct WelcomeView: View {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(title)
                         .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
 
                     Text(detail)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                 }
@@ -161,13 +161,13 @@ struct WelcomeView: View {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .padding(.top, Spacing.md)
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                isCommitted ? Color.gymPrimarySurface : Color.gymCard,
+                isCommitted ? Color.trameCurrent : Color.trameSurface,
                 in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
             )
             .overlay {
@@ -190,13 +190,13 @@ struct WelcomeView: View {
     }
 
     private func iconTint(isProminent: Bool, isCommitted: Bool) -> Color {
-        if isCommitted { return .gymPrimary }
-        return isProminent ? .gymPrimary : .gymSubduedText
+        if isCommitted { return .trameAction }
+        return isProminent ? .trameAction : .trameSubdued
     }
 
     private func strokeTint(isProminent: Bool, isCommitted: Bool) -> Color {
-        if isCommitted { return .gymPrimary }
-        return isProminent ? Color.gymPrimary.opacity(0.24) : .gymBorder
+        if isCommitted { return .trameAction }
+        return isProminent ? Color.trameAction.opacity(0.24) : .trameSeparator
     }
 
     private func commit(_ identifier: String, then action: @escaping () -> Void) {

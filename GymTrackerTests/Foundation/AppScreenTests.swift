@@ -14,6 +14,11 @@ final class AppScreenTests: XCTestCase {
         XCTAssertEqual(AppTab.train.accessibilityIdentifier, "tab-train")
         XCTAssertEqual(AppTab.nutrition.accessibilityIdentifier, "tab-nutrition")
         XCTAssertEqual(AppTab.progress.accessibilityIdentifier, "tab-progress")
+
+        XCTAssertEqual(AppTab.today.icon, AppIcon.home)
+        XCTAssertEqual(AppTab.train.icon, AppIcon.train)
+        XCTAssertEqual(AppTab.nutrition.icon, AppIcon.nutrition)
+        XCTAssertEqual(AppTab.progress.icon, AppIcon.history)
     }
 
     func testActiveExecutionFlowsAreNotTabs() {

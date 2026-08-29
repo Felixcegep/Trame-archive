@@ -51,12 +51,12 @@ struct SubstitutionReasonPicker: View {
             HStack {
                 Text(SubstitutionPresentation.reasonTitle(reason))
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: Spacing.s)
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
             }
             .contentShape(Rectangle())

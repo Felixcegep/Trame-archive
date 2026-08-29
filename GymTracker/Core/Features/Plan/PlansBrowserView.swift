@@ -141,15 +141,34 @@ struct PlansBrowserView: View {
         // drawer and the two drew on top of each other. Pinned, it also stays
         // reachable while the list scrolls.
         VStack(spacing: 0) {
-            Picker("Show", selection: $scope) {
-                ForEach(visibleScopes) { scope in
-                    Text(scope.title).tag(scope)
+            HStack(spacing: Spacing.l) {
+                ForEach(visibleScopes) { candidate in
+                    Button {
+                        scope = candidate
+                    } label: {
+                        Text(candidate.title)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(candidate == scope ? Color.trameText : Color.trameSubdued)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .overlay(alignment: .bottom) {
+                                Rectangle()
+                                    .fill(candidate == scope ? Color.trameText : Color.clear)
+                                    .frame(height: 2)
+                            }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(candidate == scope ? .isSelected : [])
+                    .accessibilityIdentifier("plans-scope-\(candidate.rawValue)")
                 }
+                Spacer(minLength: 0)
             }
-            .pickerStyle(.segmented)
             .accessibilityIdentifier("plans-scope")
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.s)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
 
             // A `ScrollView` of cards rather than a `List`.
             //
@@ -177,14 +196,18 @@ struct PlansBrowserView: View {
                         }
                     }
                 }
-                .padding(.horizontal, Spacing.xl)
+                .padding(.horizontal, Spacing.screenInset)
                 .padding(.bottom, Spacing.xxxl)
             }
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("plans-browser-list")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Search plans"
+            )
         }
-        .background(Color.gymBackground)
-        .searchable(text: $searchText, prompt: "Search plans")
+        .background(Color.trameCanvas)
         .navigationTitle("Plans")
         .toolbar {
             if scope == .readyMade {
@@ -331,7 +354,7 @@ struct PlansBrowserView: View {
                 Text("Two ways to follow a plan")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .textCase(.uppercase)
 
                 VStack(alignment: .leading, spacing: Spacing.s) {
@@ -345,13 +368,9 @@ struct PlansBrowserView: View {
                     )
                 }
             }
-            .padding(Spacing.l)
+            .padding(.vertical, Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+            .overlay(alignment: .top) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
             .accessibilityElement(children: .contain)
         }
     }
@@ -367,10 +386,10 @@ struct PlansBrowserView: View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(title)
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text("“\(description)”")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -418,7 +437,7 @@ private extension PlansBrowserView {
                     Text("Pick a ready-made plan or build your own, and Today will tell you what to train.")
                 } actions: {
                     Button("Build a plan", action: createPlan)
-                        .buttonStyle(.gymPrimary)
+                        .buttonStyle(.tramePrimaryAction)
                         .accessibilityIdentifier("create-plan-empty-state")
                 }
             }
@@ -483,7 +502,7 @@ private extension PlansBrowserView {
                     Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
                 } actions: {
                     Button("Create a plan", action: createPlan)
-                        .buttonStyle(.gymPrimary)
+                        .buttonStyle(.tramePrimaryAction)
                         .accessibilityIdentifier("create-program-empty-state")
                 }
             }
@@ -692,7 +711,7 @@ private extension PlansBrowserView {
                     } actions: {
                         Button("Clear refinements") { discoveryFilters.clear() }
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymPrimary)
+                            .foregroundStyle(Color.trameStrength)
                             .buttonStyle(.gymPress)
                             .accessibilityIdentifier("program-discovery-clear-filters")
                     }
@@ -787,36 +806,35 @@ private extension PlansBrowserView {
     func planRow(name: String, detail: String, icon: String, badge: String?) -> some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: icon)
-                .foregroundStyle(Color.gymAccent)
-                .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                .foregroundStyle(Color.trameStrength)
+                .frame(width: 22)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(name)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Spacing.s)
             if let badge {
                 Text(badge)
                     .font(AppFont.caption2Bold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .padding(.horizontal, Spacing.s)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Color.gymRowSurface, in: Capsule())
+                    .background(Color.trameRow, in: Capsule())
                     .fixedSize()
             }
             Image(systemName: AppIcon.chevronRight)
                 .font(AppFont.caption2Bold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, Spacing.l)
+        .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.m)
         .frame(minHeight: ComponentSize.minimumTouchTarget)
         .contentShape(Rectangle())
@@ -841,17 +859,13 @@ private extension PlansBrowserView {
                 .font(AppFont.captionBold)
                 .tracking(0.8)
                 .textCase(.uppercase)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityAddTraits(.isHeader)
 
             VStack(spacing: 0) {
                 content()
             }
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+            .overlay(alignment: .top) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
         }
     }
 
@@ -859,7 +873,7 @@ private extension PlansBrowserView {
     /// chip so it reads as dividing a list rather than cutting the card in two.
     var rowDivider: some View {
         Divider()
-            .overlay(Color.gymBorder)
+            .overlay(Color.trameSeparator)
             .padding(.leading, Spacing.l + ComponentSize.iconChip + Spacing.m)
     }
 

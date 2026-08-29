@@ -56,22 +56,16 @@ struct HistoryView: View {
                 } actions: {
                     if let onStartFreeWorkout {
                         Button("Start a workout", action: onStartFreeWorkout)
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color.gymPrimary)
+                            .buttonStyle(.tramePrimaryAction)
                             .accessibilityIdentifier("history-start-workout")
                     }
                 }
             } else {
                 VStack(spacing: 0) {
-                    Picker("History view", selection: $selectedTab) {
-                        ForEach(HistoryTab.allCases) { tab in
-                            Text(tab.title).tag(tab)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.vertical, Spacing.m)
-
+                    // History lands as a chronological archive. The legacy
+                    // analytics destinations remain addressable through their
+                    // existing initial-tab routes from Progress, but are no
+                    // longer duplicated as peer tabs on the archive itself.
                     switch selectedTab {
                     case .workouts:
                         let sections = historySections(for: completedWorkouts)
@@ -109,6 +103,7 @@ struct HistoryView: View {
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
+                        .contentMargins(.bottom, ComponentSize.tabBarClearance, for: .scrollContent)
                     case .progress:
                         HistoryProgressView(workouts: completedWorkouts)
                     case .records:
@@ -121,7 +116,8 @@ struct HistoryView: View {
         }
         .background(Color.trameCanvas)
         .accessibilityIdentifier("history-screen")
-        .navigationTitle("History")
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.large)
         .overlay(alignment: .bottom) {
             if let pendingDeletion {
                 undoBanner(for: pendingDeletion)
@@ -138,6 +134,18 @@ struct HistoryView: View {
             // for. The alternative — cancelling on disappear — would leave a
             // row they watched animate away still present when they return.
             commitPendingDeletion()
+        }
+    }
+
+    /// Progress reaches this screen three times, at a different tab each time.
+    /// One shared title would name the archive rather than the records on
+    /// screen, so the title follows the tab the route asked for.
+    private var title: LocalizedStringKey {
+        switch selectedTab {
+        case .workouts: "Sessions"
+        case .progress: "Trends"
+        case .records: "Records"
+        case .balance: "Volume"
         }
     }
 
@@ -193,12 +201,13 @@ struct HistoryView: View {
         }
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
-        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.trameSeparator, lineWidth: 1)
+        .background(Color.trameSurface)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(Color.trameDestructiveText).frame(width: 3)
         }
-        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
         .padding(.horizontal, Spacing.l)
         .padding(.bottom, Spacing.m)
         .accessibilityElement(children: .contain)

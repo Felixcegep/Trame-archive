@@ -5,11 +5,12 @@ struct PerformanceComparisonView: View {
 
     var body: some View {
         if comparison.hasTargets {
-            GymCard(variant: .completed, radius: Radius.medium) {
+            TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameCompleted, radius: Radius.field) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                 HStack {
                     Text("Planned vs performed")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Spacer()
                     statusLabel(comparison.overall)
                 }
@@ -28,6 +29,8 @@ struct PerformanceComparisonView: View {
                         dimensionLabels
                     }
                 }
+                }
+                .padding(Spacing.m)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilitySummary)
@@ -48,11 +51,11 @@ struct PerformanceComparisonView: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
             Text(label)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(width: 96, alignment: .leading)
             Text(value)
                 .font(AppFont.captionSemiboldMonospaced)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -76,10 +79,10 @@ struct PerformanceComparisonView: View {
 
     private func color(for status: PerformanceComparisonStatus) -> Color {
         switch status {
-        case .below: return Color.gymAccent
-        case .met: return Color.gymSuccess
-        case .above: return Color.gymPrimary
-        case .noTarget: return Color.gymSubduedText
+        case .below: return Color.trameAttention
+        case .met: return Color.trameCompleted
+        case .above: return Color.trameStrength
+        case .noTarget: return Color.trameSubdued
         }
     }
 

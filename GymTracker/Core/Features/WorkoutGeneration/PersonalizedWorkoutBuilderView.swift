@@ -199,11 +199,9 @@ private extension PersonalizedWorkoutBuilderView {
             Section {
                 Button(action: generate) {
                     Label("Build personalized workout", systemImage: AppIcon.recipeGenerate)
-                        .font(AppFont.subheadlineBold)
-                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.gymPrimaryDeep)
+                .buttonStyle(.tramePrimaryAction)
+                .listRowBackground(Color.clear)
                 .disabled(availableExercises.isEmpty)
                 .accessibilityIdentifier("build-personalized-workout")
 
@@ -211,6 +209,7 @@ private extension PersonalizedWorkoutBuilderView {
                     phase = .manualFallback
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
+                .listRowBackground(Color.clear)
                 .accessibilityIdentifier("personalized-workout-manual-fallback")
             } footer: {
                 Text("Your request is processed on this device. Review and edit the draft before it is saved or started.")
@@ -235,7 +234,7 @@ private extension PersonalizedWorkoutBuilderView {
                 phase = .request
             }
             .buttonStyle(.bordered)
-            .tint(Color.gymPrimary)
+            .tint(Color.trameAction)
         }
         .padding(Spacing.xxxl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -254,12 +253,11 @@ private extension PersonalizedWorkoutBuilderView {
                 phase = .request
             }
             .buttonStyle(.bordered)
-            .tint(Color.gymPrimary)
+            .tint(Color.trameAction)
             Button("Continue building manually") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.gymPrimaryDeep)
+            .buttonStyle(.tramePrimaryAction)
         }
         .accessibilityIdentifier("personalized-workout-unavailable")
     }
@@ -300,7 +298,7 @@ private extension PersonalizedWorkoutBuilderView {
                             Label(assumption, systemImage: AppIcon.info)
                                 .font(AppFont.footnote)
                                 .foregroundStyle(Color.gymSubduedText)
-                                .listRowBackground(Color.gymPrimarySurface)
+                                .listRowBackground(Color.trameRow)
                         }
                     }
                 }
@@ -323,8 +321,8 @@ private extension PersonalizedWorkoutBuilderView {
                             onApply(generatedDraft)
                             dismiss()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.gymPrimaryDeep)
+                        .buttonStyle(.tramePrimaryAction)
+                        .listRowBackground(Color.clear)
                         .accessibilityIdentifier("personalized-workout-apply-draft")
                     }
 
@@ -335,7 +333,7 @@ private extension PersonalizedWorkoutBuilderView {
                             }
                         }
                         .buttonStyle(.bordered)
-                        .tint(Color.gymPrimary)
+                        .tint(Color.trameAction)
                         .accessibilityIdentifier("personalized-workout-start")
                     }
 
@@ -462,7 +460,7 @@ private struct GeneratedWorkoutExerciseRow: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Text("\(index)")
                 .font(AppFont.subheadlineSemiboldMonospaced)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameAction)
                 .frame(width: 24, alignment: .leading)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxs) {

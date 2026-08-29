@@ -139,6 +139,10 @@ struct ProgressOverviewSection: View {
                         Text(series.name)
                             .font(AppFont.bodyMedium)
                             .foregroundStyle(Color.trameSubdued)
+
+                        Text(trendChangeSummary(projection.points, unit: series.unit))
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameStrength)
                     }
                 }
 
@@ -170,6 +174,13 @@ struct ProgressOverviewSection: View {
                 .chartLegend(.hidden)
                 .chartXSelection(value: $selectedTrendDate)
                 .frame(height: ProgressLayout.heroChartHeight)
+
+                if let selected {
+                    Text(trendPointDetail(selected, label: projection.label))
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+                        .monospacedDigit()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
@@ -223,6 +234,27 @@ struct ProgressOverviewSection: View {
         let value = point.value.formatted(.number.precision(.fractionLength(0...1)))
         let date = point.date.formatted(.dateTime.month(.abbreviated).day().year())
         return "\(date) · \(value) · \(label)"
+    }
+
+    private func trendChangeSummary(
+        _ points: [ExerciseProgressPoint],
+        unit: String
+    ) -> String {
+        guard let first = points.first, let latest = points.last else {
+            return String(localized: "Comparable change unavailable")
+        }
+        let delta = latest.value - first.value
+        let magnitude = abs(delta).formatted(.number.precision(.fractionLength(0...1)))
+        let direction: String
+        if delta > 0 {
+            direction = String(localized: "Up")
+        } else if delta < 0 {
+            direction = String(localized: "Down")
+        } else {
+            direction = String(localized: "Unchanged")
+        }
+        let change = delta == 0 ? direction : "\(direction) \(magnitude) \(unit)"
+        return String(localized: "\(change) across \(points.count) comparable sessions")
     }
 
     private func featuredTrendProjection(

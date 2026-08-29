@@ -63,8 +63,8 @@ struct SupportingHistoryView: View {
 
             scopedContent
         }
-        .background(Color.gymBackground)
-        .navigationTitle("History")
+        .background(Color.trameCanvas)
+        .navigationTitle("Other logs")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("supporting-history-screen")
         // Correcting the scope after the fact rather than rebuilding: the

@@ -17,9 +17,8 @@ struct RestNextUp: Equatable {
     let changesExercise: Bool
 }
 
-/// Rest takes the field while the timer is visible. The attention color names
-/// the state, the remaining time is the one dominant answer, and the next set
-/// follows as preparation rather than as a competing object.
+/// Rest stays on the workout canvas. Amber is reserved for elapsed progress
+/// and controls, while the remaining time remains the one dominant answer.
 ///
 /// It stays collapsible. The timer continues in `ActiveWorkoutViewModel`, so
 /// dismissing this presentation never changes session or Live Activity state.
@@ -27,6 +26,10 @@ struct RestTakeoverView: View {
     let viewModel: ActiveWorkoutViewModel
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     let nextUp: RestNextUp?
+    let onEditJustLogged: (ExerciseEntry, ExerciseSet) -> Void
+    /// Reopens the set that just ended, keeping its values. Rest keeps
+    /// running: the lifter is undoing a completion, not cancelling a rest.
+    let onUndoJustLogged: (ExerciseEntry, ExerciseSet) -> Void
     let onStartNextSet: () -> Void
     let onCollapse: () -> Void
 
@@ -44,6 +47,7 @@ struct RestTakeoverView: View {
             ScrollView {
                 VStack(spacing: Spacing.xxl) {
                     timerField
+                    justLoggedGroup
                     nextUpGroup
                     effortCapture
                 }
@@ -60,8 +64,8 @@ struct RestTakeoverView: View {
                 .padding(.bottom, Spacing.l)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.trameAttention)
-        .foregroundStyle(Color.trameAttentionInk)
+        .background(Color.trameCanvas)
+        .foregroundStyle(Color.trameText)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityAction(named: Text("Skip rest"), skipRest)
@@ -121,10 +125,24 @@ struct RestTakeoverView: View {
 
     private func timerReadout(remaining: TimeInterval) -> some View {
         VStack(spacing: Spacing.s) {
+            if let planned = viewModel.restPlannedDuration, planned > 0 {
+                ProgressView(value: min(1, max(0, 1 - (remaining / planned))))
+                    .tint(Color.trameAttention)
+                    .opacity(viewModel.isTimerPaused ? 0.45 : 1)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
+            } else {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+            }
+
             Text(clockText(remaining))
                 .font(AppFont.timer(scaledPointSize: countdownPointSize))
                 .minimumScaleFactor(0.45)
                 .lineLimit(1)
+                .foregroundStyle(viewModel.isTimerPaused ? Color.trameSubdued : Color.trameText)
 
             Label(timerStateTitle, systemImage: timerStateIcon)
                 .font(AppFont.metadata)
@@ -137,6 +155,92 @@ struct RestTakeoverView: View {
     }
 
     // MARK: - Effort
+
+    @ViewBuilder
+    private var justLoggedGroup: some View {
+        if let context = viewModel.lastCompletedSetContext {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("JUST LOGGED")
+                            .font(AppFont.eyebrow)
+                            .tracking(0.8)
+
+                        Text(context.entry.occurrenceDisplayName)
+                            .font(AppFont.metadata)
+                    }
+
+                    Spacer(minLength: Spacing.s)
+
+                    Text(loggedSetSummary(context.set, in: context.entry))
+                        .font(AppFont.metricCompact)
+                        .multilineTextAlignment(.trailing)
+                }
+                .accessibilityElement(children: .combine)
+
+                HStack(spacing: Spacing.xl) {
+                    Button("Edit") {
+                        onEditJustLogged(context.entry, context.set)
+                    }
+                    .font(AppFont.metadata)
+                    .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
+                    .accessibilityLabel("Edit the set just logged")
+                    .accessibilityHint("Rest continues while you correct the completed set.")
+                    .accessibilityIdentifier("edit-just-logged-set")
+
+                    // Correcting a value and taking the set back are different
+                    // mistakes. Edit answers "the number is wrong"; Undo
+                    // answers "this set should not be logged at all" — the one
+                    // recovery that was previously only reachable by leaving
+                    // rest and finding the set row.
+                    Button("Undo") {
+                        onUndoJustLogged(context.entry, context.set)
+                    }
+                    .font(AppFont.metadata)
+                    .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
+                    .accessibilityLabel("Undo the set just logged")
+                    .accessibilityHint("Marks the set incomplete and keeps its values. Rest continues.")
+                    .accessibilityIdentifier("undo-just-logged-set")
+
+                    Spacer(minLength: 0)
+                }
+
+                if !viewModel.isRestReady {
+                    Text("Rest continues")
+                        .font(AppFont.micro)
+                        .tracking(0.7)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("rest-just-logged")
+        }
+    }
+
+    private func loggedSetSummary(_ set: ExerciseSet, in entry: ExerciseEntry) -> String {
+        var parts: [String] = []
+        if entry.trackingTypeSnapshot.usesWeight, set.weight > 0 {
+            parts.append("\(Formatters.formatFloat(set.weight)) \(set.weightType.rawValue)")
+        }
+        if entry.trackingTypeSnapshot.usesReps, set.repetitions > 0 {
+            parts.append("× \(Formatters.formatFloat(set.repetitions))")
+        }
+        if entry.trackingTypeSnapshot.usesDuration, let duration = set.duration, duration > 0 {
+            parts.append("\(Formatters.formatFloat(Float(duration))) sec")
+        }
+        if let rpe = set.rpe {
+            parts.append("@ RPE \(Formatters.formatFloat(Float(rpe)))")
+        } else if let rir = set.rir {
+            parts.append("@ RIR \(rir)")
+        }
+        return parts.isEmpty ? String(localized: "Completed") : parts.joined(separator: " ")
+    }
 
     /// How hard the set that just ended felt, asked on the screen that already
     /// owns the moment after it.
@@ -155,7 +259,7 @@ struct RestTakeoverView: View {
         if let set = viewModel.lastCompletedSetAwaitingEffort {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 Rectangle()
-                    .fill(Color.trameAttentionInk)
+                    .fill(Color.trameSeparator)
                     .frame(height: 1)
                     .accessibilityHidden(true)
 
@@ -188,14 +292,14 @@ struct RestTakeoverView: View {
                     Text(Formatters.formatFloat(Float(effortRange.upperBound)))
                         .font(AppFont.micro)
                 }
-                .tint(Color.trameAttentionInk)
+                .tint(Color.trameAttention)
                 .accessibilityValue(Text(effortValueText(for: set)))
 
                 // The scale in words. A number between 6 and 10 means nothing
                 // on its own to anyone who has not memorised the table.
                 Text(effortMeaning(for: set))
                     .font(AppFont.metadata)
-                    .opacity(0.72)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(reduceMotion ? nil : AppMotion.compact, value: effortValueText(for: set))
             }
@@ -265,7 +369,7 @@ struct RestTakeoverView: View {
         if let nextUp {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 Rectangle()
-                    .fill(Color.trameAttentionInk)
+                    .fill(Color.trameSeparator)
                     .frame(height: 1)
                     .accessibilityHidden(true)
 
@@ -296,7 +400,7 @@ struct RestTakeoverView: View {
                             .font(AppFont.metadata)
                     }
                 }
-                .opacity(0.72)
+                .foregroundStyle(Color.trameSubdued)
 
                 if let target = nextUp.target {
                     Text(target)
@@ -315,25 +419,25 @@ struct RestTakeoverView: View {
     private var controls: some View {
         VStack(spacing: Spacing.m) {
             Rectangle()
-                .fill(Color.trameAttentionInk)
+                .fill(Color.trameSeparator)
                 .frame(height: 1)
                 .accessibilityHidden(true)
 
             if viewModel.isRestReady {
                 Button(action: onStartNextSet) {
-                    Text("Start next set")
-                        .font(AppFont.sectionTitle)
-                        .tracking(0.5)
-                        .textCase(.uppercase)
-                        .foregroundStyle(Color.trameAttention)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background(
-                            Color.trameAttentionInk,
-                            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                        )
-                        .contentShape(Rectangle())
+                    HStack(spacing: Spacing.m) {
+                        Text("Continue")
+                            .font(AppFont.sectionTitle)
+
+                        Spacer(minLength: Spacing.s)
+
+                        Image(systemName: AppIcon.chevronRight)
+                            .font(AppFont.subheadlineSemibold)
+                            .accessibilityHidden(true)
+                    }
                 }
-                .buttonStyle(.gymPress)
+                .buttonStyle(.tramePrimaryAction)
+                .accessibilityLabel("Continue to next set")
                 .accessibilityIdentifier("start-next-set")
             } else {
                 adjustmentRow
@@ -341,11 +445,11 @@ struct RestTakeoverView: View {
                 Button(action: skipRest) {
                     Text("Skip rest")
                         .font(AppFont.metadata)
-                        .underline()
+                        .foregroundStyle(Color.trameSubdued)
                         .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.gymPress)
                 .accessibilityIdentifier("skip-rest")
             }
         }
@@ -408,11 +512,11 @@ struct RestTakeoverView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
-        .foregroundStyle(Color.trameAttentionInk)
-        .background(Color.trameAttention, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .stroke(Color.trameAttentionInk, lineWidth: 1)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
         .opacity(isEnabled ? 1 : 0.45)
         .disabled(!isEnabled)

@@ -282,20 +282,19 @@ struct WeightliftingDashboardView: View {
         }
     }
 
+    /// The navigation title already names this screen, so the header states
+    /// only what the name cannot: which records stay separate from which. The
+    /// competition rule keeps the domain signal the dropped heading carried.
     private var introduction: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack(spacing: Spacing.m) {
-                Text(String(localized: "Weightlifting evidence"))
-                    .font(AppFont.stageTitle)
-                    .foregroundStyle(Color.trameText)
-                Rectangle()
-                    .fill(Color.trameCompetition)
-                    .frame(height: 3)
-                    .accessibilityHidden(true)
-            }
+            Rectangle()
+                .fill(Color.trameCompetition)
+                .frame(width: Spacing.xxxl, height: 3)
+                .accessibilityHidden(true)
             Text(String(localized: "Snatch and Clean & Jerk attempts, full-lift outcomes, and technical observations remain separate."))
                 .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }

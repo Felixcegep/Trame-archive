@@ -76,10 +76,12 @@ struct MobilityLibraryView: View {
                                     .font(AppFont.subheadlineSemibold)
                                 Text("Multi-week mobility programs with built-in progression")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                         } icon: {
-                            GymIconChip(systemImage: AppIcon.mobility)
+                            Image(systemName: AppIcon.mobility)
+                                .foregroundStyle(Color.trameText)
+                                .frame(width: ComponentSize.minimumTouchTarget)
                         }
                     }
                     .accessibilityIdentifier("open-mobility-programs")
@@ -133,7 +135,7 @@ struct MobilityLibraryView: View {
                     .accessibilityIdentifier("create-mobility-routine")
                 }
             } footer: {
-                Text("Starting a routine snapshots its movement targets and instructions into a separate mobility session.")
+                Text("Starting a standalone routine snapshots its movement targets and instructions into a performed mobility record.")
             }
 
             ForEach(visibleGroups) { group in
@@ -145,7 +147,7 @@ struct MobilityLibraryView: View {
                     sectionHeader(groupTitle(for: group)) {
                         Text(CountPhrase.routines(group.routines.count))
                             .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                     .accessibilityIdentifier("mobility-purpose-section-\(group.id)")
                 }
@@ -177,7 +179,7 @@ struct MobilityLibraryView: View {
                 ForEach(recentMovementNames, id: \.self) { name in
                     Text(name)
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             } header: {
                 sectionHeader(String(localized: "Movements"))
@@ -222,7 +224,7 @@ struct MobilityLibraryView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Mobility")
         .navigationDestination(isPresented: $isShowingAssessmentLanding) {
             MobilityAssessmentLandingView(onStart: onStartAssessment)
@@ -283,47 +285,75 @@ struct MobilityLibraryView: View {
     @ViewBuilder
     private var assessmentCard: some View {
         if let activeAssessment {
-            GymCard(variant: .current) {
-                GymEyebrow("In progress", tint: .gymPrimary)
+            TrameColorField(
+                fill: Color.trameMobility,
+                ink: Color.trameSemanticFieldInk,
+                border: Color.trameMobility,
+                radius: Radius.hero
+            ) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("IN PROGRESS")
+                    .font(AppFont.eyebrow)
+                    .tracking(0.8)
                 Text("Assessment in progress")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text(assessmentProgressDetail(activeAssessment))
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 // Resuming goes straight back into the flow. Routing it through
                 // the landing screen first would put a menu between the lifter
                 // and the work they already started.
                 Button("Continue assessment") { onStartAssessment(activeAssessment) }
-                    .buttonStyle(.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("resume-mobility-assessment-from-hub")
+                }
+                .padding(Spacing.l)
             }
         } else if let lastRecordedAssessment {
-            GymCard {
-                GymEyebrow("Assessment")
+            TrameColorField(
+                fill: Color.trameSurface,
+                ink: Color.trameText,
+                border: Color.trameSeparator,
+                radius: Radius.card
+            ) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("ASSESSMENT")
+                    .font(AppFont.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
                 Text(assessmentDateText(lastRecordedAssessment))
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text(assessmentObservationCount(lastRecordedAssessment))
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 assessmentLink(title: String(localized: "Open assessment"))
+                }
+                .padding(Spacing.l)
             }
         } else {
-            GymCard {
-                GymEyebrow("Assessment")
+            TrameColorField(
+                fill: Color.trameSurface,
+                ink: Color.trameText,
+                border: Color.trameSeparator,
+                radius: Radius.card
+            ) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("ASSESSMENT")
+                    .font(AppFont.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
                 Text("Measure your mobility")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
                 Text(assessmentInvolvementDetail)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
 
                 assessmentLink(title: String(localized: "Get started"))
+                }
+                .padding(Spacing.l)
             }
         }
     }
@@ -334,7 +364,7 @@ struct MobilityLibraryView: View {
     /// primary button, which is not what this card should look like.
     private func assessmentLink(title: String) -> some View {
         Button(title) { isShowingAssessmentLanding = true }
-            .buttonStyle(.gymPrimary)
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("open-mobility-assessment")
     }
 
@@ -354,10 +384,12 @@ struct MobilityLibraryView: View {
                         .font(AppFont.subheadlineSemibold)
                     Text(detail)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             } icon: {
-                GymIconChip(systemImage: icon)
+                Image(systemName: icon)
+                    .foregroundStyle(Color.trameText)
+                    .frame(width: ComponentSize.minimumTouchTarget)
             }
         }
         .accessibilityIdentifier(identifier)
@@ -470,19 +502,18 @@ struct MobilityLibraryView: View {
                 // back to the generic mobility glyph.
                 Image(systemName: routine.purpose.map(purposeIcon) ?? AppIcon.mobility)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymAccent)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                    .foregroundStyle(Color.trameMobility)
+                    .frame(width: 22)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(routine.name)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .lineLimit(2)
                     Text(routineDetail(routine))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .lineLimit(2)
                 }
 
@@ -490,14 +521,16 @@ struct MobilityLibraryView: View {
 
                 Image(systemName: AppIcon.play)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymAccent)
-                    .frame(width: 32, height: 32)
-                    .background(Color.gymAccentSurface, in: Circle())
+                    .foregroundStyle(Color.trameMobility)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                     .accessibilityHidden(true)
             }
-            .padding(.vertical, Spacing.xxs)
+            .padding(.vertical, Spacing.s)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
         }
         // Plain, not the List default: a button label inside a row is tinted
         // wholesale, which rendered every routine name as blue link text.
@@ -510,7 +543,7 @@ struct MobilityLibraryView: View {
             } label: {
                 Label("Edit", systemImage: AppIcon.edit)
             }
-            .tint(Color.gymAccent)
+            .tint(Color.trameMobility)
         }
     }
 
@@ -529,7 +562,7 @@ struct MobilityLibraryView: View {
             Text(title)
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Spacer(minLength: Spacing.s)
             trailing()
         }
@@ -627,15 +660,15 @@ private struct MobilityPurposeFilterChip: View {
                 Text(title)
                     .font(AppFont.captionBold)
             }
-            .foregroundStyle(isSelected ? Color.gymAccent : Color.gymSubduedText)
+            .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.s)
             .background {
-                Capsule().fill(isSelected ? Color.gymAccent.opacity(0.14) : Color.clear)
+                Capsule().fill(isSelected ? Color.trameCurrent : Color.clear)
             }
             .overlay {
                 Capsule().stroke(
-                    isSelected ? Color.gymAccent : Color.gymBorder,
+                    isSelected ? Color.trameMobility : Color.trameSeparator,
                     lineWidth: isSelected ? 1.5 : 1
                 )
             }
@@ -679,10 +712,10 @@ struct MobilityDefinitionsView: View {
                                 .font(AppFont.subheadlineSemibold)
                             Text(definition.trackingType.displayName)
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .accessibilityIdentifier("edit-mobility-definition-\(definition.id)")
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button {
@@ -695,7 +728,7 @@ struct MobilityDefinitionsView: View {
                                 systemImage: definition.isFavorite ? "star.slash" : "star"
                             )
                         }
-                        .tint(Color.gymAccent)
+                        .tint(Color.trameMobility)
 
                         Button(role: definition.isArchived ? nil : .destructive) {
                             definition.isArchived.toggle()
@@ -713,7 +746,7 @@ struct MobilityDefinitionsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Movements")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -914,7 +947,7 @@ struct MobilityRoutineEditorView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Edit routine")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -1302,7 +1335,7 @@ private struct MobilityRoutineItemEditorRow: View {
                 }
                 Text("Support describes the setup used for comparison. It is not a score or diagnosis.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 Picker("Block", selection: $blockKey) {
                     Text("No block").tag(String?.none)

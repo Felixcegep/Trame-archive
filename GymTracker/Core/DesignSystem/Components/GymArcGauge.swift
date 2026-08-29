@@ -6,12 +6,12 @@ import SwiftUI
 ///
 /// QUESTION      What angle is the phone holding, for which side, and is the
 ///               reading stable enough to capture?
-/// DATA          Signed live/captured degrees, capture axis, side, capture
-///               state, and the stable-hold fraction. A missing angle stays
-///               missing rather than becoming zero.
-/// ENCODING      Ray rotation is the signed angle; ticks are fixed 15-degree
-///               landmarks; the outer arc is stable-hold time; teal denotes
-///               mobility measurement evidence.
+/// DATA          Signed live device direction, exact recorded range magnitude,
+///               capture axis, side, capture state, and stable-hold fraction.
+///               A missing angle stays missing rather than becoming zero.
+/// ENCODING      Ray rotation is signed device direction; ticks are fixed
+///               15-degree landmarks; the outer arc is stable-hold time; teal
+///               denotes mobility measurement evidence.
 /// INTERACTION   Read-only. Capture, retry, cancellation, and manual input stay
 ///               native controls owned by the assessment flow.
 /// DETAIL        Exact degrees, side, axis, state, and hold percentage are text.
@@ -31,14 +31,14 @@ struct GymArcGauge: View {
             switch self {
             case .gravityPitch: String(localized: "Gravity pitch")
             case .gravityRoll: String(localized: "Gravity roll")
-            case .relativeYaw: String(localized: "Relative yaw")
+            case .relativeYaw: String(localized: "Relative rotation")
             }
         }
 
         var interpretation: String {
             switch self {
-            case .gravityPitch: String(localized: "Tilt forward or backward from gravity")
-            case .gravityRoll: String(localized: "Tilt side to side from gravity")
+            case .gravityPitch: String(localized: "Tilt from the calibrated start using gravity")
+            case .gravityRoll: String(localized: "Side tilt from the calibrated start using gravity")
             case .relativeYaw: String(localized: "Rotation relative to the calibrated heading")
             }
         }
@@ -291,15 +291,18 @@ struct GymArcGauge: View {
     }
 
     /// SwiftUI's positive rotation is clockwise on screen, matching the direct
-    /// visual mapping used here. Values are wrapped to the sensor's signed
+    /// visual mapping used here. No animation is layered on sensor updates:
+    /// the ray follows the current sample rather than trailing it through a
+    /// queue of 50 Hz transitions. Values are wrapped to the sensor's signed
     /// one-turn domain rather than normalized to a made-up performance scale.
     private func angleRay(sideLength: CGFloat, angle: Double) -> some View {
         Capsule()
             .fill(Color.trameMobility)
             .frame(width: sideLength * 0.34, height: Spacing.xs)
             .offset(x: sideLength * 0.17)
-            .rotationEffect(.degrees(angle))
-            .animation(reduceMotion ? nil : AppMotion.compact, value: angle)
+            // Reduce Motion keeps the exact textual reading while removing
+            // continuous physical rotation from the visual instrument.
+            .rotationEffect(.degrees(reduceMotion ? 0 : angle))
     }
 
     private var stabilityArc: some View {
@@ -322,7 +325,6 @@ struct GymArcGauge: View {
                         Color.trameMobility,
                         style: StrokeStyle(lineWidth: Spacing.xs, lineCap: .round)
                     )
-                    .animation(reduceMotion ? nil : AppMotion.compact, value: progressTrimEnd)
             }
         }
         .padding(Spacing.xs)

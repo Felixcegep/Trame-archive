@@ -105,6 +105,11 @@ struct ActiveWorkoutView: View {
         ) {
             Button("Discard workout", role: .destructive, action: discardWorkout)
                 .accessibilityIdentifier("confirm-discard-workout")
+            // Stated rather than implied. The dialog is the last stop before
+            // the session is destroyed, so the way back out is a control the
+            // lifter can see and aim at.
+            Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("cancel-discard-workout")
         } message: {
             Text(discardConfirmationMessage)
         }
@@ -216,7 +221,9 @@ struct ActiveWorkoutView: View {
                 onMinimize: minimizeWorkout,
                 onDiscard: { isShowingDiscardConfirmation = true },
                 onAddExercise: { isShowingExercisePicker = true },
-                onAddBlock: { isShowingExecutionBlockBuilder = true }
+                onAddBlock: { isShowingExecutionBlockBuilder = true },
+                isFinishEnabled: canFinish(workout),
+                onFinish: finishWorkout
             )
 
             saveFailureBanner
@@ -229,6 +236,7 @@ struct ActiveWorkoutView: View {
             if coordinator.focus == nil {
                 ActiveWorkoutCommandBar(
                     primaryAction: primaryAction(for: workout),
+                    logSetValues: logSetValues(for: workout),
                     restEndDate: viewModel.timerPause,
                     isRestPaused: viewModel.isTimerPaused,
                     pausedRemaining: viewModel.pausedTimeRemaining,
@@ -275,6 +283,7 @@ struct ActiveWorkoutView: View {
                     activeLoggingMetrics: activeLoggingMetrics,
                     nextUp: restNextUp(in: workout),
                     onEditJustLogged: editJustLoggedSet,
+                    onUndoJustLogged: undoJustLoggedSet,
                     onStartNextSet: startNextSet,
                     onCollapse: {
                         withAnimation(reduceMotion ? nil : AppMotion.layout) {
@@ -323,6 +332,15 @@ struct ActiveWorkoutView: View {
             guard let focus else { return }
             coordinator.refreshOrder(in: viewModel.activeWorkout)
             if let models = viewModel.models(for: focus) {
+                let page = WorkoutStagePlan.page(containing: models.exercise)
+                // A page-style pager can still hit-test a neighbour that is
+                // not on screen. Following that stray focus would jump two
+                // exercises back the moment the lifter tapped a weight.
+                // Keep the visible page; drop the ghost selection.
+                guard WorkoutStagePlan.acceptsFocus(on: page, whileShowing: selection) else {
+                    coordinator.focus = nil
+                    return
+                }
                 activeLoggingMetrics.focusChanged(
                     to: models.set.id,
                     field: focus.field,
@@ -332,8 +350,6 @@ struct ActiveWorkoutView: View {
                 // the clock keeps running behind the keypad and the pill in the
                 // command bar is one tap from the full timer.
                 isRestExpanded = false
-                let page = WorkoutStagePlan.page(containing: models.exercise)
-                if page != selection { selection = page }
             }
         }
         .onChange(of: workout.completedSetCount) { _, _ in
@@ -371,42 +387,65 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    /// Takes back the completion of the set that just ended, from the screen
+    /// the lifter is already on. The values stay written and the rest clock
+    /// keeps running — undoing a completion is not a request to stop resting,
+    /// and stopping the clock would punish the correction.
+    private func undoJustLoggedSet(_ entry: ExerciseEntry, _ set: ExerciseSet) {
+        guard viewModel.switchStateDoneSet(entry, set) else { return }
+        editingCompletedSetID = nil
+        GymAnnouncement.post(
+            String(localized: "Set reopened. Its values are kept and rest continues.")
+        )
+    }
+
     private func pager(for workout: Workout, pages: [WorkoutStagePage]) -> some View {
-        TabView(selection: $selection) {
-            ForEach(pages, id: \.self) { page in
-                Group {
-                    if page.isFinish {
-                        StageFinishPage(
-                            workout: workout,
-                            blockers: finishBlockers(for: workout),
-                            onJumpToPage: { selection = $0 }
-                        )
-                    } else {
-                        ExerciseStagePage(
-                            page: page,
-                            workout: workout,
-                            viewModel: viewModel,
-                            unitSystem: unitSystem,
-                            coordinator: coordinator,
-                            editingCompletedSetID: $editingCompletedSetID,
-                            recommendation: recommendation(for: page, in: workout),
-                            onRecommendationAction: handleRecommendationAction,
-                            onSwapRequested: { exerciseToSwap = $0 },
-                            onSetCompleted: { advanceStage(after: $0, in: workout) },
-                            onAddExercise: { isShowingExercisePicker = true },
-                            onEditBlock: { executionBlockToEdit = $0 },
-                            onRemoveBlock: { removeExecutionBlock($0, from: workout) },
-                            canMove: { entry, offset in canMove(entry, by: offset, in: workout) },
-                            onMove: { entry, offset in move(entry, by: offset, in: workout) }
-                        )
+        // One page at a time. A `TabView`/paging scroll keeps off-screen
+        // exercises in the hit-test tree, so tapping the current weight can
+        // select a field two stages back and then follow that focus.
+        stagePage(selection, workout: workout)
+            .id(selection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        guard coordinator.focus == nil else { return }
+                        let dx = value.translation.width
+                        let dy = value.translation.height
+                        guard abs(dx) > abs(dy), abs(dx) > 60 else { return }
+                        turnPage(dx < 0 ? 1 : -1, in: pages)
                     }
-                }
-                .tag(page)
-            }
+            )
+    }
+
+    @ViewBuilder
+    private func stagePage(_ page: WorkoutStagePage, workout: Workout) -> some View {
+        if page.isFinish {
+            StageFinishPage(
+                workout: workout,
+                blockers: finishBlockers(for: workout),
+                onJumpToPage: { selection = $0 }
+            )
+        } else {
+            ExerciseStagePage(
+                page: page,
+                workout: workout,
+                viewModel: viewModel,
+                unitSystem: unitSystem,
+                coordinator: coordinator,
+                editingCompletedSetID: $editingCompletedSetID,
+                recommendation: recommendation(for: page, in: workout),
+                onRecommendationAction: handleRecommendationAction,
+                onSwapRequested: { exerciseToSwap = $0 },
+                onSetCompleted: { advanceStage(after: $0, in: workout) },
+                onAddExercise: { isShowingExercisePicker = true },
+                onEditBlock: { executionBlockToEdit = $0 },
+                onRemoveBlock: { removeExecutionBlock($0, from: workout) },
+                canMove: { entry, offset in canMove(entry, by: offset, in: workout) },
+                onMove: { entry, offset in move(entry, by: offset, in: workout) }
+            )
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        // The rail in the header is the page indicator; the built-in dots
-        // would be a second, less informative copy of it.
     }
 
     // MARK: - Banners
@@ -523,12 +562,10 @@ struct ActiveWorkoutView: View {
     private func primaryAction(for workout: Workout) -> ActiveWorkoutCommandBar.PrimaryAction {
         if workout.exercises.isEmpty { return .addExercise }
 
-        if selection.isFinish {
-            return .finish(
-                isEnabled: workout.completedSetCount > 0
-                    && activeDailyMaximumRecommendation(for: workout) == nil
-            )
-        }
+        // The terminal page reviews the session; committing it is the header's
+        // Finish. Holding the slot empty keeps the arrows in the same place
+        // they occupy on every other page.
+        if selection.isFinish { return .idle }
 
         if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
             return viewModel.isRestReady ? .startNextSet : .resting
@@ -547,11 +584,6 @@ struct ActiveWorkoutView: View {
 
     private func performPrimaryAction(for workout: Workout, pages: [WorkoutStagePage]) {
         switch primaryAction(for: workout) {
-        case .finish:
-            viewModel.flushPendingTypedInputSave()
-            viewModel.cancelTimer()
-            navigationPath.append(.saveWorkout)
-
         case .resting:
             withAnimation(reduceMotion ? nil : AppMotion.layout) {
                 isRestExpanded = true
@@ -587,6 +619,37 @@ struct ActiveWorkoutView: View {
             return nil
         }
         return next
+    }
+
+    /// Prefill the command bar already knows it will write, so the tap is
+    /// verifiable without looking up at the row. `nil` keeps the generic title
+    /// when the current page has no set, or the set has no values yet.
+    private func logSetValues(for workout: Workout) -> String? {
+        guard case .logSet = primaryAction(for: workout),
+              let next = nextSetOnCurrentPage(in: workout),
+              next.set.complexComponents.allSatisfy({ $0.outcome != .notStarted })
+        else {
+            return nil
+        }
+        let tracking = next.entry.trackingTypeSnapshot
+        let set = next.set
+        var parts: [String] = []
+        if tracking.usesWeight, set.weight > 0 {
+            parts.append("\(Formatters.formatFloat(set.weight)) \(set.weightType.rawValue)")
+        }
+        if tracking.usesReps, set.repetitions > 0 {
+            parts.append("× \(Formatters.formatFloat(set.repetitions))")
+        }
+        if tracking.usesDuration, let duration = set.duration, duration > 0 {
+            parts.append("\(Formatters.formatFloat(Float(duration))) sec")
+        }
+        if tracking.usesDistance, let distance = set.distance, distance > 0 {
+            parts.append("\(Formatters.formatFloat(distance)) \(set.distanceType.rawValue)")
+        }
+        if tracking.usesCalories, let calories = set.calories, calories > 0 {
+            parts.append("\(Formatters.formatFloat(Float(calories))) cal")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     private func logCurrentSet(in workout: Workout) {
@@ -693,6 +756,16 @@ struct ActiveWorkoutView: View {
     }
 
     // MARK: - Finish
+
+    private func canFinish(_ workout: Workout) -> Bool {
+        workout.completedSetCount > 0 && activeDailyMaximumRecommendation(for: workout) == nil
+    }
+
+    private func finishWorkout() {
+        viewModel.flushPendingTypedInputSave()
+        viewModel.cancelTimer()
+        navigationPath.append(.saveWorkout)
+    }
 
     private func finishBlockers(for workout: Workout) -> [String] {
         var blockers: [String] = []

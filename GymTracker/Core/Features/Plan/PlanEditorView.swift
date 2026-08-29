@@ -17,7 +17,7 @@ struct PlanEditorView: View {
 
     var body: some View {
         Form {
-            Section("Plan overview") {
+            Section {
                 TextField("Name", text: $draft.name)
                 Picker("Goal", selection: $draft.goal) {
                     ForEach(PlanGoal.allCases, id: \.self) { goal in
@@ -41,10 +41,12 @@ struct PlanEditorView: View {
                     LabeledContent("Plan phases", value: draft.phaseSummary)
                 }
                 .accessibilityIdentifier("edit-plan-phases")
+            } header: {
+                TrameDomainSectionRule(title: "Plan overview", color: Color.trameStrength)
             }
 
             ForEach($draft.weeks) { $week in
-                Section("Week \(week.weekIndex + 1)") {
+                Section {
                     ForEach($week.workouts) { $workout in
                         NavigationLink {
                             PlanWorkoutEditorView(
@@ -55,24 +57,29 @@ struct PlanEditorView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                                     Text(workout.name)
-                                        .font(AppFont.subheadlineSemibold)
-                                        .foregroundStyle(Color.gymText)
+                                        .font(AppFont.sectionTitle)
+                                        .foregroundStyle(Color.trameText)
                                     Text("Day \(workout.dayOffset + 1) · \(workout.exercises.count) exercises")
-                                        .font(AppFont.caption)
-                                        .foregroundStyle(Color.gymSubduedText)
+                                        .font(AppFont.metadata)
+                                        .foregroundStyle(Color.trameSubdued)
                                 }
                                 Spacer()
                                 Image(systemName: AppIcon.chevronRight)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                         }
                         .accessibilityIdentifier("edit-plan-workout")
                     }
+                } header: {
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey("Week \(week.weekIndex + 1)"),
+                        color: Color.trameStrength
+                    )
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Edit Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

@@ -58,7 +58,7 @@ struct ProgressionSnapshotService {
         }
 
         let workingSets = performance.sets
-            .filter { $0.setType != .warmup }
+            .filter { !$0.setType.isStrengthAnalyticsExcluded }
             .sorted { $0.orderIndex < $1.orderIndex }
         let requiredEvidence = workingSets.prefix(requiredSets)
         guard requiredEvidence.count == requiredSets, let latest = requiredEvidence.last else {

@@ -26,7 +26,7 @@ extension ExerciseSeedData {
                 secondaryMuscles: [.hamstrings],
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
-                movementPattern: .squat,
+                movementPattern: .lunge,
                 forceType: .push,
                 mechanics: .compound,
                 stance: .split,
@@ -143,6 +143,7 @@ extension ExerciseSeedData {
                 primaryMuscles: [.hamstrings],
                 equipmentType: .machine,
                 resistanceType: .machine,
+                movementPattern: .other,
                 forceType: .pull,
                 mechanics: .isolation,
                 difficulty: .beginner
@@ -152,6 +153,7 @@ extension ExerciseSeedData {
                 primaryMuscles: [.calves],
                 equipmentType: .machine,
                 resistanceType: .externalWeight,
+                movementPattern: .plantarFlexion,
                 forceType: .push,
                 mechanics: .isolation,
                 difficulty: .beginner
@@ -161,6 +163,7 @@ extension ExerciseSeedData {
                 primaryMuscles: [.calves],
                 equipmentType: .machine,
                 resistanceType: .machine,
+                movementPattern: .plantarFlexion,
                 forceType: .push,
                 mechanics: .isolation,
                 stance: .seated,

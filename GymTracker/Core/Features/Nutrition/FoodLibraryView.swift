@@ -47,7 +47,7 @@ struct FoodLibraryView: View {
                         } label: {
                             Label(food.isFavorite ? "Remove favorite" : "Favorite", systemImage: food.isFavorite ? AppIcon.favoriteRemove : AppIcon.favorite)
                         }
-                        .tint(Color.gymAccent)
+                        .tint(Color.trameAttention)
                         Button { editingFood = food } label: { Label("Edit", systemImage: AppIcon.edit) }
                             .tint(Color.gymAccent)
                         Button(role: food.isArchived ? nil : .destructive) {
@@ -61,8 +61,13 @@ struct FoodLibraryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
+        .listStyle(.plain)
         .navigationTitle("Food library")
-        .searchable(text: $searchText, prompt: "Search foods")
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search foods"
+        )
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(showsArchived ? "Current" : "Archived") { showsArchived.toggle() }

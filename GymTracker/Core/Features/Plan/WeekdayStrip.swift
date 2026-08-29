@@ -19,12 +19,12 @@ struct WeekdayStrip: View {
                 } label: {
                     Text(day.initial)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(isSelected ? .white : Color.gymSubduedText)
+                        .foregroundStyle(isSelected ? Color.trameActionInk : Color.trameSubdued)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                         .background(
-                            isSelected ? Color.gymPrimary : Color.gymRowSurface,
-                            in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                            isSelected ? Color.trameAction : Color.trameRow,
+                            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                         )
                         .contentShape(Rectangle())
                 }

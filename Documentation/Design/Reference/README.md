@@ -23,9 +23,9 @@ The intended visual contract covers:
 
 Use the current `Screenshots/` paths and capture-scene names as the authoritative filenames. This manifest does not claim that a capture exists or is current. A new artifact is accepted only after the matching scene runs, the image is inspected, and `ScreenshotCoverage.md` records its status.
 
-## Interactive specimen
+## Interaction research specimen
 
-The approved interactive specimen is:
+The noncanonical interaction research specimen is:
 
 `/Users/felixlachapelle/Documents/redesign/Favorie/trame-theme-lab (1).html`
 
@@ -35,7 +35,7 @@ Reviewed source fingerprint:
 SHA-256 3612378085f78b52dfcfbbbc971506772edd2c5a8f2ad0821c2dc591273ce7cc
 ```
 
-It contains the approved Performance Lab theme definitions plus older palette
+It contains earlier Performance Lab theme definitions plus older palette
 experiments and later CSS overrides. Only `performance-dark` and
 `performance-pale` represent production appearances; the other palette entries
 are laboratory material, not user-selectable production themes. The current file

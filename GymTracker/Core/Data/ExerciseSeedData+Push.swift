@@ -78,6 +78,7 @@ extension ExerciseSeedData {
                 secondaryMuscles: [.tricepLongHead],
                 equipmentType: .cable,
                 resistanceType: .machine,
+                movementPattern: .elbowExtension,
                 forceType: .push,
                 mechanics: .isolation,
                 difficulty: .beginner
@@ -87,6 +88,7 @@ extension ExerciseSeedData {
                 primaryMuscles: [.lateralDeltoid],
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
+                movementPattern: .shoulderAbduction,
                 forceType: .push,
                 mechanics: .isolation,
                 difficulty: .beginner,

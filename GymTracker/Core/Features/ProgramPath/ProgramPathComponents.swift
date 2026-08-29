@@ -27,7 +27,7 @@ struct ProgramPathHeader: View {
             GymStatusBadge(
                 title: statusTitle,
                 systemImage: isMuted ? AppIcon.pause : AppIcon.play,
-                tint: isMuted ? Color.gymSubduedText : Color.gymPrimary
+                tint: isMuted ? Color.gymSubduedText : Color.trameAction
             )
             .accessibilityHidden(true)
 
@@ -42,7 +42,7 @@ struct ProgramPathHeader: View {
 
             if let progressFraction, let progressSummary {
                 ProgressView(value: progressFraction)
-                    .tint(Color.gymPrimary)
+                    .tint(Color.trameAction)
                     .accessibilityHidden(true)
                 Text(progressSummary)
                     .font(AppFont.caption)
@@ -89,7 +89,7 @@ struct ProgramPathCurrentSession: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                GymEyebrow(eyebrow, tint: .gymPrimary)
+                GymEyebrow(eyebrow, tint: .trameAction)
 
                 Text(workoutName)
                     .font(AppFont.titleSmallSemibold)
@@ -118,7 +118,7 @@ struct ProgramPathCurrentSession: View {
                 Button(action: primaryAction.perform) {
                     Label(primaryAction.title, systemImage: primaryAction.systemImage)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier(primaryAction.identifier)
                 .accessibilityHint(primaryAction.hint ?? "")
                 .animation(reduceMotion ? nil : AppMotion.compact, value: primaryAction.title)

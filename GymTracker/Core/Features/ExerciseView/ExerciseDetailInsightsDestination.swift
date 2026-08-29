@@ -22,7 +22,7 @@ struct ExerciseDetailInsightsDestination: View {
                 .accessibilityIdentifier("exercise-insights-error")
             } else {
                 ProgressView("Loading insights…")
-                    .tint(Color.gymPrimary)
+                    .tint(Color.trameActionDeep)
                     .accessibilityIdentifier("exercise-insights-loading")
             }
         }

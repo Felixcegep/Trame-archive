@@ -24,7 +24,7 @@ enum AppTab: String, CaseIterable, Hashable, Identifiable {
     var icon: String {
         switch self {
         case .today: AppIcon.home
-        case .train: AppIcon.workout
+        case .train: AppIcon.train
         case .nutrition: AppIcon.nutrition
         case .progress: AppIcon.history
         }

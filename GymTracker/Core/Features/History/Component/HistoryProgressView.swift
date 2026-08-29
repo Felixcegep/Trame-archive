@@ -35,7 +35,6 @@ struct HistoryProgressView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
-            .padding(.bottom, 96)
         }
         .background(Color.trameCanvas)
     }
@@ -93,6 +92,7 @@ private struct HistoryFrequencyChart: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Workout frequency for the last eight weeks")
             .accessibilityValue(points.map { "\($0.start.formatted(.dateTime.month(.abbreviated).day())): \($0.count) workouts" }.joined(separator: ", "))
+            .accessibilityIdentifier("training-frequency-chart")
         }
     }
 

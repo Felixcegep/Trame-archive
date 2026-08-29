@@ -138,7 +138,7 @@ struct TemplateExecutionBlockBuilderSheet: View {
                 Section("Exercises") {
                     if candidates.isEmpty {
                         Text("All template exercises already belong to an execution block.")
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                     ForEach(candidates, id: \.persistentModelID) { exercise in
                         Button {
@@ -152,7 +152,7 @@ struct TemplateExecutionBlockBuilderSheet: View {
                                 Text(exercise.exercise.name)
                                 Spacer()
                                 Image(systemName: selectedIDs.contains(exercise.persistentModelID) ? AppIcon.checkmarkCircle : AppIcon.circle)
-                                    .foregroundStyle(Color.gymPrimary)
+                                    .foregroundStyle(Color.trameStrength)
                             }
                         }
                         .buttonStyle(.plain)
@@ -162,12 +162,12 @@ struct TemplateExecutionBlockBuilderSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(Color.gymDestructive)
+                            .foregroundStyle(Color.trameDestructiveText)
                     }
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Execution Block")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

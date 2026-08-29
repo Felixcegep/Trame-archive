@@ -4,6 +4,19 @@ import XCTest
 
 @MainActor
 final class NutritionTests: XCTestCase {
+    func testMealSlotSuggestionMatchesOrdinaryMealTimes() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        func date(hour: Int) throws -> Date {
+            try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 23, hour: hour)))
+        }
+
+        XCTAssertEqual(MealSlot.suggested(at: try date(hour: 8), calendar: calendar), .breakfast)
+        XCTAssertEqual(MealSlot.suggested(at: try date(hour: 12), calendar: calendar), .lunch)
+        XCTAssertEqual(MealSlot.suggested(at: try date(hour: 18), calendar: calendar), .dinner)
+        XCTAssertEqual(MealSlot.suggested(at: try date(hour: 23), calendar: calendar), .snack)
+    }
+
     func testReferencePortionUsesFormattedAmountAndUnitAsItsName() {
         let food = FoodItem(
             name: "Rice",
@@ -159,6 +172,55 @@ final class NutritionTests: XCTestCase {
         XCTAssertNotEqual(source.id, repeated.id)
         XCTAssertNotEqual(source.items.first?.id, repeated.items.first?.id)
         XCTAssertEqual(source.items.first?.caloriesSnapshot, repeated.items.first?.caloriesSnapshot)
+    }
+
+    func testEditingLoggedFoodScalesSnapshotsWithoutReadingEditedFood() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Rice", calories: 130, proteinGrams: 3, carbohydrateGrams: 28, fatGrams: 0.3)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, quantity: 1, using: context))
+        food.calories = 999
+        try context.save()
+
+        let originalMealID = meal.id
+        let originalItemID = try XCTUnwrap(meal.items.first?.id)
+        XCTAssertTrue(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 1.5, slot: .dinner, using: context))
+        let replacement = try XCTUnwrap(context.fetch(FetchDescriptor<LoggedMeal>()).first)
+        let replacementItem = try XCTUnwrap(replacement.items.first)
+        XCTAssertNotEqual(replacement.id, originalMealID)
+        XCTAssertNotEqual(replacementItem.id, originalItemID)
+        XCTAssertEqual(replacement.slot, .dinner)
+        XCTAssertEqual(replacementItem.quantity, 1.5)
+        XCTAssertEqual(replacementItem.caloriesSnapshot, 195)
+        XCTAssertEqual(replacementItem.proteinGramsSnapshot, 4.5)
+    }
+
+    func testLoggedFoodCorrectionRejectsOutOfRangeQuantity() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Rice", calories: 130)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+
+        XCTAssertFalse(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 0.1, slot: .lunch, using: context))
+        XCTAssertFalse(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 21, slot: .lunch, using: context))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<LoggedMeal>()).count, 1)
+        XCTAssertEqual(meal.items.first?.quantity, 1)
+    }
+
+    func testDeletingLoggedFoodRemovesItFromDailyTotals() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Apple", calories: 95)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+
+        XCTAssertTrue(NutritionLoggingService.delete(meal, using: context))
+        let meals = try context.fetch(FetchDescriptor<LoggedMeal>())
+        XCTAssertTrue(meals.isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<LoggedMealItem>()).isEmpty)
+        XCTAssertEqual(NutritionDaySummary.resolve(day: .today, meals: meals).totals.calories, 0)
     }
 
     func testReferencedFoodArchivesInsteadOfDeleting() throws {
@@ -340,5 +402,66 @@ final class NutritionTests: XCTestCase {
         let reFetchedTemplates = try context.fetch(FetchDescriptor<MealTemplate>())
         XCTAssertEqual(reFetchedFoods.count, foods.count)
         XCTAssertEqual(reFetchedTemplates.count, templates.count)
+    }
+
+    func testSeededRecipesResolveEveryCatalogIngredient() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        try NutritionSeedData.stage(using: context, registry: SystemSeedRegistry(context: context))
+        try context.save()
+
+        let expected: [(String, [String])] = [
+            ("Chicken, Rice & Broccoli Bowl", ["Chicken breast", "White rice", "Broccoli"]),
+            ("High-Protein Oatmeal Bowl", ["Rolled oats", "Whey protein powder", "Bananas", "Peanut butter"]),
+            ("Steak & Sweet Potato Recovery Meal", ["Beef sirloin", "Sweet potatoes", "Green beans"]),
+            ("Greek Yogurt & Berry Bowl", ["Greek yogurt", "Blueberries", "Chia seeds", "Whey protein powder"]),
+            ("Egg White & Avocado Wrap", ["Whole-wheat tortillas", "Egg whites", "Whole eggs", "Avocado"]),
+            ("Salmon & Quinoa Bowl", ["Fresh salmon", "Quinoa", "Spinach"])
+        ]
+        let templates = try context.fetch(FetchDescriptor<MealTemplate>())
+        XCTAssertEqual(templates.filter(\.isCurrent).count, expected.count)
+        for (name, foodNames) in expected {
+            let template = try XCTUnwrap(templates.first { $0.name == name && $0.isCurrent })
+            XCTAssertEqual(template.orderedItems.map(\.food.name), foodNames)
+        }
+    }
+
+    func testSeedingRepairsIncompleteBundledRecipesWithoutTouchingRevisions() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        try NutritionSeedData.stage(using: context, registry: SystemSeedRegistry(context: context))
+        try context.save()
+
+        let chickenBowl = try XCTUnwrap(
+            try context.fetch(FetchDescriptor<MealTemplate>()).first { $0.name == "Chicken, Rice & Broccoli Bowl" && $0.isCurrent }
+        )
+        let leftover = try XCTUnwrap(chickenBowl.orderedItems.first)
+        for item in chickenBowl.items where item.id != leftover.id {
+            context.delete(item)
+        }
+        try context.save()
+        XCTAssertEqual(chickenBowl.orderedItems.count, 1)
+
+        try NutritionSeedData.stage(using: context, registry: SystemSeedRegistry(context: context))
+        try context.save()
+        XCTAssertEqual(
+            chickenBowl.orderedItems.map(\.food.name),
+            ["Chicken breast", "White rice", "Broccoli"]
+        )
+
+        let firstIngredient = try XCTUnwrap(chickenBowl.orderedItems.first)
+        let revised = try XCTUnwrap(
+            MealTemplateService.revise(
+                chickenBowl,
+                name: chickenBowl.name,
+                preparationState: .cooked,
+                finalCookedWeightGrams: nil,
+                photoIdentifier: nil,
+                items: [(firstIngredient.food, firstIngredient.servingID, 2)],
+                using: context
+            )
+        )
+        try NutritionSeedData.stage(using: context, registry: SystemSeedRegistry(context: context))
+        try context.save()
+        XCTAssertEqual(revised.orderedItems.count, 1)
+        XCTAssertEqual(revised.orderedItems.first?.quantity, 2)
     }
 }

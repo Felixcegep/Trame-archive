@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct HomePrimaryWorkoutCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let activeWorkout: Workout?
     let activePlanRun: PlanRun?
     let activePlanProgress: PlanWorkoutProgress?
@@ -16,90 +18,179 @@ struct HomePrimaryWorkoutCard: View {
     }
 
     var body: some View {
-        TrameColorField(
-            fill: .gymTodayHero,
-            ink: .gymTodayHeroInk,
-            border: .gymTodayHeroDivider,
-            radius: Radius.card
-        ) {
-            VStack(alignment: .leading, spacing: 0) {
-                Button(action: onOpen) {
-                    cardContent
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Spacing.l)
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: onOpen) {
+                primaryContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.gymPress)
+            .disabled(summary.kind == .unavailable)
+            .accessibilityLabel(cardAccessibilityLabel)
+            .accessibilityHint(cardHint)
+            .accessibilityIdentifier(cardAccessibilityIdentifier)
+
+            if showsSavedWorkoutsFooter {
+                Divider()
+                    .overlay(Color.trameSeparator)
+
+                Button(action: onOpenSavedWorkouts) {
+                    HStack(spacing: Spacing.m) {
+                        Text("Saved workouts")
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameText)
+
+                        Spacer(minLength: Spacing.s)
+
+                        Image(systemName: AppIcon.chevronRight)
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
+                            .accessibilityHidden(true)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.gymPress)
-                .disabled(summary.kind == .unavailable)
-                // Stated explicitly rather than left to the automatic combination
-                // of five child views, which read the eyebrow, title, subtitle, and
-                // progress bar in layout order and repeated the set count twice.
-                .accessibilityLabel(cardAccessibilityLabel)
-                .accessibilityHint(cardHint)
-                .accessibilityIdentifier(cardAccessibilityIdentifier)
-
-                if showsSavedWorkoutsFooter {
-                    Divider()
-                        .overlay(Color.gymTodayHeroDivider)
-
-                    Button(action: onOpenSavedWorkouts) {
-                        Text("Saved workouts")
-                            .font(AppFont.metadata)
-                            .foregroundStyle(Color.gymTodayHeroSecondaryText)
-                            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
-                    }
-                    .buttonStyle(.gymPress)
-                    .accessibilityHint("Opens your saved workouts.")
-                    .accessibilityIdentifier("today-open-saved-workouts")
-                }
-
-                scheduleActions
+                .accessibilityHint("Opens your saved workouts.")
+                .accessibilityIdentifier("today-open-saved-workouts")
             }
+
+            scheduleActions
         }
     }
 
-    private var cardContent: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            if showsEyebrow {
-                Text(cardLabel)
-                    .font(AppFont.eyebrow)
-                    .tracking(1)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color.gymTodayHeroSecondaryText)
-            }
+    private var primaryContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            primaryHeading
 
-            cardTitleText
-                .font(AppFont.displayMedium)
-                .foregroundStyle(Color.gymTodayHeroInk)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if showsSubtitle {
-                Text(cardSubtitle)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymTodayHeroSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            supportingData
 
             if let activeWorkout, activeWorkout.totalSetCount > 0 {
                 ProgressView(
                     value: Double(activeWorkout.completedSetCount),
                     total: Double(activeWorkout.totalSetCount)
                 )
-                .tint(Color.trameAction)
-                // The subtitle already states the same progress in words, so
-                // the bar is a visual restatement rather than a second stop.
+                .tint(Color.trameStrength)
                 .accessibilityHidden(true)
             }
 
+            primaryActionLabel
+        }
+        .padding(.leading, showsSemanticRail ? Spacing.l : 0)
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .leading) {
+            if showsSemanticRail {
+                Rectangle()
+                    .fill(semanticRailColor)
+                    .frame(width: 6)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var primaryHeading: some View {
+        if dynamicTypeSize.isAccessibilitySize || displayedExerciseCount == nil {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                titleStack
+                exerciseCountView
+            }
+        } else {
+            HStack(alignment: .bottom, spacing: Spacing.xl) {
+                titleStack
+                Spacer(minLength: Spacing.s)
+                exerciseCountView
+            }
+        }
+    }
+
+    private var titleStack: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            if showsEyebrow {
+                Text(cardLabel)
+                    .font(AppFont.eyebrow)
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+
+            cardTitleText
+                .font(AppFont.stageTitle)
+                .foregroundStyle(Color.trameText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var exerciseCountView: some View {
+        if let displayedExerciseCount {
+            VStack(alignment: .trailing, spacing: Spacing.xxs) {
+                Text(displayedExerciseCount, format: .number.precision(.integerLength(2)))
+                    .font(AppFont.metricHero)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.trameText)
+
+                Text(displayedExerciseCount == 1 ? "EXERCISE" : "EXERCISES")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(displayedExerciseCount) exercises")
+        }
+    }
+
+    @ViewBuilder
+    private var supportingData: some View {
+        if let activeWorkout, activeWorkout.totalSetCount > 0 {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                Text("\(activeWorkout.completedSetCount) / \(activeWorkout.totalSetCount) SETS")
+                    .font(AppFont.eyebrow)
+                    .monospacedDigit()
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameText)
+
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(width: 1, height: 18)
+                    .accessibilityHidden(true)
+
+                Text(nextExerciseDescription(in: activeWorkout))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .lineLimit(2)
+            }
+        } else if showsSubtitle {
+            Text(cardSubtitle)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var primaryActionLabel: some View {
+        HStack(spacing: Spacing.m) {
             Text(primaryActionTitle)
                 .font(AppFont.titleSmallSemibold)
-                .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
-                .foregroundStyle(primaryActionInk)
-                .background(primaryActionFill)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.editorialAction, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.editorialAction, style: .continuous)
-                        .stroke(Color.gymActionOutline, lineWidth: summary.kind == .unavailable ? 0 : 1)
-                }
+
+            Spacer(minLength: Spacing.s)
+
+            Image(systemName: AppIcon.chevronRight)
+                .font(AppFont.subheadlineSemibold)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, Spacing.l)
+        .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
+        .foregroundStyle(primaryActionInk)
+        .background(
+            primaryActionFill,
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+        )
+        .overlay {
+            if summary.kind == .unavailable {
+                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    .stroke(Color.trameSeparator, lineWidth: 1)
+            }
         }
     }
 
@@ -115,12 +206,47 @@ struct HomePrimaryWorkoutCard: View {
         summary.kind == .free
     }
 
+    private var showsSemanticRail: Bool {
+        summary.kind != .free
+    }
+
+    private var semanticRailColor: Color {
+        switch summary.kind {
+        case .guidedConflict, .unavailable:
+            return .trameAttention
+        case .active, .planned, .repeating, .free:
+            return .trameStrength
+        }
+    }
+
+    private var displayedExerciseCount: Int? {
+        guard let exerciseCount, exerciseCount > 0 else { return nil }
+        return exerciseCount
+    }
+
+    private var exerciseCount: Int? {
+        if let activeWorkout {
+            return activeWorkout.orderedExercises.count
+        }
+
+        if let activePlanRun,
+           let activePlanProgress,
+           let plannedWorkout = PlanCoordinator.plannedWorkout(
+                for: activePlanProgress,
+                in: activePlanRun
+           ) {
+            return plannedWorkout.orderedPlannedExercises.count
+        }
+
+        return nil
+    }
+
     private var primaryActionFill: Color {
-        summary.kind == .unavailable ? Color.gymRowSurface : Color.gymAction
+        summary.kind == .unavailable ? Color.trameRow : Color.trameAction
     }
 
     private var primaryActionInk: Color {
-        summary.kind == .unavailable ? Color.gymSubduedText : Color.gymActionInk
+        summary.kind == .unavailable ? Color.trameSubdued : Color.trameActionInk
     }
 
     @ViewBuilder
@@ -129,43 +255,66 @@ struct HomePrimaryWorkoutCard: View {
            !hasActiveWorkout,
            PlanCoordinator.canEditSchedule(activePlanProgress, in: activePlanRun) {
             Divider()
-                .overlay(Color.gymTodayHeroDivider)
-                .padding(.horizontal, Spacing.l)
+                .overlay(Color.trameSeparator)
 
-            // The vertical padding used to sit on this HStack, which put it
-            // outside every button's hit region and left three ~20pt targets —
-            // two of which mutate the plan schedule, eight points apart. Each
-            // label now carries its own 44pt box.
-            HStack(spacing: Spacing.s) {
-                scheduleActionButton(
-                    "Tomorrow",
-                    systemImage: AppIcon.tomorrow,
-                    identifier: "today-postpone-planned-workout",
-                    action: onPostpone
-                )
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(spacing: 0) {
+                        scheduleActionButton(
+                            "Tomorrow",
+                            systemImage: AppIcon.tomorrow,
+                            identifier: "today-postpone-planned-workout",
+                            action: onPostpone
+                        )
+                        Divider().overlay(Color.trameSeparator)
+                        scheduleActionButton(
+                            "Reschedule",
+                            systemImage: AppIcon.reschedule,
+                            identifier: "today-reschedule-planned-workout"
+                        ) {
+                            onReschedule(activePlanProgress)
+                        }
+                        Divider().overlay(Color.trameSeparator)
+                        scheduleActionButton(
+                            "Skip",
+                            systemImage: AppIcon.skip,
+                            identifier: "today-skip-planned-workout",
+                            role: .destructive
+                        ) {
+                            onSkip(activePlanProgress)
+                        }
+                    }
+                } else {
+                    HStack(spacing: Spacing.s) {
+                        scheduleActionButton(
+                            "Tomorrow",
+                            systemImage: AppIcon.tomorrow,
+                            identifier: "today-postpone-planned-workout",
+                            action: onPostpone
+                        )
 
-                scheduleActionButton(
-                    "Reschedule",
-                    systemImage: AppIcon.reschedule,
-                    identifier: "today-reschedule-planned-workout"
-                ) {
-                    onReschedule(activePlanProgress)
-                }
+                        scheduleActionButton(
+                            "Reschedule",
+                            systemImage: AppIcon.reschedule,
+                            identifier: "today-reschedule-planned-workout"
+                        ) {
+                            onReschedule(activePlanProgress)
+                        }
 
-                Spacer(minLength: Spacing.m)
+                        Spacer(minLength: Spacing.m)
 
-                scheduleActionButton(
-                    "Skip",
-                    systemImage: AppIcon.skip,
-                    identifier: "today-skip-planned-workout",
-                    role: .destructive
-                ) {
-                    onSkip(activePlanProgress)
+                        scheduleActionButton(
+                            "Skip",
+                            systemImage: AppIcon.skip,
+                            identifier: "today-skip-planned-workout",
+                            role: .destructive
+                        ) {
+                            onSkip(activePlanProgress)
+                        }
+                    }
                 }
             }
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(Color.gymTodayHeroSecondaryText)
-            .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.xs)
         }
     }
@@ -179,6 +328,7 @@ struct HomePrimaryWorkoutCard: View {
     ) -> some View {
         Button(role: role, action: action) {
             Label(title, systemImage: systemImage)
+                .foregroundStyle(role == .destructive ? Color.trameDestructiveText : Color.trameText)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .contentShape(Rectangle())
         }
@@ -186,6 +336,9 @@ struct HomePrimaryWorkoutCard: View {
     }
 
     private var cardTitleText: Text {
+        if summary.kind == .free {
+            return Text("Nothing planned")
+        }
         guard summary.kind == .active else {
             return Text(LocalizedStringKey(summary.title))
         }
@@ -216,8 +369,6 @@ struct HomePrimaryWorkoutCard: View {
         }
     }
 
-    /// Subject first, then state, then what is next — the order the lifter
-    /// needs it, rather than the order the card happens to lay it out in.
     private var cardAccessibilityLabel: String {
         var parts = [summary.title]
         if let activeWorkout, activeWorkout.totalSetCount > 0 {
@@ -261,8 +412,8 @@ struct HomePrimaryWorkoutCard: View {
 
     private var primaryActionTitle: LocalizedStringKey {
         switch summary.kind {
-        case .active: return "Resume"
-        case .planned, .repeating, .free: return "Start"
+        case .active: return "Resume workout"
+        case .planned, .repeating, .free: return "Start workout"
         case .guidedConflict: return "Choose"
         case .unavailable: return "Unavailable"
         }
@@ -275,7 +426,7 @@ struct HomePrimaryWorkoutCard: View {
             return String(localized: "Workout complete")
         }
 
-        let format = String(localized: "Next: %@ · Set %lld")
+        let format = String(localized: "Next · %@ · Set %lld")
         return String(format: format, exercise.exercise.name, Int64(setIndex + 1))
     }
 }

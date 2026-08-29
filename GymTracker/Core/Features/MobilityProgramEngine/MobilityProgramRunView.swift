@@ -123,7 +123,7 @@ struct MobilityProgramRunView: View {
                 manageMenu
             }
             ProgressView(value: progress.fraction)
-                .tint(Color.gymPrimary)
+                .tint(Color.trameMobility)
                 .accessibilityIdentifier("mobility-program-progress")
         }
     }
@@ -205,7 +205,8 @@ struct MobilityProgramRunView: View {
             HStack(spacing: Spacing.s) {
                 Button("Accept") { accept(record) }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimary)
+                    .tint(Color.trameAction)
+                    .foregroundStyle(Color.trameActionInk)
                     .accessibilityIdentifier("mobility-program-recommendation-accept-\(record.id)")
                 Button("Decline") { decline(record) }
                     .buttonStyle(.bordered)
@@ -261,9 +262,7 @@ struct MobilityProgramRunView: View {
                             Label("Start session", systemImage: AppIcon.play)
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .tint(Color.gymPrimary)
+                        .buttonStyle(.tramePrimaryAction)
                         .accessibilityIdentifier("mobility-program-start-session")
                     } else {
                         Text("Resume this plan to start your next session.")

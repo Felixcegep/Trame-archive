@@ -26,55 +26,87 @@ struct PlanDetailView: View {
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    Text("\(plan.durationWeeks) weeks · \(plan.daysPerWeek) days per week")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xxl) {
+                        TrameMetric(
+                            value: "\(plan.durationWeeks)",
+                            label: "Weeks",
+                            accessibilityLabel: "\(plan.durationWeeks) weeks"
+                        )
+                        TrameMetric(
+                            value: "\(plan.daysPerWeek)",
+                            label: "Days per week",
+                            accessibilityLabel: "\(plan.daysPerWeek) days per week"
+                        )
+                    }
+
                     if pausedRun != nil {
                         Text("Plan paused")
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameAttention)
                     } else if testDayRun != nil {
                         Text("Test day ready")
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymPrimary)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameActionDeep)
                     } else if let run = activeRun, let progress = nextProgress(in: run) {
-                        Text(progress.scheduledDate.map { "Next: \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "Next workout ready")
-                            .font(AppFont.subheadlineSemibold)
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("NEXT SESSION")
+                                .font(AppFont.micro)
+                                .tracking(0.8)
+                                .foregroundStyle(Color.trameSubdued)
+                            Text(progress.plannedWorkoutName)
+                                .font(AppFont.stageTitle)
+                                .foregroundStyle(Color.trameText)
+                            Text(progress.scheduledDate.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? String(localized: "Ready now"))
+                                .font(AppFont.metadata)
+                                .foregroundStyle(Color.trameSubdued)
+                        }
                     } else {
                         Text("Your schedule repeats each week.")
-                            .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
+                .padding(.vertical, Spacing.s)
+            } header: {
+                TrameDomainSectionRule(title: "Plan", color: Color.trameStrength)
             }
 
-            Section("Prescription") {
+            Section {
                 NavigationLink {
                     PlanPrescriptionPreviewView(plan: plan)
                 } label: {
                     Label("Preview prescriptions", systemImage: AppIcon.chart)
                 }
                 .accessibilityIdentifier("view-program-prescription-preview")
+            } header: {
+                TrameDomainSectionRule(title: "Prescription", color: Color.trameStrength)
             }
 
             if let notes = plan.notes, !notes.isEmpty {
-                Section("Safety & progression") {
+                Section {
                     Text(notes)
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymText)
+                        .font(AppFont.body)
+                        .foregroundStyle(Color.trameText)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, Spacing.xs)
+                } header: {
+                    TrameDomainSectionRule(title: "Safety & progression", color: Color.trameAttention)
                 }
             }
 
             if hasAmbiguousCurrentRuns {
-                Section("Plan needs attention") {
+                Section {
                     Text("More than one current run was found. Resolve the duplicate runs before starting or changing this plan.")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.body)
+                        .foregroundStyle(Color.trameText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, Spacing.xs)
+                } header: {
+                    TrameDomainSectionRule(title: "Plan needs attention", color: Color.trameAttention)
                 }
-            } else if let run = activeRun, let progress = nextProgress(in: run) {
-                Section("In progress") {
+            } else if let run = activeRun, nextProgress(in: run) != nil {
+                Section {
                     programPathLink(for: run)
                     weeklyReviewLink(for: run)
 
@@ -85,28 +117,11 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("view-plan-schedule")
 
-                    Button {
-                        onStartPlannedWorkout(run, progress)
-                    } label: {
-                        Label(
-                            progress.status == .inProgress
-                                ? "Resume Active Workout"
-                                : "Start \(progress.plannedWorkoutName)",
-                            systemImage: progress.status == .inProgress ? AppIcon.workout : AppIcon.play
-                        )
-                    }
-                    .accessibilityIdentifier("start-planned-workout")
-
-                    Button("Pause This Plan") {
-                        PlanCoordinator.pause(run, using: modelContext)
-                    }
-
-                    Button("End This Plan Run", role: .destructive) {
-                        isShowingArchiveConfirmation = true
-                    }
+                } header: {
+                    TrameDomainSectionRule(title: "Current run", color: Color.trameStrength)
                 }
             } else if let run = pausedRun {
-                Section("Plan paused") {
+                Section {
                     programPathLink(for: run)
                     weeklyReviewLink(for: run)
 
@@ -117,42 +132,23 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("view-plan-schedule")
 
-                    Button("Resume Plan") {
-                        onResumePlan(run)
-                    }
-                    .accessibilityIdentifier("resume-plan")
-
-                    Button("End This Plan Run", role: .destructive) {
-                        isShowingArchiveConfirmation = true
-                    }
+                } header: {
+                    TrameDomainSectionRule(title: "Plan paused", color: Color.trameAttention)
                 }
             } else if let run = testDayRun, nextProgress(in: run) != nil {
-                Section("Test day") {
+                Section {
                     programPathLink(for: run)
                     weeklyReviewLink(for: run)
 
-                    Button {
-                        onStartTestDay(run)
-                    } label: {
-                        Label("Start Test Day", systemImage: AppIcon.play)
-                    }
-                    .accessibilityIdentifier("start-test-day")
+                } header: {
+                    TrameDomainSectionRule(title: "Test day", color: Color.trameCompetition)
                 }
             } else if !plan.isArchived && !hasAmbiguousCurrentRuns {
-                Section {
-                    Button {
-                        startDate = .now
-                        isShowingStartDate = true
-                    } label: {
-                        Label(canOfferRestart ? "Restart Plan" : "Start Plan", systemImage: AppIcon.play)
-                    }
-                    .accessibilityIdentifier(canOfferRestart ? "restart-plan" : "start-plan")
-                    .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
-                }
+                EmptyView()
             }
 
             ForEach(plan.orderedWeeks) { week in
-                Section("Week \(week.weekIndex + 1)") {
+                Section {
                     ForEach(week.orderedPlannedWorkouts) { workout in
                         let progress = progress(for: workout)
                         planWorkoutRow(workout, progress: progress)
@@ -165,17 +161,30 @@ struct PlanDetailView: View {
                                 } label: {
                                     Label("Reschedule", systemImage: AppIcon.reschedule)
                                 }
-                                .tint(Color.gymAccent)
+                                .tint(Color.trameAttention)
                                 .accessibilityIdentifier("reschedule-planned-workout-\(workout.id)")
                             }
                         }
                     }
+                } header: {
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey(
+                            week.weekIndex == currentWeekIndex
+                                ? "Current week · Week \(week.weekIndex + 1)"
+                                : "Week \(week.weekIndex + 1)"
+                        ),
+                        color: week.weekIndex == currentWeekIndex ? Color.trameStrength : Color.trameSeparator
+                    )
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(plan.name)
+        .navigationBarTitleDisplayMode(.large)
+        .safeAreaInset(edge: .bottom) {
+            primaryPlanAction
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -205,6 +214,21 @@ struct PlanDetailView: View {
                         Label("Duplicate", systemImage: AppIcon.duplicate)
                     }
                     .accessibilityIdentifier("duplicate-plan")
+
+                    Divider()
+
+                    if let run = activeRun {
+                        Button("Pause this plan") {
+                            PlanCoordinator.pause(run, using: modelContext)
+                        }
+                        Button("End this plan run", role: .destructive) {
+                            isShowingArchiveConfirmation = true
+                        }
+                    } else if pausedRun != nil || testDayRun != nil {
+                        Button("End this plan run", role: .destructive) {
+                            isShowingArchiveConfirmation = true
+                        }
+                    }
 
                     Divider()
 
@@ -361,6 +385,55 @@ struct PlanDetailView: View {
         .accessibilityHint(Text(WeeklyProgramReviewPresentation.entryDetail))
     }
 
+    @ViewBuilder
+    private var primaryPlanAction: some View {
+        if !hasAmbiguousCurrentRuns, currentRun != nil || !plan.isArchived {
+            VStack(spacing: 0) {
+                if let run = activeRun, let progress = nextProgress(in: run) {
+                    Button {
+                        onStartPlannedWorkout(run, progress)
+                    } label: {
+                        HStack(spacing: Spacing.m) {
+                            Text(progress.status == .inProgress ? "Resume workout" : "Start workout")
+                            Spacer(minLength: Spacing.s)
+                            Image(systemName: progress.status == .inProgress ? AppIcon.workout : AppIcon.chevronRight)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.tramePrimaryAction)
+                    .accessibilityIdentifier("start-planned-workout")
+                } else if let run = pausedRun {
+                    Button("Resume plan") { onResumePlan(run) }
+                        .buttonStyle(.tramePrimaryAction)
+                        .accessibilityIdentifier("resume-plan")
+                } else if let run = testDayRun, nextProgress(in: run) != nil {
+                    Button("Start test day") { onStartTestDay(run) }
+                        .buttonStyle(.tramePrimaryAction)
+                        .accessibilityIdentifier("start-test-day")
+                } else if !plan.isArchived {
+                    Button(canOfferRestart ? "Restart plan" : "Start plan") {
+                        startDate = .now
+                        isShowingStartDate = true
+                    }
+                    .buttonStyle(.tramePrimaryAction)
+                    .accessibilityIdentifier(canOfferRestart ? "restart-plan" : "start-plan")
+                    .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
+                }
+            }
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.vertical, Spacing.s)
+            .background(Color.trameSurface)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
+        }
+    }
+
+    private var currentWeekIndex: Int? {
+        guard let currentRun else { return nil }
+        return nextProgress(in: currentRun)?.weekIndex
+    }
+
     private var activeRun: PlanRun? {
         singularRun(with: .active)
     }
@@ -424,24 +497,25 @@ struct PlanDetailView: View {
                 _ = PlanCoordinator.skip(progress, in: run, using: modelContext)
             }
             .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
+            .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
             .accessibilityIdentifier("skip-planned-workout")
         case .inProgress:
             Text("In progress")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameStrength)
         case .completed:
             Label("Done", systemImage: AppIcon.checkmarkCircle)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSuccess)
+                .foregroundStyle(Color.trameCompleted)
         case .skipped:
             Text("Skipped")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         case .upcoming:
             Text("Upcoming")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
     }
 
@@ -456,37 +530,43 @@ struct PlanDetailView: View {
         let preparation = preparationExercises(in: workout)
         let summary = "Day \(workout.dayOffset + 1) · \(workout.orderedPlannedExercises.count) exercises"
 
-        return HStack(spacing: Spacing.s) {
+        return HStack(alignment: .top, spacing: Spacing.m) {
+            Rectangle()
+                .fill(progressColor(progress))
+                .frame(width: 3)
+                .accessibilityHidden(true)
+
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(workout.name)
-                    .font(AppFont.subheadlineSemibold)
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
                 Text(summary)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                 if workout.isOptional {
                     Text("Optional session")
-                        .font(AppFont.caption2Bold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameActionDeep)
                 }
                 if !preparation.isEmpty {
                     Label("Preparation & mobility required", systemImage: AppIcon.info)
-                        .font(AppFont.caption2Bold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameMobility)
                     Text(preparation.map { $0.exercise.name }.joined(separator: " · "))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .lineLimit(2)
                 }
                 if let notes = workout.notes, !notes.isEmpty {
                     Text(notes)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .lineLimit(2)
                 }
                 if let scheduledDate = progress?.scheduledDate {
                     Text(scheduledDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
                         .accessibilityIdentifier("planned-workout-date-\(workout.id)")
                 }
             }
@@ -494,6 +574,18 @@ struct PlanDetailView: View {
             if let progress {
                 planWorkoutStatus(progress)
             }
+        }
+        .padding(.vertical, Spacing.xs)
+    }
+
+    private func progressColor(_ progress: PlanWorkoutProgress?) -> Color {
+        guard let progress else { return Color.trameSeparator }
+        switch progress.status {
+        case .inProgress: return Color.trameAction
+        case .completed: return Color.trameCompleted
+        case .available: return Color.trameStrength
+        case .skipped: return Color.trameSubdued
+        case .upcoming: return Color.trameSeparator
         }
     }
 

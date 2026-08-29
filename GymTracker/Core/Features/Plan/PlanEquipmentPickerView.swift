@@ -7,22 +7,25 @@ struct PlanEquipmentPickerView: View {
         List {
             Section {
                 Text("Choose the equipment this plan uses. You can change this later; completed workouts stay unchanged.")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
+                    .padding(.vertical, Spacing.xs)
+        } header: {
+            TrameDomainSectionRule(title: "Plan equipment", color: Color.trameStrength)
+        }
 
-            Section("Equipment") {
+            Section {
                 ForEach(EquipmentType.allCases, id: \.self) { equipment in
                     Button {
                         toggle(equipment)
                     } label: {
                         HStack {
                             Text(equipment.rawValue)
-                                .foregroundStyle(Color.gymText)
+                                .foregroundStyle(Color.trameText)
                             Spacer()
                             if selectedEquipment.contains(equipment) {
                                 Image(systemName: AppIcon.checkmark)
-                                    .foregroundStyle(Color.gymPrimary)
+                                    .foregroundStyle(Color.trameActionDeep)
                             }
                         }
                     }
@@ -31,10 +34,12 @@ struct PlanEquipmentPickerView: View {
                         selectedEquipment.contains(equipment) ? "Selected" : "Not selected"
                     )
                 }
+            } header: {
+                TrameDomainSectionRule(title: "Equipment", color: Color.trameStrength)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Plan Equipment")
     }
 

@@ -27,7 +27,7 @@ enum DurationKey: Hashable {
 struct DurationKeypad: View {
     /// Six values, laid out 3 × 2. Ordered by duration so the grid reads left to
     /// right, top to bottom, the way the numbers on a digit pad do.
-    var presets: [TimeInterval] = [30, 45, 60, 75, 90, 120]
+    var presets: [TimeInterval] = Self.defaultPresets
     var adjustStep: TimeInterval = 15
     let onKey: (DurationKey) -> Void
 
@@ -96,7 +96,6 @@ struct DurationKeypad: View {
         // to read.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .gymFeedback(.keyPressed, trigger: lastPressedKey)
-        .accessibilityIdentifier("duration-keypad")
     }
 
     private func key<Content: View>(
@@ -153,6 +152,32 @@ struct DurationKeypad: View {
         case .backspace: "duration-key-backspace"
         case .digits: "duration-keypad-digits"
         }
+    }
+}
+
+extension DurationKeypad {
+    /// The shortlist timed work actually clusters on.
+    static let defaultPresets: [TimeInterval] = [30, 45, 60, 75, 90, 120]
+
+    /// The shortlist with the prescribed hold guaranteed a key.
+    ///
+    /// A mobility hold written as 40 seconds is not on the standard grid, so the
+    /// one duration the lifter was told to hit would be the only one needing the
+    /// digit pad — the exception becoming the rule for exactly the exercise that
+    /// prescribed it. The target replaces whichever preset is furthest from it,
+    /// which keeps the count at six (the layout is 3 × 2) and keeps the
+    /// remaining keys clustered around what this set is asking for.
+    static func presets(
+        including target: TimeInterval?,
+        base: [TimeInterval] = defaultPresets
+    ) -> [TimeInterval] {
+        guard let target, target > 0 else { return base }
+        let rounded = target.rounded()
+        guard !base.contains(rounded) else { return base }
+        guard let furthest = base.max(by: { abs($0 - rounded) < abs($1 - rounded) }) else {
+            return base
+        }
+        return (base.filter { $0 != furthest } + [rounded]).sorted()
     }
 }
 

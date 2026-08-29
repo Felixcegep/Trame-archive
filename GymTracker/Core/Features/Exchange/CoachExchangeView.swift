@@ -148,7 +148,7 @@ struct CoachExchangeView: View {
                         packageToExport = importedPackage
                         isExportingPackage = true
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("coach-exchange-package-export-confirm")
                     Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {
                         packageExportConfirmed = false
@@ -193,7 +193,7 @@ struct CoachExchangeView: View {
                                 systemImage: AppIcon.export
                             )
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.tramePrimaryAction)
                         .disabled(selectedPackageComponentIDs.isEmpty)
                         .accessibilityIdentifier("coach-exchange-package-create")
 
@@ -243,7 +243,7 @@ struct CoachExchangeView: View {
                             systemImage: AppIcon.export
                         )
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("coach-exchange-package-create-export-confirm")
                     Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {
                         localPackageExportConfirmed = false
@@ -411,7 +411,7 @@ struct CoachExchangeView: View {
                         Label(String(localized: "coach.exchange.import.apply", defaultValue: "Apply selected import"), systemImage: AppIcon.checkmark)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.tramePrimaryAction)
                 .disabled(!canApplyImport || isApplyingImport)
                 .accessibilityLabel(String(
                     localized: isApplyingImport
@@ -529,7 +529,7 @@ struct CoachExchangeView: View {
                     } label: {
                         Label(String(localized: "coach.exchange.report.share.confirm", defaultValue: "Confirm and share"), systemImage: AppIcon.export)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("coach-exchange-report-share-confirm")
                 }
                 if reportShareConfirmed {

@@ -73,7 +73,7 @@ struct ExerciseSession: Equatable, Sendable {
     /// Sets that count toward strength metrics; a warm-up never does.
     var workingSets: [ExerciseSessionSet] {
         sets.filter {
-            $0.setType != .warmup
+            !$0.setType.isStrengthAnalyticsExcluded
                 && $0.setMethod == .standard
                 && !$0.hasSegments
                 && $0.contributesToStrengthVolume

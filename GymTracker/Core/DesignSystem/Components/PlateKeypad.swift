@@ -101,6 +101,9 @@ struct PlateKeypad: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             header
+                // A container identifier here would replace the identities of
+                // the exact-entry and plate keys in the accessibility tree.
+                .accessibilityIdentifier("plate-keypad")
             stack
             plateGrid
 
@@ -129,7 +132,6 @@ struct PlateKeypad: View {
         .background(Color.trameCanvas)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .gymFeedback(.keyPressed, trigger: lastPressedKey)
-        .accessibilityIdentifier("plate-keypad")
     }
 
     // MARK: - Header

@@ -233,7 +233,7 @@ struct TrainingProfileSettingsView: View {
                         Spacer()
                         if profile.focusAreaIDs.contains(area.rawValue) {
                             Image(systemName: AppIcon.checkmark)
-                                .foregroundStyle(Color.gymPrimary)
+                                .foregroundStyle(Color.trameAction)
                         }
                     }
                     .contentShape(Rectangle())
@@ -420,7 +420,7 @@ struct TrainingProfileIdentityView: View {
                                 Spacer()
                                 if profile.secondaryDisciplines.contains(discipline) {
                                     Image(systemName: AppIcon.checkmark)
-                                        .foregroundStyle(Color.gymPrimary)
+                                        .foregroundStyle(Color.trameAction)
                                 }
                             }
                             .contentShape(Rectangle())

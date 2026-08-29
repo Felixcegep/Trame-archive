@@ -27,11 +27,12 @@ struct MobilityAssessmentHistoryView: View {
                         sessionRow(session)
                     }
                     .accessibilityIdentifier("mobility-assessment-history-session-\(session.id)")
+                    .listRowBackground(Color.trameSurface)
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Assessment history")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -40,10 +41,10 @@ struct MobilityAssessmentHistoryView: View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(session.startedAt.formatted(.dateTime.month(.abbreviated).day().year()))
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(detail(for: session))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -91,28 +92,32 @@ struct MobilityAssessmentSessionDetailView: View {
 
                 ForEach(groups) { group in
                     VStack(alignment: .leading, spacing: Spacing.s) {
-                        GymSectionHeader(title: group.title)
-                        GymCard {
-                            ForEach(group.observations) { observation in
-                                NavigationLink {
-                                    MobilityAssessmentTimelineView(
-                                        title: observation.title,
-                                        catalogueKey: observation.definitionCatalogueKey,
-                                        side: observation.side
-                                    )
-                                } label: {
-                                    MobilityAssessmentObservationRow(observation: observation)
-                                }
-                                .buttonStyle(.gymPress)
-                                .accessibilityIdentifier("mobility-assessment-observation-\(observation.id)")
+                        TrameDomainSectionRule(title: LocalizedStringKey(group.title), color: .trameMobility)
+                        ForEach(group.observations) { observation in
+                            NavigationLink {
+                                MobilityAssessmentTimelineView(
+                                    title: observation.title,
+                                    catalogueKey: observation.definitionCatalogueKey,
+                                    side: observation.side
+                                )
+                            } label: {
+                                MobilityAssessmentObservationRow(observation: observation)
+                                    .padding(.vertical, Spacing.s)
+                                    .overlay(alignment: .bottom) {
+                                        Rectangle()
+                                            .fill(Color.trameSeparator)
+                                            .frame(height: 1)
+                                    }
                             }
+                            .buttonStyle(.gymPress)
+                            .accessibilityIdentifier("mobility-assessment-observation-\(observation.id)")
                         }
                     }
                 }
 
                 if skippedNames.isEmpty == false {
-                    GymCard {
-                        GymEyebrow("Skipped assessments")
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        TrameDomainSectionRule(title: "Skipped assessments", color: .trameMobility)
                         ForEach(skippedNames, id: \.self) { name in
                             MobilityAssessmentBulletRow(systemImage: AppIcon.skip, text: name)
                         }
@@ -124,7 +129,7 @@ struct MobilityAssessmentSessionDetailView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .accessibilityIdentifier("mobility-assessment-session-detail")
         .navigationTitle("Assessment")
         .navigationBarTitleDisplayMode(.inline)
@@ -135,12 +140,12 @@ struct MobilityAssessmentSessionDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(session.startedAt.formatted(.dateTime.month(.abbreviated).day().year()))
                 .font(AppFont.titleSmall)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(
                 CountPhrase.observations(session.results.count)
             )
             .font(AppFont.subheadline)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
         }
         .accessibilityElement(children: .combine)
     }
@@ -190,16 +195,16 @@ struct MobilityAssessmentTimelineView: View {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(title)
                         .font(AppFont.titleSmall)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(side.displayName)
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 .accessibilityElement(children: .combine)
 
                 if hasLoaded, observations.isEmpty {
-                    GymCard {
-                        ContentUnavailableView(
+                        mobilityAssessmentSurface {
+                            ContentUnavailableView(
                             "No observations",
                             systemImage: AppIcon.mobilityAssessment,
                             description: Text("Nothing has been recorded for this assessment and side.")
@@ -207,10 +212,10 @@ struct MobilityAssessmentTimelineView: View {
                     }
                 } else {
                     ForEach(observations) { observation in
-                        GymCard {
+                        mobilityAssessmentSurface {
                             Text(dateText(for: observation))
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                             MobilityAssessmentObservationRow(
                                 observation: observation,
                                 showsTitle: false
@@ -224,7 +229,7 @@ struct MobilityAssessmentTimelineView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Observations")
         .navigationBarTitleDisplayMode(.inline)
         .task { load() }
@@ -250,5 +255,18 @@ struct MobilityAssessmentTimelineView: View {
             )
         }
         hasLoaded = true
+    }
+}
+
+private func mobilityAssessmentSurface<Content: View>(
+    border: Color = .trameSeparator,
+    @ViewBuilder content: () -> Content
+) -> some View {
+    TrameColorField(fill: .trameSurface, ink: .trameText, border: border, radius: Radius.card) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.l)
     }
 }

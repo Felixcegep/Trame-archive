@@ -19,6 +19,8 @@ struct HistoryRecordsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
                 TrameSectionRule(title: "Personal bests")
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("history-records-heading")
 
                 if loadRecords.isEmpty && repRecords.isEmpty && velocity.isEmpty && specialized.isEmpty && blockScores.isEmpty && notable.isEmpty {
                     ContentUnavailableView(
@@ -41,7 +43,6 @@ struct HistoryRecordsView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
-            .padding(.bottom, 96)
         }
         .background(Color.trameCanvas)
     }

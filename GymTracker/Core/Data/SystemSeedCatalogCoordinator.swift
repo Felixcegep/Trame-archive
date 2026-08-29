@@ -23,7 +23,12 @@ enum SystemSeedCatalogCoordinator {
     // 20: materializes the complete recovered exercise/mobility catalogue and
     // all program discovery listings. This forces internal v19 stores to run
     // the finalized seed pass rather than incorrectly treating it as current.
-    static let contentVersion = 20
+    // 21: audit and correct Push/Pull/Legs/Core movement patterns, force types, and
+    // focus filtering accuracy across all system catalog exercises.
+    // 22: align bundled recipe ingredient names with the food catalog, add whey
+    // protein powder, and repair incomplete v1 seeded recipes that skipped
+    // unmatched ingredients.
+    static let contentVersion = 22
 
     private static let retiredBundledProgramKeys: Set<String> = [
         "powerlifting-volume-intensity",

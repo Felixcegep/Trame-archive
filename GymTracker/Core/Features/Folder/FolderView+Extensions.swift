@@ -4,6 +4,7 @@ extension View {
     func folderScreenStyle() -> some View {
         self
             .scrollContentBackground(.hidden)
+            .contentMargins(.bottom, ComponentSize.tabBarClearance, for: .scrollContent)
             .background(Color.trameCanvas)
             .foregroundStyle(Color.trameText)
             .tint(Color.trameStrength)

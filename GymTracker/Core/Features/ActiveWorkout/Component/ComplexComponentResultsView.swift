@@ -9,7 +9,7 @@ struct ComplexComponentResultsView: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text("COMPLEX")
                 .font(AppFont.caption2Bold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             ForEach(components, id: \.persistentModelID) { component in
                 ComplexComponentResultRow(component: component, onChange: onChange)
@@ -29,10 +29,10 @@ private struct ComplexComponentResultRow: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(component.exerciseNameSnapshot)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text("×\(component.prescribedRepetitions)")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             Spacer(minLength: Spacing.s)
@@ -68,9 +68,9 @@ private struct ComplexComponentResultRow: View {
 
     private var color: Color {
         switch component.outcome {
-        case .completed: Color.gymSecondary
-        case .missed: Color.gymDestructive
-        case .notStarted, .partial, .skipped: Color.gymPrimary
+        case .completed: Color.trameCompleted
+        case .missed: Color.trameDestructiveText
+        case .notStarted, .partial, .skipped: Color.trameSubdued
         }
     }
 

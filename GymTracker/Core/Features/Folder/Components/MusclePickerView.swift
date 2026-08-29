@@ -29,6 +29,7 @@ struct MusclePickerView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
             } footer: {
                 Text(role == .primary
                      ? "Primary muscles drive the movement. Pick at least one."
@@ -47,7 +48,7 @@ struct MusclePickerView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Muscles Worked")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
@@ -66,18 +67,19 @@ struct MusclePickerView: View {
         } label: {
             HStack {
                 Text(muscle.displayName)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Spacer()
                 if isSelected {
                     Image(systemName: AppIcon.checkmark)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameStrength)
                 } else if hasOtherRole {
                     Text(role == .primary ? "Secondary" : "Primary")
                         .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

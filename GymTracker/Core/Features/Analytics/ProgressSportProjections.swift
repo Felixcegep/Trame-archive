@@ -296,7 +296,7 @@ struct GlobalProgressProjection: Equatable, Sendable {
             let loads = matching.flatMap { workout, entry in
                 entry.sets.compactMap { set -> (Double, WeightType, AnalyticsSourceReference)? in
                     guard set.done,
-                          set.setType != .warmup,
+                          !set.setType.isStrengthAnalyticsExcluded,
                           set.weight.isFinite,
                           set.weight > 0
                     else { return nil }
@@ -625,7 +625,7 @@ struct StrongmanProgressProjection: Equatable, Sendable {
                       let family = entry.strongmanEventFamilySnapshot
                 else { continue }
                 let policy = SportAnalyticsPolicyResolver.policy(for: entry)
-                for set in entry.sets where set.done && set.setType != .warmup {
+                for set in entry.sets where set.done && !set.setType.isStrengthAnalyticsExcluded {
                     let kinds = policy.supportedRecords(for: entry)
                     let load = set.weight.isFinite && set.weight > 0 ? Double(set.weight) : nil
                     let distance = set.distance.flatMap { value -> Double? in

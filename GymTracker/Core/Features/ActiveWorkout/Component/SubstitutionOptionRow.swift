@@ -22,18 +22,18 @@ struct SubstitutionOptionRow: View {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                         Text(evaluation.exercise.name)
                             .font(AppFont.bodyMedium)
-                            .foregroundStyle(evaluation.isSelectable ? Color.gymText : Color.gymSubduedText)
+                            .foregroundStyle(evaluation.isSelectable ? Color.trameText : Color.trameSubdued)
                         Spacer(minLength: Spacing.s)
                         if isSelected {
                             Image(systemName: AppIcon.checkmarkCircle)
-                                .foregroundStyle(Color.gymPrimary)
+                                .foregroundStyle(Color.trameActionDeep)
                                 .accessibilityHidden(true)
                         }
                     }
 
                     Text(evaluation.exercise.subtitle)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     verdictLine(
                         icon: SubstitutionPresentation.suitabilityIcon(suitability),
@@ -51,7 +51,7 @@ struct SubstitutionOptionRow: View {
                        let reason = SubstitutionPresentation.hardFilterTitle(blocked) {
                         Text(reason)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymDestructive)
+                            .foregroundStyle(Color.trameDestructiveText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -72,10 +72,11 @@ struct SubstitutionOptionRow: View {
             WhyButton(identifier: "swap-why-\(evaluation.exercise.name)", action: onExplain)
         }
         .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card))
+        .background(isSelected ? Color.trameCurrent : Color.trameRow,
+                    in: RoundedRectangle(cornerRadius: Radius.card))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card)
-                .strokeBorder(isSelected ? Color.gymPrimary : Color.clear, lineWidth: 2)
+                .strokeBorder(isSelected ? Color.trameActionOutline : Color.trameSeparator, lineWidth: 1)
         )
         .opacity(evaluation.isSelectable ? 1 : 0.6)
     }

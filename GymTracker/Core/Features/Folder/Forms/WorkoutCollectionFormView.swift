@@ -25,7 +25,7 @@ struct WorkoutCollectionFormView: View {
             Section("Workouts") {
                 if availableTemplates.isEmpty {
                     Text("Create a saved workout first")
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 } else {
                     ForEach(availableTemplates, id: \.self) { template in
                         SelectionRow(
@@ -39,7 +39,7 @@ struct WorkoutCollectionFormView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("New Workout Folder")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

@@ -22,6 +22,11 @@ enum SetType: String, Codable, CaseIterable {
     case dailyMaximum
     case test
     case recovery
+    /// Held flexibility work performed inside a gym session — a duration set
+    /// that is neither a warm-up nor a competitive effort. A full mobility
+    /// session remains its own domain; this is the single stretch a lifter
+    /// slots between working sets.
+    case stretch
 
     var title: String {
         switch self {
@@ -36,26 +41,14 @@ enum SetType: String, Codable, CaseIterable {
         case .dailyMaximum: String(localized: "Daily maximum")
         case .test: String(localized: "Test")
         case .recovery: String(localized: "Recovery")
+        case .stretch: String(localized: "Stretch")
         }
     }
 
-    var shortLabel: String? {
-        switch self {
-        case .normal: nil
-        case .warmup: "W"
-        case .dropSet: "D"
-        case .failure: "F"
-        case .backoff: "B"
-        case .topSet: "T"
-        case .amrap: "A"
-        // Not "T": that is the top set, and a top set is close to the opposite
-        // of a technique set — the heaviest thing in the session versus a
-        // deliberately light one. Two set types cannot share a badge.
-        case .technique: "Q"
-        case .dailyMaximum: "M"
-        case .test: "X"
-        case .recovery: "R"
-        }
+    /// Roles that stay visible in performed history but never feed strength
+    /// volume, records, e1RM, or progression metrics.
+    var isStrengthAnalyticsExcluded: Bool {
+        self == .warmup || self == .stretch
     }
 }
 

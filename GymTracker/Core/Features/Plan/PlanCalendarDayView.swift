@@ -37,14 +37,14 @@ struct PlanCalendarDayView: View {
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                             Text(entry.workoutName)
                                 .font(AppFont.headlineSemibold)
-                                .foregroundStyle(Color.gymText)
+                                .foregroundStyle(Color.trameText)
                             Spacer()
                             PlanCalendarStateBadge(state: entry.displayState)
                         }
 
                         Text(exerciseCountText(for: entry))
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
 
                         if let progress = progress(for: entry),
                            entry.isReschedulable,
@@ -57,6 +57,7 @@ struct PlanCalendarDayView: View {
                                     Label("Reschedule", systemImage: AppIcon.reschedule)
                                 }
                                 .buttonStyle(.bordered)
+                                .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
                                 .accessibilityIdentifier("calendar-reschedule-\(entry.id)")
 
                                 Menu {
@@ -80,12 +81,17 @@ struct PlanCalendarDayView: View {
                         }
                     }
                     .padding(.vertical, Spacing.xs)
+                } header: {
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey(entry.workoutName),
+                        color: entry.displayState == .completed ? Color.trameCompleted : Color.trameStrength
+                    )
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(day.date.formatted(date: .abbreviated, time: .omitted))
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("plan-calendar-day-screen", label: "Scheduled day")
@@ -168,7 +174,7 @@ private struct RescheduleCalendarWorkoutSheet: View {
                     DatePicker("Scheduled date", selection: $date, displayedComponents: .date)
                     Toggle("Shift remaining workouts", isOn: $shiftRemaining)
                 } header: {
-                    Text(entry.workoutName)
+                    TrameDomainSectionRule(title: LocalizedStringKey(entry.workoutName), color: Color.trameStrength)
                 }
 
                 Section {
@@ -189,7 +195,7 @@ private struct RescheduleCalendarWorkoutSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(Color.gymDestructive)
+                            .foregroundStyle(Color.trameDestructiveText)
                     }
                 }
             }

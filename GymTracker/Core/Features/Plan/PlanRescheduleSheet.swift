@@ -4,10 +4,8 @@ import SwiftUI
 ///
 /// Replaces the legacy compact `Form` date picker with a dedicated graphical
 /// calendar layout that follows Apple's HIG date-picker guidance and our
-/// design system tokens. Two date pills — current (subdued) and new
-/// (primary-tinted) — sit side by side with a directional arrow. The graphical
-/// date picker follows in a card, then a card with the shift toggle, affected
-/// count, and consequence text.
+/// design system tokens. Current and proposed dates form an open comparison;
+/// the native calendar is the instrument, and the consequence is rule-led.
 struct PlanRescheduleSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -123,7 +121,7 @@ struct PlanRescheduleSheet: View {
                 .padding(.top, Spacing.l)
                 .padding(.bottom, Spacing.xxxl)
             }
-            .background(Color.gymBackground.ignoresSafeArea())
+            .background(Color.trameCanvas.ignoresSafeArea())
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -145,53 +143,49 @@ struct PlanRescheduleSheet: View {
     private var headerSection: some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: AppIcon.reschedule)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameActionDeep)
                 .font(AppFont.body)
 
             Text(workoutName)
                 .font(AppFont.subheadlineBold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Rescheduling \(workoutName)")
     }
 
-    /// Two date pills side by side: old date (subdued, read-only) →  new date
-    /// (primary-tinted, reflecting the picker).
+    /// Old date (subdued, read-only) → new date (reflecting the picker).
     private var datePillsSection: some View {
         HStack(spacing: Spacing.m) {
             if let initialDate {
                 datePill(
                     label: "Current",
                     date: initialDate,
-                    foreground: Color.gymSubduedText,
-                    background: Color.gymRowSurface
+                    foreground: Color.trameSubdued
                 )
                 .accessibilityIdentifier("plan-reschedule-current-date")
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
             }
 
             datePill(
                 label: "New",
                 date: date,
-                foreground: Color.gymPrimary,
-                background: Color.gymPrimarySurface
+                foreground: Color.trameStrength
             )
             .accessibilityIdentifier("plan-reschedule-new-date")
         }
     }
 
-    /// A single date pill: a rounded capsule showing a label and a formatted date.
+    /// One date in the open comparison.
     private func datePill(
         label: String,
         date: Date,
-        foreground: Color,
-        background: Color
+        foreground: Color
     ) -> some View {
         VStack(spacing: Spacing.xs) {
             Text(label.uppercased())
@@ -204,43 +198,43 @@ struct PlanRescheduleSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.m)
-        .padding(.horizontal, Spacing.l)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                .fill(background)
-        )
+        .padding(.horizontal, Spacing.s)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(foreground).frame(height: label == "New" ? 2 : 1)
+        }
         .accessibilityElement(children: .combine)
     }
 
-    /// Graphical calendar picker in a card.
+    /// The native graphical picker is the instrument; rules define its field.
     private var datePickerSection: some View {
-        GymCard {
-            DatePicker(
-                "Scheduled date",
-                selection: $date,
-                displayedComponents: .date
-            )
-            .datePickerStyle(.graphical)
-            .tint(Color.gymPrimary)
-            .labelsHidden()
-            .accessibilityIdentifier(datePickerIdentifier)
-        }
+        DatePicker(
+            "Scheduled date",
+            selection: $date,
+            displayedComponents: .date
+        )
+        .datePickerStyle(.graphical)
+        .tint(Color.trameStrength)
+        .labelsHidden()
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .top) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
+        .accessibilityIdentifier(datePickerIdentifier)
     }
 
     /// Shift-remaining toggle, affected count, and consequence copy.
     private var shiftSection: some View {
-        GymCard {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             Toggle(isOn: $shiftsRemaining) {
                 Label {
                     Text("Shift remaining workouts")
                         .font(AppFont.body)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                 } icon: {
                     Image(systemName: AppIcon.fastForward)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameActionDeep)
                 }
             }
-            .tint(Color.gymPrimary)
+            .tint(Color.trameActionDeep)
             .accessibilityIdentifier("plan-reschedule-shift-remaining")
 
             if shiftsRemaining, !isUnchanged, movingSessionCount > 1 {
@@ -249,43 +243,45 @@ struct PlanRescheduleSheet: View {
                 HStack {
                     Text("Workouts that move")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     Spacer()
 
                     Text(movingSessionCount, format: .number)
                         .font(AppFont.subheadlineBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymDataEmphasis)
+                        .foregroundStyle(Color.trameText)
                 }
                 .accessibilityIdentifier("plan-reschedule-affected-count")
             }
 
             Text(consequence)
                 .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
     }
 
     private func errorSection(_ message: String) -> some View {
-        GymCard {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: AppIcon.warning)
-                    .foregroundStyle(Color.gymDestructive)
-                Text(message)
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymDestructive)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: Spacing.s) {
+            Image(systemName: AppIcon.warning)
+                .foregroundStyle(Color.trameDestructiveText)
+            Text(message)
+                .font(AppFont.footnote)
+                .foregroundStyle(Color.trameDestructiveText)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, Spacing.m)
+        .overlay(alignment: .leading) { Rectangle().fill(Color.trameDestructiveText).frame(width: 3) }
     }
 
     /// An explanatory footnote explaining schedule behavior.
     private var hintFooter: some View {
         Text("Any date is allowed. A date in the past is recorded as missed, and one outside the plan's range still keeps the plan's order.")
             .font(AppFont.footnote)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.xs)
     }
@@ -325,4 +321,3 @@ struct PlanRescheduleSheet: View {
         }
     }
 }
-

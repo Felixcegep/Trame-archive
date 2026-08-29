@@ -416,6 +416,10 @@ extension EquipmentType {
         case .machine: String(localized: "Resistance machines")
         case .bodyweight: String(localized: "Bodyweight space")
         case .cardioMachine: String(localized: "Cardio machines")
+        case .battleRopes: String(localized: "Battle ropes")
+        case .sandbag: String(localized: "Sandbags")
+        case .sled: String(localized: "Sled / Prowler")
+        case .rings: String(localized: "Gymnastics rings")
         case .other: String(localized: "Other")
         }
     }
@@ -430,6 +434,10 @@ extension EquipmentType {
         case .machine: "gearshape.2"
         case .bodyweight: "figure.arms.open"
         case .cardioMachine: "figure.run"
+        case .battleRopes: "waveform.path"
+        case .sandbag: "shippingbox.fill"
+        case .sled: "arrow.forward.square.fill"
+        case .rings: "circle.circle"
         case .other: AppIcon.ellipsis
         }
     }
@@ -452,7 +460,7 @@ extension EquipmentType {
     /// The order the grid presents. `allCases` order is the model's, which puts
     /// `.other` in the middle of the checklist.
     static var onboardingOrder: [EquipmentType] {
-        [.barbell, .dumbbell, .kettlebell, .cable, .machine, .cardioMachine, .medicineBall, .bodyweight, .other]
+        [.barbell, .dumbbell, .kettlebell, .cable, .machine, .cardioMachine, .medicineBall, .bodyweight, .battleRopes, .sandbag, .sled, .rings, .other]
     }
 }
 

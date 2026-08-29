@@ -238,9 +238,10 @@ final class MobilityInclinometerCaptureServiceTests: XCTestCase {
         service.startMeasurement(configuration: gravityConfiguration)
 
         service.consume(sample(at: 0))
-        service.consume(sample(at: 0.1, pitch: 25, roll: 15))
+        service.consume(sample(at: 0.1, pitch: 25, yaw: 15))
 
         XCTAssertEqual(service.state, .rejected(reason: .offAxis))
+        XCTAssertEqual(service.liveAngleDegrees ?? .nan, 25, accuracy: 0.001)
     }
 
     func testTerminalFallbackReasonIsIdempotent() {

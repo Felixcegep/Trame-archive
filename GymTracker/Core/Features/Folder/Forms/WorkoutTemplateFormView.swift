@@ -195,7 +195,7 @@ private extension WorkoutTemplateFormView {
         return Section {
             if availableExercises.isEmpty {
                 ContentUnavailableView {
-                    Label("No exercises yet", systemImage: AppIcon.workout)
+                    Label("No exercises yet", systemImage: AppIcon.exercise)
                 } description: {
                     Text("Create an exercise to start building this workout.")
                 } actions: {

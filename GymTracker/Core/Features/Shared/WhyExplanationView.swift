@@ -63,7 +63,7 @@ struct WhyExplanationView: View {
                     if let subtitle = model.subtitle {
                         Text(subtitle)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
@@ -74,7 +74,7 @@ struct WhyExplanationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Spacing.l)
             }
-            .background(Color.gymBackground.ignoresSafeArea())
+            .background(Color.trameCanvas.ignoresSafeArea())
             .navigationTitle(model.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -102,7 +102,7 @@ struct WhyExplanationView: View {
             if let body = section.body, !body.isEmpty {
                 Text(body)
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -110,18 +110,22 @@ struct WhyExplanationView: View {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                     Image(systemName: AppIcon.circleFill)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .accessibilityHidden(true)
                     Text(item)
                         .font(AppFont.body)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+        }
         // The whole section reads as one unit; without this each bullet
         // becomes a separate VoiceOver stop with no heading context.
         .accessibilityElement(children: .combine)
@@ -130,10 +134,10 @@ struct WhyExplanationView: View {
 
     private func color(for emphasis: WhyExplanationEmphasis) -> Color {
         switch emphasis {
-        case .neutral: return .gymText
-        case .positive: return .gymSecondary
-        case .caution: return .gymAccent
-        case .subdued: return .gymSubduedText
+        case .neutral: return .trameText
+        case .positive: return .trameCompleted
+        case .caution: return .trameAttention
+        case .subdued: return .trameSubdued
         }
     }
 }

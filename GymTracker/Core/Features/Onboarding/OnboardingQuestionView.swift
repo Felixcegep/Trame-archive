@@ -335,11 +335,11 @@ struct OnboardingAnswerContent: View {
                     } label: {
                         Label(location.title, systemImage: location.icon)
                             .font(AppFont.footnoteMedium)
-                            .foregroundStyle(isSelected ? Color.white : Color.gymText)
+                            .foregroundStyle(isSelected ? Color.trameActionInk : Color.gymText)
                             .padding(.horizontal, Spacing.m)
                             .frame(minHeight: ComponentSize.minimumTouchTarget)
                             .background(
-                                isSelected ? Color.gymPrimaryDeep : Color.gymCard,
+                                isSelected ? Color.trameAction : Color.gymCard,
                                 in: Capsule(style: .continuous)
                             )
                             .contentShape(Capsule(style: .continuous))

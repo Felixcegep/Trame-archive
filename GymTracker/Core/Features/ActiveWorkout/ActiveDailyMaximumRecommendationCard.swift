@@ -24,7 +24,12 @@ struct ActiveDailyMaximumRecommendationCard: View {
 
     var body: some View {
         if let action {
-            GymCard(variant: .current, radius: Radius.medium) {
+            TrameColorField(
+                fill: Color.trameCurrent,
+                ink: Color.trameText,
+                border: Color.trameActionOutline,
+                radius: Radius.medium
+            ) {
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     Label("Daily maximum decision", systemImage: AppIcon.progression)
                         .font(AppFont.headlineSemibold)
@@ -35,7 +40,7 @@ struct ActiveDailyMaximumRecommendationCard: View {
 
                     Text(proposalText(action: action))
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
 
                     WhyButton(identifier: "active-daily-maximum-why-\(recommendation.id.uuidString)") {
@@ -44,7 +49,7 @@ struct ActiveDailyMaximumRecommendationCard: View {
 
                     VStack(spacing: Spacing.s) {
                         Button("Stop and add back-offs", action: onAccept)
-                            .buttonStyle(.gymPrimary)
+                            .buttonStyle(.tramePrimaryAction)
                             .frame(maxWidth: .infinity)
                             .accessibilityIdentifier(
                                 "active-daily-maximum-accept-\(recommendation.id.uuidString)"
@@ -58,12 +63,13 @@ struct ActiveDailyMaximumRecommendationCard: View {
                             )
                             .contentShape(Rectangle())
                             .buttonStyle(.plain)
-                            .foregroundStyle(Color.gymPrimary)
+                            .foregroundStyle(Color.trameText)
                             .accessibilityIdentifier(
                                 "active-daily-maximum-decline-\(recommendation.id.uuidString)"
                             )
                     }
                 }
+                .padding(Spacing.l)
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier(

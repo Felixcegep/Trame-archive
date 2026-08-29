@@ -55,7 +55,7 @@ enum PlanCalendarDisplayState: String, CaseIterable {
     var tint: Color {
         switch self {
         case .completed: .gymSuccess
-        case .available, .inProgress: .gymPrimary
+        case .available, .inProgress: .trameStrength
         case .missed: .gymDestructive
         case .upcoming, .skipped: .gymSubduedText
         }

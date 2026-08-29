@@ -75,7 +75,7 @@ struct TrainingJourneyView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Journey")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-journey-screen")
@@ -175,7 +175,7 @@ struct TrainingJourneyView: View {
             .padding(.vertical, Spacing.l)
         }
         .scrollIndicators(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
     }
 
     @ViewBuilder
@@ -186,7 +186,7 @@ struct TrainingJourneyView: View {
                 ProgressView()
                 Text("Reading your history…")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("training-journey-loading")
@@ -223,11 +223,11 @@ struct TrainingJourneyView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(chapter.title)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
 
                     Text(dateRangeText(chapter))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     if let statusText = chapter.statusText {
                         // Status is a word, never a colour alone — a paused run and
@@ -241,7 +241,7 @@ struct TrainingJourneyView: View {
 
                     Text(summaryText(chapter))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
 
                     if let disciplineSummary = TrainingJourneyChapterEvidencePresentation.summary(
@@ -249,7 +249,7 @@ struct TrainingJourneyView: View {
                     ) {
                         Text(disciplineSummary)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymDataEmphasis)
+                            .foregroundStyle(Color.trameText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -283,7 +283,7 @@ struct TrainingJourneyView: View {
             ProgressView()
             Text("Reading your history…")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityIdentifier("training-journey-loading")
@@ -396,26 +396,25 @@ struct TrainingJourneyChapterEvidenceView: View {
                     disciplineSection
                     evidenceSection(workoutsByID: workoutsByID)
                 } else {
-                    GymCard {
-                        ContentUnavailableView(
-                            String(localized: "training.journey.chapter.empty.title", defaultValue: "No completed exercise evidence"),
-                            systemImage: AppIcon.history,
-                            description: Text(String(localized: "training.journey.chapter.empty.detail", defaultValue: "This chapter has no completed exercise entries to classify."))
-                        )
-                    }
+                    ContentUnavailableView(
+                        String(localized: "training.journey.chapter.empty.title", defaultValue: "No completed exercise evidence"),
+                        systemImage: AppIcon.history,
+                        description: Text(String(localized: "training.journey.chapter.empty.detail", defaultValue: "This chapter has no completed exercise entries to classify."))
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 220)
                 }
 
                 Text(String(localized: "training.journey.chapter.method.note", defaultValue: "Disciplines come from the completed entry snapshot. Unclassified entries remain unclassified instead of being inferred from the current exercise catalogue."))
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("training-journey-chapter-method-note")
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
         }
         .scrollIndicators(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(String(localized: "training.journey.chapter.title", defaultValue: "Chapter evidence"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-journey-chapter-evidence")
@@ -425,13 +424,13 @@ struct TrainingJourneyChapterEvidenceView: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(chapter.title)
                 .font(AppFont.titleSmall)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(dateRangeText)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text(summaryText)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -439,30 +438,30 @@ struct TrainingJourneyChapterEvidenceView: View {
 
     private var disciplineSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(
-                title: String(localized: "training.journey.chapter.disciplines.title", defaultValue: "Recorded disciplines"),
-                detail: String(localized: "training.journey.chapter.disciplines.detail", defaultValue: "Descriptive distribution from completed exercise entries.")
-            )
+            TrameSectionRule(title: "Recorded disciplines")
+            Text(String(localized: "training.journey.chapter.disciplines.detail", defaultValue: "Descriptive distribution from completed exercise entries."))
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
 
-            GymCard {
+            VStack(spacing: 0) {
                 ForEach(presentation.slices) { slice in
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                             Text(slice.title)
                                 .font(AppFont.subheadlineSemibold)
-                                .foregroundStyle(Color.gymText)
+                                .foregroundStyle(Color.trameText)
                             Spacer(minLength: Spacing.s)
                             Text(slice.entryCountLabel)
                                 .font(AppFont.captionSemiboldMonospaced)
-                                .foregroundStyle(Color.gymDataEmphasis)
+                                .foregroundStyle(Color.trameText)
                         }
                         Text(slice.proportionLabel)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                         if slice.recordKindTitles.isEmpty == false {
                             Text(slice.recordKindTitles.joined(separator: " · "))
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                     .accessibilityElement(children: .combine)
@@ -470,7 +469,7 @@ struct TrainingJourneyChapterEvidenceView: View {
                     .accessibilityIdentifier("training-journey-discipline-\(slice.id)")
 
                     if slice.id != presentation.slices.last?.id {
-                        Divider()
+                        Divider().overlay(Color.trameSeparator)
                     }
                 }
             }
@@ -480,16 +479,16 @@ struct TrainingJourneyChapterEvidenceView: View {
 
     private func evidenceSection(workoutsByID: [UUID: Workout]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(
-                title: String(localized: "training.journey.chapter.evidence.title", defaultValue: "Source evidence"),
-                detail: String(localized: "training.journey.chapter.evidence.detail", defaultValue: "Completed workouts contributing to each recorded slice.")
-            )
+            TrameSectionRule(title: "Source evidence")
+            Text(String(localized: "training.journey.chapter.evidence.detail", defaultValue: "Completed workouts contributing to each recorded slice."))
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
 
             ForEach(presentation.slices) { slice in
-                GymCard {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     Text(slice.title)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     ForEach(slice.evidence) { source in
                         if let workout = workoutsByID[source.workoutID] {
                             NavigationLink {
@@ -503,6 +502,8 @@ struct TrainingJourneyChapterEvidenceView: View {
                         }
                     }
                 }
+                .padding(.vertical, Spacing.s)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
             }
         }
         .accessibilityIdentifier("training-journey-evidence-section")
@@ -511,19 +512,19 @@ struct TrainingJourneyChapterEvidenceView: View {
     private func sourceRow(workout: Workout, source: AnalyticsSourceReference) -> some View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: AppIcon.history)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(workout.displayTitle)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(workout.startTime, format: .dateTime.month(.abbreviated).day().year())
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 if let entryID = source.entryID {
                     Text(String(format: String(localized: "training.journey.chapter.evidence.entry", defaultValue: "Entry %@"), String(entryID.uuidString.prefix(8))))
                         .font(AppFont.caption2)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
         }
@@ -537,7 +538,7 @@ struct TrainingJourneyChapterEvidenceView: View {
             systemImage: AppIcon.info
         )
         .font(AppFont.caption)
-        .foregroundStyle(Color.gymSubduedText)
+        .foregroundStyle(Color.trameSubdued)
         .accessibilityLabel("\(String(localized: "training.journey.chapter.evidence.unavailable", defaultValue: "Completed workout evidence is unavailable")), \(source.workoutID.uuidString)")
     }
 

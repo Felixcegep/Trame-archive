@@ -16,50 +16,82 @@ struct PlanReviewView: View {
             Section {
                 Label {
                     Text("These changes update future prescriptions only. Completed workouts and their recorded history are not changed.")
-                        .font(AppFont.subheadline)
+                        .font(AppFont.body)
                 } icon: {
                     Image(systemName: AppIcon.info)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameActionDeep)
                 }
                 .accessibilityIdentifier("plan-review-future-only")
+                .padding(.vertical, Spacing.xs)
+            } header: {
+                TrameDomainSectionRule(title: "Change boundary", color: Color.trameAction)
             }
 
-            Section("Schedule summary") {
-                LabeledContent("Plan", value: draft.name)
-                LabeledContent("Weeks", value: "\(draft.weeks.count)")
-                LabeledContent("Training days", value: trainingDaysText)
-                LabeledContent("Equipment", value: draft.equipmentSummary)
-                LabeledContent("Phases", value: draft.phaseSummary)
+            Section {
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xxl) {
+                        TrameMetric(
+                            value: "\(draft.weeks.count)",
+                            label: "Weeks",
+                            accessibilityLabel: "\(draft.weeks.count) weeks"
+                        )
+                        TrameMetric(
+                            value: "\(Set(draft.weeks.flatMap { $0.workouts.map(\.dayOffset) }).count)",
+                            label: "Training days",
+                            accessibilityLabel: "\(trainingDaysText) training days"
+                        )
+                    }
+
+                    planField(title: "Plan", value: draft.name)
+                    planField(title: "Training days", value: trainingDaysText)
+                    planField(title: "Equipment", value: draft.equipmentSummary)
+                    planField(title: "Phases", value: draft.phaseSummary)
+                }
+                .padding(.vertical, Spacing.s)
+            } header: {
+                TrameDomainSectionRule(title: "Schedule summary", color: Color.trameStrength)
             }
 
-            Section("Plan phases") {
+            Section {
                 ForEach(draft.blocks) { block in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text("\(block.normalizedName) · \(block.weekSummary)")
-                            .font(AppFont.subheadlineSemibold)
+                            .font(AppFont.sectionTitle)
+                            .foregroundStyle(Color.trameText)
                         Text(block.phaseType.title)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                         if block.phaseType == .deload {
                             Text(block.deloadSummary)
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .font(AppFont.metadata)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
-                    .padding(.vertical, Spacing.xxs)
+                    .padding(.vertical, Spacing.s)
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(Color.trameSeparator)
+                            .frame(height: 1)
+                            .accessibilityHidden(true)
+                    }
                 }
+            } header: {
+                TrameDomainSectionRule(title: "Plan phases", color: Color.trameStrength)
             }
 
             if !warnings.isEmpty {
-                Section("Needs attention") {
+                Section {
                     ForEach(warnings, id: \.self) { warning in
                         Label(warning, systemImage: AppIcon.warning)
-                            .foregroundStyle(Color.gymDestructive)
+                            .foregroundStyle(Color.trameDestructiveText)
+                            .padding(.vertical, Spacing.xs)
                     }
+                } header: {
+                    TrameDomainSectionRule(title: "Needs attention", color: Color.trameAttention)
                 }
             }
 
-            Section("Upcoming workouts") {
+            Section {
                 ForEach(draft.weeks) { week in
                     DisclosureGroup("Week \(week.weekIndex + 1)") {
                         ForEach(week.workouts) { workout in
@@ -70,10 +102,12 @@ struct PlanReviewView: View {
                         }
                     }
                 }
+            } header: {
+                TrameDomainSectionRule(title: "Upcoming workouts", color: Color.trameStrength)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Review Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -127,6 +161,19 @@ struct PlanReviewView: View {
     private func dayName(for offset: Int) -> String {
         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][max(0, min(offset, 6))]
     }
+
+    @ViewBuilder
+    private func planField(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title.uppercased())
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+            Text(value)
+                .font(AppFont.body)
+                .foregroundStyle(Color.trameText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 struct PlanReviewWorkoutRow: View {
@@ -135,26 +182,27 @@ struct PlanReviewWorkoutRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack {
+            HStack(alignment: .firstTextBaseline) {
                 Text(workout.name)
-                    .font(AppFont.subheadlineSemibold)
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
                 Spacer()
                 Text(dayName)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             if workout.exercises.isEmpty {
                 Text("No exercises prescribed")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymDestructive)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameDestructiveText)
             } else {
                 ForEach(workout.exercises) { exercise in
                     PlanReviewExerciseRow(exercise: exercise)
                 }
             }
         }
-        .padding(.vertical, Spacing.xxs)
+        .padding(.vertical, Spacing.s)
     }
 }
 
@@ -165,30 +213,38 @@ struct PlanReviewExerciseRow: View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             if exercise.supersetGroupID != nil {
                 Label("Superset", systemImage: "link")
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameActionDeep)
             }
             Text(exercise.displayName)
-                .font(AppFont.captionBold)
+                .font(AppFont.bodyMedium)
+                .foregroundStyle(Color.trameText)
             Text(exercise.summary)
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
             if !exercise.plannedSets.isEmpty {
                 ForEach(Array(exercise.plannedSets.enumerated()), id: \.element.id) { index, set in
                     Label("Set \(index + 1) · \(set.summary)", systemImage: set.setType.icon)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .accessibilityIdentifier("plan-review-set-\(index + 1)-\(exercise.id.uuidString)")
                 }
             }
             Text("\(exercise.stimulus.title) stimulus")
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameStrength)
             if let alternatives = exercise.alternativesSummary {
                 Text("Alternatives: \(alternatives)")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
+        }
+        .padding(.vertical, Spacing.xs)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+                .accessibilityHidden(true)
         }
     }
 }

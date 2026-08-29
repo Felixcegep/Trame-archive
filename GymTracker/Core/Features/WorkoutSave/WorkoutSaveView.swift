@@ -8,7 +8,10 @@ struct WorkoutSaveView: View {
     @Binding var navigationPath: [ActiveWorkoutRoute]
     @Binding var isPresented: Bool
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
-    let onWorkoutSaved: (UUID) -> Void
+    /// Returns whether the root training cover should dismiss. A linked
+    /// post-workout mobility stage returns `false` so execution can continue
+    /// in the same cover after the strength evidence has been committed.
+    let onWorkoutSaved: (UUID) -> Bool
     let onDiscardRequested: () -> Void
 
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
@@ -17,6 +20,7 @@ struct WorkoutSaveView: View {
     /// Declining is a decision about this screen, not a permanent one — the
     /// cadence setting owns "never ask again".
     @State private var hasDismissedBodyWeightPrompt = false
+    @State private var isAddingBodyWeight = false
     @State private var isShowingDiscardConfirmation = false
     @State private var saveErrorMessage: String?
     /// Separate counters so success and failure can never fire together, and
@@ -30,7 +34,7 @@ struct WorkoutSaveView: View {
         navigationPath: Binding<[ActiveWorkoutRoute]>,
         isPresented: Binding<Bool>,
         activeLoggingMetrics: ActiveLoggingMetricsRecorder,
-        onWorkoutSaved: @escaping (UUID) -> Void,
+        onWorkoutSaved: @escaping (UUID) -> Bool,
         onDiscardRequested: @escaping () -> Void
     ) {
         self.workoutVM = workoutVM
@@ -64,12 +68,12 @@ struct WorkoutSaveView: View {
                 )
             }
         }
-        .foregroundStyle(Color.gymText)
-        .background(Color.gymBackground.ignoresSafeArea())
-        .tint(Color.gymPrimary)
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameCanvas.ignoresSafeArea())
+        .tint(Color.trameAction)
         .navigationTitle("Review and save")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.trameCanvas, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -90,6 +94,9 @@ struct WorkoutSaveView: View {
             Button("OK", role: .cancel) { saveErrorMessage = nil }
         } message: {
             Text(saveErrorMessage ?? "")
+        }
+        .sheet(isPresented: $isAddingBodyWeight) {
+            BodyWeightEditorSheet(entry: nil, source: .checkIn)
         }
         // Saving is the most significant thing that happens in this app and it
         // used to end in a silent dismissal — visually identical to discarding
@@ -114,7 +121,7 @@ struct WorkoutSaveView: View {
             
             Image(systemName: AppIcon.warningFill)
                 .font(AppFont.displayLarge)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameAttention)
                 
             VStack(spacing: Spacing.s) {
                 Text("Empty Session")
@@ -122,7 +129,7 @@ struct WorkoutSaveView: View {
                     .multilineTextAlignment(.center)
                 Text("No sets have been completed. Add exercises and complete sets to log your training.")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.l)
                 repeatingPlanSaveContext(for: workout)
@@ -137,7 +144,7 @@ struct WorkoutSaveView: View {
                 } label: {
                     Text("Return to Workout")
                 }
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.tramePrimaryAction)
                 
                 Button("Discard Workout", role: .destructive) {
                     isShowingDiscardConfirmation = true
@@ -169,14 +176,14 @@ struct WorkoutSaveView: View {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Image(systemName: hasIncomplete ? "square.and.pencil" : AppIcon.checkmarkCircle)
                         .font(AppFont.title)
-                        .foregroundStyle(hasIncomplete ? Color.gymPrimary : Color.gymSecondary)
+                        .foregroundStyle(hasIncomplete ? Color.trameStrength : Color.trameCompleted)
                     Text(hasIncomplete ? "Ready to save?" : "Nice work.")
                         .font(AppFont.displayMedium)
                     Text(hasIncomplete 
                          ? "Only completed sets will be saved to History. Incomplete sets will be excluded."
                          : "Give this session a name, then save it to your history.")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                     repeatingPlanSaveContext(for: workout)
                 }
 
@@ -184,7 +191,7 @@ struct WorkoutSaveView: View {
                     Text("WORKOUT NAME")
                         .font(AppFont.captionBold)
                         .tracking(0.8)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                     TextField(
                         workout.displayTitle,
                         text: Binding(
@@ -194,7 +201,7 @@ struct WorkoutSaveView: View {
                     )
                     .font(AppFont.titleSmallSemibold)
                     .padding(Spacing.l)
-                    .background(Color.gymCard)
+                    .background(Color.trameSurface)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 }
 
@@ -206,7 +213,7 @@ struct WorkoutSaveView: View {
                     Text("NOTES")
                         .font(AppFont.captionBold)
                         .tracking(0.8)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: Binding(
@@ -220,17 +227,17 @@ struct WorkoutSaveView: View {
                         if !hasNotes(for: workout) {
                             Text("Add a note…")
                                 .font(AppFont.body)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                                 .padding(.horizontal, Spacing.l + Spacing.md)
                                 .padding(.vertical, Spacing.l)
                                 .allowsHitTesting(false)
                         }
                     }
-                    .background(Color.gymCard)
+                    .background(Color.trameSurface)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                            .stroke(Color.gymBorder, lineWidth: 1)
+                            .stroke(Color.trameSeparator, lineWidth: 1)
                     }
                 }
 
@@ -242,7 +249,7 @@ struct WorkoutSaveView: View {
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.md) {
                 // The exclusion only. The button beneath now names what *is*
@@ -254,7 +261,7 @@ struct WorkoutSaveView: View {
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameAttention)
                     .accessibilityLabel("\(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded from History.")
                 }
 
@@ -277,7 +284,7 @@ struct WorkoutSaveView: View {
                         systemImage: AppIcon.save
                     )
                 }
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("save-workout")
 
                 Button("Discard workout", role: .destructive) {
@@ -287,7 +294,12 @@ struct WorkoutSaveView: View {
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.m)
-            .background(.ultraThinMaterial)
+            .background(Color.trameSurface)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+            }
         }
         .confirmationDialog(
             "Discard this workout?",
@@ -306,10 +318,10 @@ struct WorkoutSaveView: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Label("Rotation: \(repeatingPlanName)", systemImage: AppIcon.routine)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymSecondary)
+                    .foregroundStyle(Color.trameCompleted)
                 Text("When this workout saves successfully, the rotation advances to the next workout.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(
@@ -370,18 +382,22 @@ struct WorkoutSaveView: View {
             Divider().frame(height: 38)
             summaryMetric(value: "\(review.completedSetCount)", label: "Sets saved")
         }
-        .padding(.vertical, Spacing.xl - 2)
-        .background(Color.gymMutedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .padding(.vertical, Spacing.l)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
     }
 
     private func summaryMetric(value: String, label: String) -> some View {
         VStack(spacing: Spacing.xs) {
             Text(value)
-                .font(AppFont.headlineMonospaced)
+                .font(AppFont.metricLarge)
             Text(label)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity)
     }
@@ -391,13 +407,13 @@ struct WorkoutSaveView: View {
             Text("SESSION SUMMARY")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             ForEach(review.exercises) { item in
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: AppIcon.checkmarkCircle)
-                            .foregroundStyle(Color.gymSecondary)
+                            .foregroundStyle(Color.trameCompleted)
 
                         Text(item.exercise.exercise.name)
                             .font(AppFont.subheadlineSemibold)
@@ -406,7 +422,7 @@ struct WorkoutSaveView: View {
 
                         Text("\(item.savedSets.count) saved")
                             .font(AppFont.subheadlineMonospaced)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                     .padding(Spacing.m)
 
@@ -425,7 +441,7 @@ struct WorkoutSaveView: View {
                             HStack(spacing: Spacing.s) {
                                 Text("Set \(index + 1)")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
 
                                 Spacer()
 
@@ -434,7 +450,7 @@ struct WorkoutSaveView: View {
 
                                 Image(systemName: AppIcon.checkmark)
                                     .font(AppFont.caption2Bold)
-                                    .foregroundStyle(Color.gymSecondary)
+                                    .foregroundStyle(Color.trameCompleted)
                             }
                             .padding(.horizontal, Spacing.m + 2)
                             .padding(.vertical, Spacing.xxs)
@@ -445,16 +461,16 @@ struct WorkoutSaveView: View {
                     if item.incompleteSetCount > 0 {
                         Label("\(item.incompleteSetCount) incomplete • excluded from History", systemImage: AppIcon.warningCircle)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymAccent)
+                            .foregroundStyle(Color.trameAttention)
                             .padding(.horizontal, Spacing.m + 2)
                             .padding(.bottom, Spacing.m)
                     }
                 }
-                .background(Color.gymCard)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .stroke(Color.gymBorder, lineWidth: 1)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
                 }
             }
         }
@@ -553,9 +569,11 @@ struct WorkoutSaveView: View {
         saveSucceededCount += 1
         GymAnnouncement.post(savedAnnouncement)
         activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
-        onWorkoutSaved(workoutID)
+        let shouldDismissTraining = onWorkoutSaved(workoutID)
         navigationPath.removeAll()
-        isPresented = false
+        if shouldDismissTraining {
+            isPresented = false
+        }
     }
 
     /// Reports what was actually written, using the counts recorded by the save
@@ -587,11 +605,11 @@ struct WorkoutSaveView: View {
                 } icon: {
                     Image(systemName: AppIcon.bodyWeight)
                 }
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameAttentionInk)
 
                 Text(bodyWeightPromptDetail)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameAttentionInk)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: Spacing.s) {
@@ -605,26 +623,49 @@ struct WorkoutSaveView: View {
                             Text("Still \(Formatters.formatFloat(latest.value)) \(latest.unit.rawValue)")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.gymPrimary)
+                        .buttonStyle(.tramePrimaryAction)
                         .accessibilityIdentifier("confirm-body-weight")
+                    } else {
+                        // With no previous reading there is nothing to
+                        // confirm, and the prompt used to offer only a way out
+                        // — an ask with no way to answer it.
+                        Button {
+                            isAddingBodyWeight = true
+                        } label: {
+                            Text("Add weight")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.tramePrimaryAction)
+                        .accessibilityIdentifier("prompt-add-body-weight")
                     }
 
-                    Button("Not now") {
+                    Button {
                         hasDismissedBodyWeightPrompt = true
+                    } label: {
+                        Text("Not now")
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameAttentionInk)
+                            .frame(maxWidth: .infinity, minHeight: 54)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                    .stroke(Color.trameAttentionInk.opacity(0.4), lineWidth: 1)
+                            }
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.gymOutline)
+                    .buttonStyle(.gymPress)
                     .accessibilityIdentifier("dismiss-body-weight-prompt")
                 }
             }
             .padding(Spacing.l)
-            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .background(Color.trameAttention, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .foregroundStyle(Color.trameAttentionInk)
             .accessibilityIdentifier("body-weight-prompt")
         }
     }
 
     private var bodyWeightPromptDetail: String {
         guard let latest = latestBodyWeightEntries.first else {
-            return String(localized: "This session included bodyweight work. Recording your weight lets the app show total load. You can add it in Settings.")
+            return String(localized: "This session included bodyweight work. Recording your weight lets the app show total load.")
         }
         let days = Calendar.current.dateComponents([.day], from: latest.measuredAt, to: .now).day ?? 0
         return String(localized: "This session included bodyweight work. Last recorded \(days) days ago — confirming keeps total load accurate.")
@@ -671,7 +712,7 @@ struct WorkoutSaveView: View {
             Text("SPORT")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             ChipFlowLayout(spacing: Spacing.xs) {
                 ForEach(offered) { sport in
@@ -681,7 +722,7 @@ struct WorkoutSaveView: View {
 
             Text(sportCaption(for: workout, suggestion: suggestion))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .accessibilityIdentifier("workout-sport-section")
         .onAppear {
@@ -714,12 +755,12 @@ struct WorkoutSaveView: View {
                 }
             }
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(isSelected ? Color.white : Color.gymPrimary)
+            .foregroundStyle(isSelected ? Color.trameActionInk : Color.trameText)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(isSelected ? Color.gymPrimaryDeep : Color.gymCard, in: Capsule())
+            .background(isSelected ? Color.trameAction : Color.trameRow, in: Capsule())
             .overlay {
-                Capsule().stroke(isSelected ? Color.clear : Color.gymBorder, lineWidth: 1)
+                Capsule().stroke(isSelected ? Color.trameActionOutline : Color.trameSeparator, lineWidth: 1)
             }
             .contentShape(Capsule())
         }

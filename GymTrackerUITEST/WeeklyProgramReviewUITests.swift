@@ -15,17 +15,25 @@ final class WeeklyProgramReviewUITests: GymTrackerUITestCase {
         selectTab(.train, in: app)
         openReview("current-plan-weekly-review", in: app)
         assertReviewHeaderAndSetSummary(in: app)
-        app.navigationBars.buttons.firstMatch.tap()
+        let trainReviewBack = app.navigationBars["Weekly review"].buttons["BackButton"].firstMatch
+        XCTAssertTrue(trainReviewBack.waitForExistence(timeout: 5))
+        XCTAssertTrue(trainReviewBack.isHittable)
+        trainReviewBack.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["weekly-review-screen"].waitForNonExistence(timeout: 5))
 
         openPlans(.following, in: app)
         tapButton("plan-row-Program Path Fixed Fixture", in: app)
         openReview("view-plan-weekly-review", in: app)
         assertReviewHeaderAndSetSummary(in: app)
-        app.navigationBars.buttons.firstMatch.tap()
+        let planReviewBack = app.navigationBars["Weekly review"].buttons["BackButton"].firstMatch
+        XCTAssertTrue(planReviewBack.waitForExistence(timeout: 5))
+        XCTAssertTrue(planReviewBack.isHittable)
+        planReviewBack.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["weekly-review-screen"].waitForNonExistence(timeout: 5))
 
-        let programPath = app.buttons["view-plan-program-path"].firstMatch
-        scrollToElement(programPath, in: app)
-        programPath.tap()
+        XCTAssertTrue(app.navigationBars["Plans"].waitForExistence(timeout: 5))
+        tapButton("plan-row-Program Path Fixed Fixture", in: app)
+        tapButton("plan-segment-path", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["program-path-fixed-screen"].waitForExistence(timeout: 8))
         openReview("program-path-weekly-review", in: app)
         assertReviewHeaderAndSetSummary(in: app)

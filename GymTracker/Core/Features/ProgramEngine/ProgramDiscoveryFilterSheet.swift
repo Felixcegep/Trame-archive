@@ -92,7 +92,7 @@ struct ProgramDiscoveryFilterSheet: View {
                 Spacer()
                 if isSelected {
                     Image(systemName: AppIcon.checkmark)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameAction)
                         .accessibilityHidden(true)
                 }
             }

@@ -188,9 +188,10 @@ struct HomeView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.xl)
+            .padding(.bottom, Spacing.xxxl)
         }
         .scrollIndicators(.hidden)
+        .contentMargins(.bottom, ComponentSize.tabBarClearance, for: .scrollContent)
         .foregroundStyle(Color.trameText)
         .background(Color.trameCanvas)
         .tint(Color.trameStrength)

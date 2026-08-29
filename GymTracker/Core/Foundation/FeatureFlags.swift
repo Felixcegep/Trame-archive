@@ -144,7 +144,7 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     static func defaultMatrix(for buildChannel: FeatureFlagBuildChannel) -> Set<FeatureFlag> {
         switch buildChannel {
         case .internalDevelopment:
-            return Set(FeatureFlag.allCases).subtracting([.nutrition])
+            return Set(FeatureFlag.allCases)
         case .beta:
             return currentWave
         case .release:
@@ -157,7 +157,7 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
         .subtracting([
             .mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration,
-            .nutrition, .sportSpecializations
+            .sportSpecializations
         ])
 
     /// What general availability ships. Today: exactly what beta ships.
@@ -179,12 +179,9 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// because it is a real staged option and selectable by launch argument. It
     /// is not the default: `currentWave` is, and it is wider than this.
     ///
-    /// (An earlier version of this comment claimed the live TestFlight build
-    /// ships Mobility and Nutrition. It does not, and did not: `currentWave`
-    /// subtracts `.mobilityAssessment`, `.mobilityProgram` and `.nutrition`.
-    /// The claim is removed rather than corrected in place because a comment
-    /// asserting what testers can see, sitting next to the set that decides it,
-    /// is a second source of truth that will drift again.)
+    /// `currentWave` withholds unfinished surfaces (mobility assessment/program,
+    /// recipe generation, workout generation, sport specializations). Nutrition
+    /// ships with the beta wave once its Today logging loop is verified.
     static let coreReliabilityOnly: Set<FeatureFlag> = [.today, .betaFeedback]
 
     /// Fails a dependent flag closed whenever its prerequisite is disabled,

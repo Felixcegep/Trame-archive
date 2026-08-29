@@ -88,6 +88,7 @@ struct RootView: View {
                 todayRoot
                 .navigationDestination(for: TodayRoute.self, destination: todayDestination)
             }
+            .clearingTabBar()
             .tabItem {
                 tabLabel(for: .today)
             }
@@ -97,6 +98,7 @@ struct RootView: View {
                 trainRoot
                 .navigationDestination(for: LibraryRoute.self, destination: libraryDestination)
             }
+            .clearingTabBar()
             .id(trainNavigationID)
             .tabItem {
                 tabLabel(for: .train)
@@ -117,6 +119,7 @@ struct RootView: View {
                             }
                         }
                 }
+                .clearingTabBar()
                 .tabItem {
                     tabLabel(for: .nutrition)
                 }
@@ -153,6 +156,7 @@ struct RootView: View {
                         }
                     }
             }
+            .clearingTabBar()
             .tabItem {
                 tabLabel(for: .progress)
             }
@@ -281,37 +285,12 @@ struct RootView: View {
         .sheet(isPresented: $isShowingUITestCaffeineQuickLog) {
             CaffeineQuickLogSheet()
         }
-        .confirmationDialog(
-            "An active workout is already in progress",
-            isPresented: $activeSessionRouter.isShowingActiveWorkoutConflictAlert,
-            titleVisibility: .visible
-        ) {
-            Button("Resume Active Workout") {
-                activeSessionRouter.isShowingActiveWorkout = true
-                activeSessionRouter.pendingWorkoutStart = nil
-                pendingCompetitionDayWorkout = nil
+        // A custom overlay rather than `.alert`: UIKit alert preferred-actions
+        // still render system blue, which is not a Trame action colour.
+        .overlay {
+            if activeSessionRouter.isShowingActiveWorkoutConflictAlert {
+                activeWorkoutConflictOverlay
             }
-            Button("Discard & Start New", role: .destructive) {
-                let pendingStart = activeSessionRouter.pendingWorkoutStart
-                let pendingCompetition = pendingCompetitionDayWorkout
-                activeSessionRouter.pendingWorkoutStart = nil
-                pendingCompetitionDayWorkout = nil
-                activeLoggingMetrics.workoutDiscarded()
-                workoutVM.discardActiveWorkout(using: modelContext)
-                if workoutVM.hasActiveWorkout {
-                    activeSessionRouter.isShowingActiveWorkout = true
-                } else if let pendingStart {
-                    requestWorkoutPreparation(for: pendingStart)
-                } else if let pendingCompetition {
-                    startCompetitionDay(pendingCompetition)
-                }
-            }
-            Button("Cancel", role: .cancel) {
-                activeSessionRouter.pendingWorkoutStart = nil
-                pendingCompetitionDayWorkout = nil
-            }
-        } message: {
-            Text("Do you want to continue your active workout, or discard it and start a new one?")
         }
         .confirmationDialog(
             guidedSourceCoordinator.guidedSourceSwitchTitle,
@@ -776,6 +755,88 @@ struct RootView: View {
         )
     }
 
+    private var activeWorkoutConflictOverlay: some View {
+        ZStack {
+            Color.trameText
+                .opacity(0.55)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .onTapGesture(perform: cancelActiveWorkoutConflict)
+
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                Text("An active workout is already in progress")
+                    .font(AppFont.titleSmallSemibold)
+                    .foregroundStyle(Color.trameText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Continue this session, or discard it and start a new one.")
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: Spacing.s) {
+                    Button("Resume", action: resumeActiveWorkoutFromConflict)
+                        .accessibilityIdentifier("conflict-resume-workout")
+                        .buttonStyle(.tramePrimaryAction)
+
+                    Button("Discard & Start New", role: .destructive, action: discardActiveWorkoutFromConflict)
+                        .font(AppFont.sectionTitle)
+                        .foregroundStyle(Color.trameDestructiveText)
+                        .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("conflict-discard-and-start")
+                        .buttonStyle(.gymPress)
+
+                    Button("Cancel", action: cancelActiveWorkoutConflict)
+                        .font(AppFont.sectionTitle)
+                        .foregroundStyle(Color.trameText)
+                        .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
+                        .contentShape(Rectangle())
+                        .accessibilityIdentifier("conflict-cancel")
+                        .buttonStyle(.gymPress)
+                }
+            }
+            .padding(Spacing.xl)
+            .background(
+                Color.trameCanvas,
+                in: RoundedRectangle(cornerRadius: Radius.hero, style: .continuous)
+            )
+            .padding(.horizontal, Spacing.screenInset)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+    }
+
+    private func resumeActiveWorkoutFromConflict() {
+        activeSessionRouter.isShowingActiveWorkoutConflictAlert = false
+        activeSessionRouter.isShowingActiveWorkout = true
+        activeSessionRouter.pendingWorkoutStart = nil
+        pendingCompetitionDayWorkout = nil
+    }
+
+    private func discardActiveWorkoutFromConflict() {
+        let pendingStart = activeSessionRouter.pendingWorkoutStart
+        let pendingCompetition = pendingCompetitionDayWorkout
+        activeSessionRouter.isShowingActiveWorkoutConflictAlert = false
+        activeSessionRouter.pendingWorkoutStart = nil
+        pendingCompetitionDayWorkout = nil
+        activeLoggingMetrics.workoutDiscarded()
+        workoutVM.discardActiveWorkout(using: modelContext)
+        if workoutVM.hasActiveWorkout {
+            activeSessionRouter.isShowingActiveWorkout = true
+        } else if let pendingStart {
+            requestWorkoutPreparation(for: pendingStart)
+        } else if let pendingCompetition {
+            startCompetitionDay(pendingCompetition)
+        }
+    }
+
+    private func cancelActiveWorkoutConflict() {
+        activeSessionRouter.isShowingActiveWorkoutConflictAlert = false
+        activeSessionRouter.pendingWorkoutStart = nil
+        pendingCompetitionDayWorkout = nil
+    }
+
     /// Reports what the save actually wrote, from the counts the save itself
     /// recorded. They cannot be recomputed once `activeWorkout` is cleared.
     private func savedWorkoutMessage() -> GymStatusMessage {
@@ -1219,6 +1280,7 @@ struct RootView: View {
         // root frame. Keeping this work in the view-owned task also prevents a
         // cancelled/recreated root from starting duplicate maintenance waves.
         WatchCompanionConnectivityCoordinator.shared.activate(container: modelContext.container)
+        GarminPingPongCoordinator.shared.activate(container: modelContext.container)
     }
 
     /// Applies whatever a UI-test launch asked for. Every field is optional so
@@ -1294,8 +1356,20 @@ struct RootView: View {
     }
 
     private func isLinkedMobilityStage(_ session: MobilitySession) -> Bool {
-        guard session.workoutID != nil else { return false }
-        return session.context == .warmup || session.context == .cooldown
+        guard let workoutID = session.workoutID else { return false }
+
+        switch session.context {
+        case .warmup:
+            // A warm-up belongs in the training shell only while its draft is
+            // still the root-owned Active Workout.
+            return workoutVM.activeWorkout?.id == workoutID
+        case .cooldown:
+            // Strength is committed before cooldown starts, so there is no
+            // active draft to compare. Its performed workout must still exist.
+            return linkedWorkout(for: session) != nil
+        case .standalone:
+            return false
+        }
     }
 
     private func linkedWorkout(for session: MobilitySession) -> Workout? {
@@ -1982,6 +2056,15 @@ private extension View {
     /// boundary while assigning the selected tab/native control tint.
     func rootTabTint() -> some View {
         tint(Color.trameAction)
+    }
+
+    /// Opaque tab bar on canvas so list rows do not read as sliding under
+    /// chrome. Scroll clearance belongs on each tab root's scroll content via
+    /// `contentMargins(.bottom, …, for: .scrollContent)` — not a solid
+    /// `safeAreaInset`, which renders as a permanent bar in both Pale and Dark.
+    func clearingTabBar() -> some View {
+        toolbarBackground(Color.trameCanvas, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
     }
 }
 

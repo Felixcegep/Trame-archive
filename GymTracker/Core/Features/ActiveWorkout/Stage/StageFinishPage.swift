@@ -24,10 +24,13 @@ struct StageFinishPage: View {
                     emptyWorkoutState
                 } else {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        GymEyebrow("End of session")
-                        Text("Ready to finish")
+                        Text(blockers.isEmpty ? "SESSION COMPLETE" : "REVIEW SESSION")
+                            .font(AppFont.eyebrow)
+                            .tracking(0.9)
+                            .foregroundStyle(Color.trameSubdued)
+                        Text(blockers.isEmpty ? "Ready to save" : "Finish the remaining work")
                             .font(AppFont.stageTitle)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                     }
 
                     summaryCard
@@ -35,13 +38,13 @@ struct StageFinishPage: View {
                     ForEach(blockers, id: \.self) { blocker in
                         Label(blocker, systemImage: AppIcon.warning)
                             .font(AppFont.footnote)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Spacing.m)
-                            .background(
-                                Color.gymAccentSurface,
-                                in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                            )
+                            .padding(.leading, Spacing.m)
+                            .padding(.vertical, Spacing.s)
+                            .overlay(alignment: .leading) {
+                                Rectangle().fill(Color.trameAttention).frame(width: 4)
+                            }
                             .accessibilityIdentifier("finish-blocker")
                     }
 
@@ -56,15 +59,18 @@ struct StageFinishPage: View {
     }
 
     private var emptyWorkoutState: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            GymEyebrow("New workout")
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            Text("NEW WORKOUT")
+                .font(AppFont.eyebrow)
+                .tracking(0.9)
+                .foregroundStyle(Color.trameSubdued)
             Text("Add your first exercise")
                 .font(AppFont.stageTitle)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .accessibilityAddTraits(.isHeader)
-            Text("Build today’s session one exercise at a time. You can add more or reorder them as you go.")
+            Text("Add exercises as you go. Reorder from More.")
                 .font(AppFont.body)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityIdentifier("empty-workout-state")
@@ -78,7 +84,7 @@ struct StageFinishPage: View {
                 accessibilityLabel: "Elapsed time"
             )
 
-            Divider().frame(height: 40).overlay(Color.gymBorder)
+            Divider().frame(height: 48).overlay(Color.trameSeparator)
 
             summaryMetric(
                 value: Text("\(workout.completedSetCount)/\(workout.totalSetCount)"),
@@ -86,7 +92,7 @@ struct StageFinishPage: View {
                 accessibilityLabel: "\(workout.completedSetCount) of \(workout.totalSetCount) sets logged"
             )
 
-            Divider().frame(height: 40).overlay(Color.gymBorder)
+            Divider().frame(height: 48).overlay(Color.trameSeparator)
 
             summaryMetric(
                 value: Text("\(workout.exercises.count)"),
@@ -94,13 +100,10 @@ struct StageFinishPage: View {
                 accessibilityLabel: CountPhrase.exercises(workout.exercises.count)
             )
         }
-        .padding(.vertical, Spacing.l)
+        .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
-        }
+        .overlay(alignment: .top) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.trameSeparator).frame(height: 1) }
         .accessibilityIdentifier("finish-summary")
     }
 
@@ -111,13 +114,13 @@ struct StageFinishPage: View {
     ) -> some View {
         VStack(spacing: Spacing.xxs) {
             value
-                .font(AppFont.titleMedium)
+                .font(AppFont.metricLarge)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(label)
                 .font(AppFont.caption2Bold)
                 .tracking(0.55)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
@@ -130,7 +133,7 @@ struct StageFinishPage: View {
     /// in the flow where seeing the whole session is the actual task.
     private var exerciseBreakdown: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymEyebrow("Session")
+            TrameSectionRule(title: "Exercises")
 
             ForEach(workout.orderedExercises, id: \.persistentModelID) { entry in
                 let completed = entry.orderedSets.filter(\.done).count
@@ -143,22 +146,22 @@ struct StageFinishPage: View {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: isComplete ? AppIcon.checkmarkCircle : AppIcon.circle)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(isComplete ? Color.gymSecondary : Color.gymSubduedText)
+                            .foregroundStyle(isComplete ? Color.trameCompleted : Color.trameSubdued)
 
                         Text(entry.occurrenceDisplayName)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .lineLimit(1)
 
                         Spacer(minLength: Spacing.s)
 
                         Text("\(completed)/\(total)")
                             .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
 
                         Image(systemName: AppIcon.chevronRight)
                             .font(AppFont.caption2Bold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .contentShape(Rectangle())

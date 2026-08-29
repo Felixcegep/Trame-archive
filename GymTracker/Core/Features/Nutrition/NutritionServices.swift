@@ -185,6 +185,68 @@ enum NutritionLoggingService {
         return save(copied, using: context) ? copied : nil
     }
 
+    /// Corrects user-entered consumption without mutating frozen truth or
+    /// consulting the mutable food library. A replacement meal and item are
+    /// created from the existing snapshot, and the old graph is deleted in the
+    /// same save.
+    @discardableResult
+    static func updateSingleFoodMeal(
+        _ meal: LoggedMeal,
+        quantity: Double,
+        slot: MealSlot,
+        using context: ModelContext
+    ) -> Bool {
+        guard (0.25...20).contains(quantity), meal.items.count == 1, let item = meal.items.first,
+              item.quantity > 0 else { return false }
+        let multiplier = quantity / item.quantity
+        let replacement = LoggedMeal(
+            day: LocalDay(rawValue: meal.dayKey),
+            slot: slot,
+            loggedAt: meal.loggedAt,
+            nameSnapshot: meal.nameSnapshot,
+            sourceMealTemplateID: meal.sourceMealTemplateID,
+            sourceMealTemplateName: meal.sourceMealTemplateName
+        )
+        replacement.items = [LoggedMealItem(
+            sourceFoodID: item.sourceFoodID,
+            foodNameSnapshot: item.foodNameSnapshot,
+            servingNameSnapshot: item.servingNameSnapshot,
+            quantity: quantity,
+            portionAmountSnapshot: item.portionAmountSnapshot,
+            portionUnit: item.portionUnit,
+            caloriesSnapshot: item.caloriesSnapshot.map { $0 * multiplier },
+            proteinGramsSnapshot: item.proteinGramsSnapshot.map { $0 * multiplier },
+            carbohydrateGramsSnapshot: item.carbohydrateGramsSnapshot.map { $0 * multiplier },
+            fatGramsSnapshot: item.fatGramsSnapshot.map { $0 * multiplier },
+            caffeineMilligramsSnapshot: item.caffeineMilligramsSnapshot.map { $0 * multiplier },
+            sourceKind: FoodSourceKind(rawValue: item.sourceKindRaw) ?? .userCreated,
+            confidence: FoodConfidence(rawValue: item.confidenceRaw) ?? .userProvided,
+            preparationState: FoodPreparationState(rawValue: item.preparationStateRaw) ?? .raw,
+            orderIndex: item.orderIndex
+        )]
+        context.insert(replacement)
+        context.delete(meal)
+        do {
+            try context.save()
+            return true
+        } catch {
+            context.rollback()
+            return false
+        }
+    }
+
+    @discardableResult
+    static func delete(_ meal: LoggedMeal, using context: ModelContext) -> Bool {
+        context.delete(meal)
+        do {
+            try context.save()
+            return true
+        } catch {
+            context.rollback()
+            return false
+        }
+    }
+
     static func snapshot(food: FoodItem, portion: FoodPortion, quantity: Double, orderIndex: Int) -> LoggedMealItem {
         let multiplier = quantity * portion.equivalentReferenceAmount / food.referenceAmount
         return LoggedMealItem(

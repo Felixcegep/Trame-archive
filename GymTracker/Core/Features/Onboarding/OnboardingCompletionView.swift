@@ -54,7 +54,7 @@ struct OnboardingCompletionView: View {
 
             VStack(spacing: Spacing.s) {
                 Button("View today’s training", action: onOpenToday)
-                    .buttonStyle(.gymPrimaryProminent)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("onboarding-open-today")
 
                 if let onReviewPlan {

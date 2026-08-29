@@ -59,7 +59,9 @@ enum EquipmentLoadRounding {
             return unit == .kg ? 5 : 5
         case .medicineBall:
             return unit == .kg ? 1 : 2
-        case .bodyweight, .cardioMachine, .other, .none:
+        case .sandbag, .sled:
+            return unit == .kg ? 5 : 10
+        case .battleRopes, .rings, .bodyweight, .cardioMachine, .other, .none:
             return nil
         }
     }

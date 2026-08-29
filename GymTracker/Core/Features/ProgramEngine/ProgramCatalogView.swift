@@ -412,7 +412,7 @@ struct ProgramCatalogDetailView: View {
                                         systemImage: AppIcon.relationship
                                     )
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymPrimary)
+                                    .foregroundStyle(Color.trameAction)
                                 }
                             }
                         }
@@ -505,21 +505,17 @@ struct ProgramCatalogDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("program-catalog-error")
             }
-            // The app's own prominent style, not the system's.
-            //
-            // This was `.borderedProminent` at `.large` — the one committing
-            // action in discovery drawn by a different set of rules than every
-            // other committing action in the app. `gymPrimaryProminent` is what
-            // Finish Workout and every onboarding CTA already use: a 54pt pill
-            // on `gymPrimaryDeep` (chosen because white on `gymPrimary` misses
-            // AA for a 17pt label), and a disabled state that outlines rather
-            // than fading the fill.
+            // The app's own dominant command, not the system's: the one
+            // committing action in discovery is drawn by the same rules as
+            // Finish Workout and every other commit. The play glyph went with
+            // it — it decorated a label that already names the action, and
+            // promised an immediate start this button does not perform.
             Button {
                 isShowingSetup = true
             } label: {
-                Label("Use this plan", systemImage: AppIcon.play)
+                Text("Use this plan")
             }
-            .buttonStyle(.gymPrimaryProminent)
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("use-program")
         }
         .padding(.horizontal, Spacing.xl)

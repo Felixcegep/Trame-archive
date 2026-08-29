@@ -281,10 +281,10 @@ struct MealTemplateEditorView: View {
         switch availability {
         case .fullyAvailable, .textOnly:
             photoControl
-            Text("Prototype — generated results may be inaccurate. Review all foods and quantities before saving.")
+            Text("Generated draft · check quantities")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
-                .accessibilityLabel("Prototype. Generated results may be inaccurate. Review all foods and quantities before saving.")
+                .foregroundStyle(Color.trameSubdued)
+                .accessibilityLabel("Generated draft. Check the foods and quantities before saving.")
             generateButton
         case .modelDownloading:
             Text("Recipe generation will be available when setup finishes.")
@@ -336,13 +336,9 @@ struct MealTemplateEditorView: View {
             Text("Optional — helps identify the recipe and ingredients.")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
-        } else {
-            Label("Add one photo", systemImage: AppIcon.recipePhoto)
-                .foregroundStyle(Color.gymSubduedText)
-            Text("Recipe generation from photos isn’t available on this device.")
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
         }
+        // `.textOnly` still generates from a name. Do not claim photos are
+        // broken on that path — the generate control below is the prototype.
     }
 
     private var generateButton: some View {

@@ -13,11 +13,17 @@ struct ProgressionRecommendationCard: View {
     @State private var isShowingWhy = false
 
     var body: some View {
-        GymCard(variant: .current, radius: Radius.medium) {
+        TrameColorField(
+            fill: Color.trameCurrent,
+            ink: Color.trameText,
+            border: Color.trameActionOutline,
+            radius: Radius.medium
+        ) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
             HStack(alignment: .firstTextBaseline) {
                 Label("Progression recommendation", systemImage: AppIcon.progression)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
 
                 Spacer()
 
@@ -32,6 +38,8 @@ struct ProgressionRecommendationCard: View {
             case .insufficientHistory:
                 insufficientHistoryContent
             }
+            }
+            .padding(Spacing.l)
         }
         // Keep the card addressable as a screenshot state without hiding its
         // action buttons from VoiceOver and UI tests.
@@ -55,7 +63,7 @@ struct ProgressionRecommendationCard: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text(presentation.explanation)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
 
             if presentation.decision == .increase {
@@ -74,7 +82,7 @@ struct ProgressionRecommendationCard: View {
                     Text("Keep \(presentation.priorLoadText)")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("keep-last-recommendation-\(exerciseName)")
             }
 
@@ -95,7 +103,7 @@ struct ProgressionRecommendationCard: View {
             Text("Accept \(presentation.appliedLoadText)")
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.gymPrimary)
+        .buttonStyle(.tramePrimaryAction)
         .accessibilityIdentifier("accept-recommendation-\(exerciseName)")
 
         Button {
@@ -113,7 +121,7 @@ struct ProgressionRecommendationCard: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text("No recommendation yet. Complete this workout to establish your progression history.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
@@ -122,7 +130,7 @@ struct ProgressionRecommendationCard: View {
                 Text("Enter starting weight")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.gymPrimary)
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("enter-starting-weight-\(exerciseName)")
         }
     }

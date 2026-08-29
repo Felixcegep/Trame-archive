@@ -26,6 +26,8 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
     let equipment: String?
     let resistanceType: String?
     let movementPattern: String?
+    let movementPatterns: [String]
+    let forceType: String?
     let difficulty: String?
     let tags: [String]
     let primaryMuscles: [String]
@@ -50,6 +52,8 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         case equipment
         case resistanceType = "resistancetype"
         case movementPattern = "movementpattern"
+        case movementPatterns = "movementpatterns"
+        case forceType = "forcetype"
         case difficulty, tags
         case primaryMuscles = "primarymuscles"
         case secondaryMuscles = "secondarymuscles"
@@ -74,7 +78,17 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         trackingType = try c.decodeIfPresent(String.self, forKey: .trackingType)
         equipment = try c.decodeIfPresent(String.self, forKey: .equipment)
         resistanceType = try c.decodeIfPresent(String.self, forKey: .resistanceType)
-        movementPattern = try c.decodeIfPresent(String.self, forKey: .movementPattern)
+        if let patterns = try c.decodeIfPresent([String].self, forKey: .movementPatterns) {
+            movementPatterns = patterns
+            movementPattern = patterns.first
+        } else if let pattern = try c.decodeIfPresent(String.self, forKey: .movementPattern) {
+            movementPattern = pattern
+            movementPatterns = [pattern]
+        } else {
+            movementPattern = nil
+            movementPatterns = []
+        }
+        forceType = try c.decodeIfPresent(String.self, forKey: .forceType)
         difficulty = try c.decodeIfPresent(String.self, forKey: .difficulty)
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         primaryMuscles = try c.decodeIfPresent([String].self, forKey: .primaryMuscles) ?? []
@@ -355,6 +369,7 @@ nonisolated enum CatalogResourceDecoder {
             name: value.name.trimmingCharacters(in: .whitespacesAndNewlines), stableKey: normalizeStableKey(value.stableKey),
             sources: value.sources.map(normalizeToken), category: value.category, trackingType: value.trackingType,
             equipment: value.equipment, resistanceType: value.resistanceType, movementPattern: value.movementPattern,
+            movementPatterns: value.movementPatterns, forceType: value.forceType,
             difficulty: value.difficulty, tags: value.tags.map(normalizeToken), primaryMuscles: value.primaryMuscles,
             secondaryMuscles: value.secondaryMuscles, muscleGroups: value.muscleGroups,
             anatomicalTargetMuscles: value.anatomicalTargetMuscles, anatomicalSynergistMuscles: value.anatomicalSynergistMuscles,
@@ -423,14 +438,15 @@ nonisolated enum CatalogResourceDecoder {
 private extension ExerciseCatalogResource {
     nonisolated init(
         name: String, stableKey: String, sources: [String], category: String?, trackingType: String?, equipment: String?,
-        resistanceType: String?, movementPattern: String?, difficulty: String?, tags: [String], primaryMuscles: [String],
+        resistanceType: String?, movementPattern: String?, movementPatterns: [String] = [], forceType: String?, difficulty: String?, tags: [String], primaryMuscles: [String],
         secondaryMuscles: [String], muscleGroups: [String], anatomicalTargetMuscles: [String], anatomicalSynergistMuscles: [String],
         description: String?, instructions: [ExerciseInstructionResource], videoURL: String?, videoEmbedURL: String?, videoThumbnail: String?,
         imageURL: String?, liftosaurURL: String?, liftosaurSlug: String?
     ) {
         self.name = name; self.stableKey = stableKey; self.sources = sources; self.category = category
         self.trackingType = trackingType; self.equipment = equipment; self.resistanceType = resistanceType
-        self.movementPattern = movementPattern; self.difficulty = difficulty; self.tags = tags
+        self.movementPattern = movementPattern; self.movementPatterns = movementPatterns.isEmpty ? (movementPattern.map { [$0] } ?? []) : movementPatterns
+        self.forceType = forceType; self.difficulty = difficulty; self.tags = tags
         self.primaryMuscles = primaryMuscles; self.secondaryMuscles = secondaryMuscles; self.muscleGroups = muscleGroups
         self.anatomicalTargetMuscles = anatomicalTargetMuscles; self.anatomicalSynergistMuscles = anatomicalSynergistMuscles
         self.description = description; self.instructions = instructions; self.videoURL = videoURL

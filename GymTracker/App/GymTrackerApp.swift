@@ -18,6 +18,7 @@ struct GymTrackerApp: App {
             case let .ready(container):
                 RootView()
                     .modelContainer(container)
+                    .uiTestDynamicTypeOverride()
                     .onOpenURL { url in
                         _ = GarminPingPongCoordinator.shared.handleOpenURL(url)
                     }
@@ -47,16 +48,11 @@ private struct StorageUnavailableView: View {
                     systemImage: "externaldrive.badge.exclamationmark"
                 )
                 .font(AppFont.titleMedium)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
 
                 Text(String(localized: "storage.recovery.explanation", defaultValue: "Trame has not changed your data. Export a complete copy of the local store before removing the broken copy."))
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
-
-                Text(message)
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .textSelection(.enabled)
+                    .foregroundStyle(Color.trameText)
 
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     Button {
@@ -66,17 +62,15 @@ private struct StorageUnavailableView: View {
                             String(localized: "storage.recovery.export", defaultValue: "Export complete store bundle"),
                             systemImage: "square.and.arrow.up"
                         )
-                        .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimaryDeep)
+                    .buttonStyle(.tramePrimaryAction)
                     .disabled(isExporting || didRemoveStore)
                     .accessibilityIdentifier("storage-export")
 
                     if exportSucceeded && !didRemoveStore {
                         Text(String(localized: "storage.recovery.exportSucceeded", defaultValue: "Export complete. Keep this bundle in a safe place before continuing."))
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSuccess)
+                            .foregroundStyle(Color.trameCompleted)
 
                         Button(role: .destructive) {
                             isConfirmingRemoval = true
@@ -88,24 +82,41 @@ private struct StorageUnavailableView: View {
                             .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.bordered)
-                        .tint(Color.gymDestructive)
+                        .tint(Color.trameDestructiveText)
                         .accessibilityIdentifier("storage-remove")
                     }
 
                     if didRemoveStore {
                         Text(String(localized: "storage.recovery.removed", defaultValue: "The broken local store was removed. Reopen Trame to create a fresh store, then restore from your exported bundle."))
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .accessibilityIdentifier("storage-removed")
                     }
                 }
+
+                // The underlying store error is diagnostic text, not the
+                // safety instruction. Left in the paragraph it competed with
+                // the one sentence that tells the lifter their data is intact.
+                DisclosureGroup(
+                    String(localized: "storage.recovery.technicalDetails", defaultValue: "Technical details")
+                ) {
+                    Text(message)
+                        .font(AppFont.footnote)
+                        .foregroundStyle(Color.trameSubdued)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, Spacing.xs)
+                }
+                .font(AppFont.subheadline)
+                .tint(Color.trameActionDeep)
+                .accessibilityIdentifier("storage-technical-details")
             }
             .padding(Spacing.xl)
             .frame(maxWidth: 620, alignment: .leading)
         }
         .scrollIndicators(.hidden)
-        .foregroundStyle(Color.gymText)
-        .background(Color.gymBackground)
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameCanvas)
         .fileExporter(
             isPresented: $isExporting,
             document: exportDocument,

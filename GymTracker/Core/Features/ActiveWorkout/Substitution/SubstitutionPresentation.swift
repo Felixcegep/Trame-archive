@@ -82,13 +82,16 @@ enum SubstitutionPresentation {
         }
     }
 
+    /// Four values, and only one of them earns a hue: a blocked option is a
+    /// safety statement. "Acceptable" and "Poor" are separated by their glyph
+    /// and their title, which is what lets amber stay reserved for rest instead
+    /// of becoming a fourth verdict colour on a list of verdicts.
     static func suitabilityColor(_ value: SubstitutionSuitability) -> Color {
         switch value {
-        case .excellent, .good: return .gymSecondary
-        case .acceptable: return .gymText
-        case .poor: return .gymAccent
-        case .notRecommended: return .gymDestructive
-        case .insufficientInformation: return .gymSubduedText
+        case .excellent, .good: return .trameCompleted
+        case .acceptable, .poor: return .trameText
+        case .notRecommended: return .trameDestructiveText
+        case .insufficientInformation: return .trameSubdued
         }
     }
 
@@ -145,10 +148,10 @@ enum SubstitutionPresentation {
 
     static func comparabilityColor(_ value: SubstitutionComparability) -> Color {
         switch value {
-        case .direct: return .gymSecondary
-        case .limited: return .gymText
-        case .notDirect: return .gymSubduedText
-        case .unknown: return .gymSubduedText
+        case .direct: return .trameCompleted
+        case .limited: return .trameText
+        case .notDirect: return .trameSubdued
+        case .unknown: return .trameSubdued
         }
     }
 

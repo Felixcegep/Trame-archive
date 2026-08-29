@@ -82,19 +82,22 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                     exerciseSelectionSection
 
                     if let validationMessage {
-                        Label(validationMessage, systemImage: AppIcon.info)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymDestructive)
+                        TrameColorField(
+                            fill: Color.trameDestructive,
+                            ink: Color.trameDestructiveInk,
+                            border: Color.trameDestructive
+                        ) {
+                            Label(validationMessage, systemImage: AppIcon.info)
+                            .font(AppFont.captionBold)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Spacing.m)
-                            .background(Color.gymDestructive.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                        }
                             .accessibilityIdentifier("execution-block-validation")
                     }
                 }
                 .padding(Spacing.xl)
             }
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Execution Block")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -127,7 +130,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
 
             Text(kind.summary)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("block-format-summary")
 
@@ -149,7 +152,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             advancedOptions
         }
         .padding(Spacing.l)
-        .background(Color.gymCard)
+        .background(Color.trameSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
@@ -171,7 +174,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             if !clockDescription.isEmpty {
                 Label(clockDescription, systemImage: AppIcon.timer)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             if kind.requiresInterval {
                 numericField("Interval (seconds)", text: $intervalSeconds)
@@ -216,12 +219,12 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         } label: {
             Text("Advanced options")
                 .font(AppFont.body)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 // Identifier on the label only — a group-level identifier would
                 // propagate to the disclosure's children.
                 .accessibilityIdentifier("block-advanced-options")
         }
-        .tint(Color.gymPrimary)
+        .tint(Color.trameActionDeep)
     }
 
     private var clockDescription: String {
@@ -242,7 +245,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                 if !availableEntries.isEmpty {
                     Text("\(selectedEntries.count) selected")
                         .font(AppFont.captionBold)
-                        .foregroundStyle(selectedEntries.isEmpty ? Color.gymSubduedText : Color.gymPrimary)
+                        .foregroundStyle(selectedEntries.isEmpty ? Color.trameSubdued : Color.trameActionDeep)
                         .accessibilityIdentifier("block-selected-count")
                 }
             }
@@ -250,7 +253,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             if availableEntries.isEmpty {
                 Text("All session exercises already belong to a block.")
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 ForEach(availableEntries, id: \.persistentModelID) { entry in
                     Button {
@@ -258,14 +261,14 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                     } label: {
                         HStack(spacing: Spacing.m) {
                             Image(systemName: selectedEntryIDs.contains(entry.persistentModelID) ? AppIcon.checkmarkCircle : AppIcon.circle)
-                                .foregroundStyle(selectedEntryIDs.contains(entry.persistentModelID) ? Color.gymPrimary : Color.gymSubduedText)
+                                .foregroundStyle(selectedEntryIDs.contains(entry.persistentModelID) ? Color.trameActionDeep : Color.trameSubdued)
                             Text(entry.occurrenceDisplayName)
                                 .font(AppFont.body)
-                                .foregroundStyle(Color.gymText)
+                                .foregroundStyle(Color.trameText)
                             Spacer(minLength: 0)
                         }
                         .padding(Spacing.m)
-                        .background(Color.gymCard)
+                        .background(selectedEntryIDs.contains(entry.persistentModelID) ? Color.trameCurrent : Color.trameRow)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -280,10 +283,10 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             Text(title)
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text(detail)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
     }
 

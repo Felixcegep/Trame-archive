@@ -75,7 +75,7 @@ final class PostWorkoutRoutingCoordinator {
         guard let routineName = cooldownRequest?.routine.name else {
             return String(localized: "This workout has an optional linked cooldown.")
         }
-        return String(localized: "Start \(routineName) after this workout? It is recorded as a separate mobility session.")
+        return String(localized: "Continue into \(routineName) inside this workout? Its mobility evidence is saved separately from strength sets.")
     }
 
     func clearWarmupWorkoutID() {

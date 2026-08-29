@@ -123,6 +123,27 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.navigationBars["New target"].waitForExistence(timeout: 5))
     }
 
+    func testLoggedFoodCanBeReviewedAndDeleted() {
+        let app = launchFixture(
+            "nutrition-today",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "tab-nutrition"
+        )
+        selectTab(.nutrition, in: app)
+        let entries = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "logged-meal-"))
+        XCTAssertTrue(entries.firstMatch.waitForExistence(timeout: 5))
+        let originalCount = entries.count
+
+        entries.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Food entry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["logged-meal-quantity"].exists)
+        tapButton("delete-logged-meal", in: app)
+        tapButton("Delete entry", in: app)
+
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+        XCTAssertEqual(entries.count, originalCount - 1)
+    }
+
     func testStartFreeWorkout() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
@@ -706,6 +727,19 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     }
 
+    func testEditingWeightOnALaterExerciseKeepsThatExerciseVisible() {
+        let app = launchFixture("active-all-tracking-types")
+
+        navigateToActiveExercise("Weighted Pull-Up", in: app)
+
+        tapButton("weight-field-Weighted Pull-Up-0", in: app)
+
+        XCTAssertTrue(app.buttons["panel-value-weight"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["panel-value-weight"].isSelected)
+        XCTAssertTrue(app.descendants(matching: .any)["active-exercise-Weighted Pull-Up"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["active-exercise-Bench Press"].exists)
+    }
+
     /// Whole-row selection: tapping a row outside any value opens the keypad on
     /// the first value the lifter still owes, then on the next one once that is
     /// supplied. Direct selection of a specific value keeps working alongside it.
@@ -909,7 +943,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("panel-details", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["set-advanced-options"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["set-method-stage-hint"].waitForExistence(timeout: 5))
 
         let methodPicker = app.descendants(matching: .any)["set-method-picker"]
         XCTAssertTrue(methodPicker.waitForExistence(timeout: 5))
@@ -1129,11 +1163,11 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         // Discard is no longer a permanent toolbar control: it lives in the
         // workout menu and still requires an explicit destructive confirmation.
         tapButton("active-workout-menu", in: app)
-        tapButton("discard-workout", in: app)
+        tapControl("discard-workout", in: app)
         // The dismissed menu item and the dialog action briefly share the
         // identifier, so take the action the dialog is presenting now.
         let confirmDiscard = app.sheets.buttons["confirm-discard-workout"].firstMatch
-        XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 8))
         confirmDiscard.tap()
 
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))

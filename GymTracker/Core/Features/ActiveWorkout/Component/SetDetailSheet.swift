@@ -61,6 +61,7 @@ extension SetType {
         case .dailyMaximum: "crown"
         case .test: "checkmark.seal"
         case .recovery: "heart"
+        case .stretch: AppIcon.mobility
         }
     }
 
@@ -70,15 +71,17 @@ extension SetType {
         switch self {
         case .normal: nil
         case .warmup: Color.trameAttention
-        case .dropSet: Color.trameStrength
+        case .dropSet: Color.trameActionDeep
         case .failure: Color.trameDestructiveText
-        case .backoff: Color.trameCompleted
-        case .topSet: Color.trameStrength
+        case .backoff: Color.trameSubdued
+        case .topSet: Color.trameActionDeep
         case .amrap: Color.trameAttention
-        case .technique: Color.trameCompleted
-        case .dailyMaximum: Color.trameStrength
+        case .technique: Color.trameSubdued
+        case .dailyMaximum: Color.trameCompetition
         case .test: Color.trameAttention
-        case .recovery: Color.trameRecovery
+        // Stretch shares recovery's accent because it plays the same
+        // non-competitive role: time under a position, not a load to beat.
+        case .recovery, .stretch: Color.trameRecovery
         }
     }
 }
@@ -105,8 +108,8 @@ struct SetDetailSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
-                setTypeSection
                 effortSection
+                setTypeSection
                 prescribedTempoContext
                 advancedOptionsSection
                 deleteButton
@@ -125,8 +128,7 @@ struct SetDetailSheet: View {
             isShowingAdvancedOptions = hasRecordedOrPrescribedAdvancedData
             // A disclosure must never hide the current answer: if this set is
             // already one of the rarer types, the group opens showing it.
-            let displayedRole = exerciseSet.setType == .dropSet ? SetType.normal : exerciseSet.setType
-            isShowingMoreSetTypes = displayedRole.group == .more
+            isShowingMoreSetTypes = selectedSetType.group == .more
         }
         .confirmationDialog(
             "Switch to \(pendingEffortMeasure == .rpe ? "RPE" : "RIR")?",
@@ -186,7 +188,7 @@ struct SetDetailSheet: View {
             || exerciseSet.isUserOverridden
     }
 
-    private var advancedSummary: String {
+    private var advancedSummaryValues: [String] {
         var values: [String] = []
 
         if exerciseSet.resolvedSetMethod != .standard {
@@ -205,9 +207,11 @@ struct SetDetailSheet: View {
             values.append(String(localized: "Override"))
         }
 
-        return values.isEmpty
-            ? String(localized: "Optional methods and performance measurements")
-            : values.joined(separator: " · ")
+        return values
+    }
+
+    private var advancedSummary: String {
+        advancedSummaryValues.joined(separator: " · ")
     }
 
     private var advancedOptionsSection: some View {
@@ -215,7 +219,7 @@ struct SetDetailSheet: View {
         // Button that owns the `set-advanced-options` identifier (so UI tests can
         // tap it), and the content is a sibling. A group-level identifier on a
         // DisclosureGroup would otherwise propagate to every child and clobber
-        // their own identifiers (drop-set-structure, set-method-picker, …).
+        // their own identifiers (set-method-stage-hint, set-method-picker, …).
         VStack(alignment: .leading, spacing: Spacing.l) {
             Button {
                 withAnimation(reduceMotion ? nil : AppMotion.compact) { isShowingAdvancedOptions.toggle() }
@@ -225,10 +229,12 @@ struct SetDetailSheet: View {
                         Text("Advanced options")
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.trameText)
-                        Text(advancedSummary)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.trameSubdued)
-                            .lineLimit(2)
+                        if advancedSummaryValues.isEmpty == false {
+                            Text(advancedSummary)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.trameSubdued)
+                                .lineLimit(2)
+                        }
                     }
                     Spacer(minLength: 0)
                     Image(systemName: AppIcon.chevronRight)
@@ -369,13 +375,17 @@ struct SetDetailSheet: View {
         }
     }
 
-    /// Eleven types shown at once made a routine mid-set choice into a scanning
+    /// Twelve types shown at once made a routine mid-set choice into a scanning
     /// problem. They are grouped by how often a session actually needs them,
-    /// and the rarest four sit behind a disclosure — never hidden when one of
+    /// and the rarest three sit behind a disclosure — never hidden when one of
     /// them is the current selection.
+    ///
+    /// The section heading and the group labels used to be the same eyebrow, so
+    /// "SET TYPE" read as a peer of "COMMON" rather than as their parent. The
+    /// heading now carries the weight and the groups stay quiet beneath it.
     private var setTypeSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            eyebrow("Set type")
+            sectionHeading("Set type")
 
             if recentSetTypes.isEmpty == false {
                 setTypeGroup(
@@ -397,21 +407,31 @@ struct SetDetailSheet: View {
                 identifier: SetTypeGroup.special.rawValue
             )
 
-            DisclosureGroup(isExpanded: $isShowingMoreSetTypes) {
-                setTypeGrid(SetTypeGroup.more.members)
-                    .padding(.top, Spacing.s)
+            Button {
+                withAnimation(reduceMotion ? nil : AppMotion.compact) { isShowingMoreSetTypes.toggle() }
             } label: {
-                Text(SetTypeGroup.more.title)
-                    .font(AppFont.captionBold)
-                    .textCase(.uppercase)
-                    .tracking(0.6)
-                    .foregroundStyle(Color.trameSubdued)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier("set-type-more-toggle")
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                    Text(SetTypeGroup.more.title)
+                        .font(AppFont.captionBold)
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(Color.trameSubdued)
+                    Spacer(minLength: 0)
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.footnoteMedium)
+                        .foregroundStyle(Color.trameSubdued)
+                        .rotationEffect(.degrees(isShowingMoreSetTypes ? 90 : 0))
+                }
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .tint(Color.trameActionDeep)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("set-type-more-toggle")
+            .accessibilityHint("Reveals additional set types")
+
+            if isShowingMoreSetTypes {
+                setTypeGrid(SetTypeGroup.more.members)
+            }
         }
     }
 
@@ -437,6 +457,12 @@ struct SetDetailSheet: View {
                 setTypeChip(type, isShortcut: isShortcut)
             }
         }
+    }
+
+    /// Drop set is a method, not a role, so the picker shows the underlying
+    /// role rather than leaving no chip marked.
+    private var selectedSetType: SetType {
+        exerciseSet.setType == .dropSet ? .normal : exerciseSet.setType
     }
 
     private var recentSetTypes: [SetType] {
@@ -466,42 +492,8 @@ struct SetDetailSheet: View {
                 Text("Edit this method’s efforts directly on the exercise screen.")
                     .font(AppFont.caption)
                     .foregroundStyle(Color.trameText)
-                    .accessibilityIdentifier("drop-set-structure")
+                    .accessibilityIdentifier("set-method-stage-hint")
             }
-        }
-    }
-
-    private var segmentEditor: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            ForEach(exerciseSet.orderedSegments, id: \.persistentModelID) { segment in
-                SetSegmentEditorRow(
-                    segment: segment,
-                    method: exerciseSet.resolvedSetMethod,
-                    canDelete: exerciseSet.orderedSegments.count > exerciseSet.resolvedSetMethod.minimumSegmentCount,
-                    onPersist: onPersist
-                ) {
-                    exerciseSet.segments.removeAll { $0 === segment }
-                    exerciseSet.normalizeSegmentOrder()
-                    onPersist()
-                }
-            }
-            Button {
-                exerciseSet.segments.append(
-                    ExerciseSetSegment(
-                        orderIndex: exerciseSet.orderedSegments.count,
-                        repetitions: exerciseSet.repetitions,
-                        weight: exerciseSet.weight,
-                        weightType: exerciseSet.weightType
-                    )
-                )
-                onPersist()
-            } label: {
-                Label("Add segment", systemImage: AppIcon.plus)
-                    .font(AppFont.footnoteMedium)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Color.trameText)
-            .accessibilityIdentifier("add-set-segment")
         }
     }
 
@@ -631,8 +623,7 @@ struct SetDetailSheet: View {
     }
 
     private func setTypeChip(_ type: SetType, isShortcut: Bool = false) -> some View {
-        let displayedRole = exerciseSet.setType == .dropSet ? SetType.normal : exerciseSet.setType
-        let isSelected = displayedRole == type
+        let isSelected = selectedSetType == type
 
         return Button {
             selectSetType(type)
@@ -640,12 +631,13 @@ struct SetDetailSheet: View {
             HStack(spacing: Spacing.m) {
                 Image(systemName: type.icon)
                     .frame(width: Spacing.xl)
+                    .foregroundStyle(isSelected ? (type.accentColor ?? Color.trameText) : Color.trameSubdued)
                     .accessibilityHidden(true)
                 Text(type.title)
                 Spacer(minLength: Spacing.s)
                 if isSelected {
                     Image(systemName: AppIcon.checkmark)
-                        .foregroundStyle(Color.trameStrength)
+                        .foregroundStyle(Color.trameActionDeep)
                         .accessibilityHidden(true)
                 }
             }
@@ -653,9 +645,23 @@ struct SetDetailSheet: View {
                 .lineLimit(1)
                 .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .padding(.horizontal, Spacing.s)
+                // The checkmark alone had to be hunted for in a twelve-row
+                // list. The selected row now reads as one filled object, and
+                // the rule that separates unselected rows would only cut
+                // through it.
+                .background(
+                    isSelected ? Color.trameCurrent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                )
                 .overlay(alignment: .bottom) {
-                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                    if isSelected == false {
+                        Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                    }
                 }
+                // The fill bleeds past the text column so the row keeps its
+                // label aligned with every other section on the sheet.
+                .padding(.horizontal, -Spacing.s)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -684,7 +690,12 @@ struct SetDetailSheet: View {
     private var effortSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                eyebrow(effortMeasure == .rir ? "Effort · Reps in reserve" : "Effort · RPE")
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    sectionHeading("Effort")
+                    Text(effortMeasure == .rir ? "Reps in reserve" : "Rate of perceived exertion")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.trameSubdued)
+                }
                 Spacer(minLength: Spacing.s)
                 Menu {
                     ForEach(EffortMeasure.allCases, id: \.self) { measure in
@@ -803,9 +814,9 @@ struct SetDetailSheet: View {
 
     private var formattedActiveEffortValue: String {
         if effortMeasure == .rir {
-            return exerciseSet.rir.map(String.init) ?? "—"
+            return exerciseSet.rir.map(String.init) ?? ""
         } else {
-            return exerciseSet.rpe.map { Formatters.formatFloat(Float($0)) } ?? "—"
+            return exerciseSet.rpe.map { Formatters.formatFloat(Float($0)) } ?? ""
         }
     }
 
@@ -845,7 +856,7 @@ struct SetDetailSheet: View {
 
     private var rirBinding: Binding<Double> {
         Binding(
-            get: { Double(exerciseSet.rir ?? 2) },
+            get: { Double(exerciseSet.rir ?? 3) },
             set: {
                 exerciseSet.recordRIR(Int($0.rounded()))
                 onPersist()
@@ -855,7 +866,7 @@ struct SetDetailSheet: View {
 
     private var rpeBinding: Binding<Double> {
         Binding(
-            get: { exerciseSet.rpe ?? 7.0 },
+            get: { exerciseSet.rpe ?? 5.5 },
             set: {
                 exerciseSet.recordRPE($0)
                 onPersist()
@@ -965,6 +976,14 @@ struct SetDetailSheet: View {
             || (exerciseSet.duration ?? 0) > 0
             || (exerciseSet.distance ?? 0) > 0
             || (exerciseSet.calories ?? 0) > 0
+    }
+
+    /// A top-level section of the sheet — Set type, Effort, Advanced options.
+    /// Distinct from `eyebrow`, which labels a group inside one of them.
+    private func sectionHeading(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.trameText)
     }
 
     private func eyebrow(_ title: LocalizedStringKey) -> some View {

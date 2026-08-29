@@ -48,7 +48,7 @@ enum GymCardVariant {
 
     var border: Color {
         switch self {
-        case .current: Color.gymPrimary.opacity(0.42)
+        case .current: Color.trameAction.opacity(0.35)
         case .standard, .completed, .accent: Color.gymBorder
         }
     }
@@ -166,7 +166,7 @@ struct GymMetricValue: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
             Text(isEstimate ? "≈\(value)" : value)
                 .font(valueFont)
-                .foregroundStyle(prominence == .display ? Color.gymPrimary : Color.gymText)
+                .foregroundStyle(Color.gymText)
             if !unit.isEmpty {
                 Text(unit)
                     .font(unitFont)
@@ -463,18 +463,18 @@ struct GymChoiceTile: View {
             .frame(maxWidth: .infinity, minHeight: 54)
             .padding(.horizontal, Spacing.m)
             .background(
-                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                isSelected ? Color.trameCurrent : Color.gymCard,
                 in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? Color.trameActionOutline : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
             }
             .overlay(alignment: .topTrailing) {
                 if isSelected {
                     Image(systemName: AppIcon.checkmarkCircle)
                         .font(AppFont.caption2Bold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameAction)
                         .padding(Spacing.xs)
                 }
             }
@@ -521,10 +521,7 @@ struct GymPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(prominence == .prominent ? AppFont.headline : AppFont.bodyMedium)
-            // Disabled is an outline, not a faded fill. White on a 45%-opacity
-            // blue computed to about 1.9:1 — the label was the least legible
-            // text on screen at the moment it most needed to explain itself.
-            .foregroundStyle(isEnabled ? Color.white : Color.gymSubduedText)
+            .foregroundStyle(isEnabled ? Color.trameActionInk : Color.trameSubdued)
             .frame(
                 maxWidth: .infinity,
                 minHeight: prominence == .prominent ? 54 : ComponentSize.minimumTouchTarget
@@ -532,14 +529,12 @@ struct GymPrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, Spacing.l)
             .background {
                 RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                    // `gymPrimaryDeep`, not `gymPrimary`: white on the latter is
-                    // 4.46:1, which misses AA for the 17pt label this carries.
-                    .fill(isEnabled ? Color.gymPrimaryDeep : Color.clear)
+                    .fill(isEnabled ? Color.trameAction : Color.trameRow)
             }
             .overlay {
                 if !isEnabled {
                     RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                        .stroke(Color.gymBorder, lineWidth: 1)
+                        .stroke(Color.trameSeparator, lineWidth: 1)
                 }
             }
             // The same Weighted Pulse the plain press style uses. It was a
@@ -581,7 +576,7 @@ struct GymOutlineButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(prominence == .prominent ? AppFont.headline : AppFont.bodyMedium)
-            .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubduedText)
+            .foregroundStyle(isEnabled ? Color.trameAction : Color.gymSubduedText)
             .frame(
                 maxWidth: .infinity,
                 minHeight: prominence == .prominent ? 54 : ComponentSize.minimumTouchTarget
@@ -593,7 +588,7 @@ struct GymOutlineButtonStyle: ButtonStyle {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                    .stroke(isEnabled ? Color.gymPrimary.opacity(0.35) : Color.gymBorder, lineWidth: 1)
+                    .stroke(isEnabled ? Color.trameActionOutline.opacity(0.35) : Color.gymBorder, lineWidth: 1)
             }
             .weightedPulse(isPressed: configuration.isPressed)
     }

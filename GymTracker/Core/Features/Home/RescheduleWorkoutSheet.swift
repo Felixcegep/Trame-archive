@@ -65,7 +65,7 @@ struct RescheduleWorkoutSheet: View {
                 .padding(.top, Spacing.l)
                 .padding(.bottom, Spacing.xxxl)
             }
-            .background(Color.gymBackground.ignoresSafeArea())
+            .background(Color.trameCanvas.ignoresSafeArea())
             .navigationTitle("Reschedule workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -90,12 +90,12 @@ struct RescheduleWorkoutSheet: View {
     private var headerSection: some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: AppIcon.reschedule)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameAction)
                 .font(AppFont.body)
 
             Text(progress.plannedWorkoutName)
                 .font(AppFont.subheadlineBold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -110,22 +110,22 @@ struct RescheduleWorkoutSheet: View {
                 datePill(
                     label: "Current",
                     date: scheduledDate,
-                    foreground: Color.gymSubduedText,
-                    background: Color.gymRowSurface
+                    foreground: Color.trameSubdued,
+                    background: Color.trameRow
                 )
                 .accessibilityIdentifier("today-reschedule-current-date")
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
             }
 
             datePill(
                 label: "New",
                 date: date,
-                foreground: Color.gymPrimary,
-                background: Color.gymPrimarySurface
+                foreground: Color.trameAction,
+                background: Color.trameCurrent
             )
             .accessibilityIdentifier("today-reschedule-date")
         }
@@ -159,14 +159,14 @@ struct RescheduleWorkoutSheet: View {
 
     /// Graphical calendar picker in a card.
     private var datePickerSection: some View {
-        GymCard {
+        trameSurface {
             DatePicker(
                 "New date",
                 selection: $date,
                 displayedComponents: .date
             )
             .datePickerStyle(.graphical)
-            .tint(Color.gymPrimary)
+            .tint(Color.trameAction)
             .labelsHidden()
             .accessibilityIdentifier("today-reschedule-date")
         }
@@ -174,18 +174,18 @@ struct RescheduleWorkoutSheet: View {
 
     /// Shift-remaining toggle, affected count, and consequence copy.
     private var shiftSection: some View {
-        GymCard {
+        trameSurface {
             Toggle(isOn: $shiftsRemaining) {
                 Label {
                     Text("Shift remaining workouts")
                         .font(AppFont.body)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                 } icon: {
                     Image(systemName: AppIcon.fastForward)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameAction)
                 }
             }
-            .tint(Color.gymPrimary)
+            .tint(Color.trameAction)
             .accessibilityIdentifier("today-reschedule-shift-remaining")
 
             if shiftsRemaining, !isUnchanged, movingSessionCount > 1 {
@@ -194,21 +194,21 @@ struct RescheduleWorkoutSheet: View {
                 HStack {
                     Text("Workouts that move")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
 
                     Spacer()
 
                     Text(movingSessionCount, format: .number)
                         .font(AppFont.subheadlineBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymDataEmphasis)
+                        .foregroundStyle(Color.trameText)
                 }
                 .accessibilityIdentifier("today-reschedule-affected-count")
             }
 
             Text(consequence)
                 .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -217,7 +217,7 @@ struct RescheduleWorkoutSheet: View {
     private var hintFooter: some View {
         Text("Any date is allowed. A date in the past is recorded as missed, and one outside the plan's range still keeps the plan's order.")
             .font(AppFont.footnote)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.xs)
     }
@@ -237,5 +237,17 @@ struct RescheduleWorkoutSheet: View {
             return "No later workouts are scheduled, so only this workout moves."
         }
         return "This workout and every later workout move by the same number of days. Completed workouts never move."
+    }
+
+    private func trameSurface<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator, radius: Radius.card) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.l)
+        }
     }
 }

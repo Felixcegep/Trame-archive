@@ -239,7 +239,7 @@ struct ExerciseView : View {
                     } else if quickStats == nil {
                         HStack(spacing: Spacing.s) {
                             ProgressView()
-                                .tint(Color.gymPrimary)
+                                .tint(Color.trameAction)
                             Text("Reading completed history…")
                                 .font(AppFont.subheadline)
                                 .foregroundStyle(Color.gymSubduedText)
@@ -289,7 +289,7 @@ struct ExerciseView : View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Label(title, systemImage: AppIcon.chart)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameAction)
                 Text(subtitle)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
@@ -462,21 +462,24 @@ struct ExerciseView : View {
     }
 
     private var categoryIcon: String {
-        switch exercise.category {
+        switch exercise.category ?? .strength {
         case .strength: AppIcon.workout
+        case .power: AppIcon.effort
         case .cardio: AppIcon.progression
         case .mobility, .flexibility: AppIcon.mobility
-        case .balance: AppIcon.effort
+        case .balance: AppIcon.mobility
+        case .skill: AppIcon.exercise
         case .sport, .other: AppIcon.muscles
         }
     }
 
     private var categoryTint: Color {
-        switch exercise.category {
-        case .strength: .gymPrimary
-        case .cardio: .gymAccent
-        case .mobility, .flexibility, .balance: .gymSecondary
-        case .sport, .other: .gymPrimary
+        switch exercise.category ?? .strength {
+        case .strength, .power: .trameStrength
+        case .cardio: .trameConditioning
+        case .mobility, .flexibility, .balance: .trameMobility
+        case .skill: .trameAttention
+        case .sport, .other: .trameCompetition
         }
     }
 

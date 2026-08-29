@@ -21,6 +21,7 @@ final class Exercise {
     var equipmentType: EquipmentType? = EquipmentType.other
     var resistanceType: ResistanceType?
     var movementPattern: MovementPattern?
+    var movementPatterns: [MovementPattern] = []
     var forceType: ForceType?
     var mechanics: ExerciseMechanics?
     var gripStyle: GripStyle?
@@ -70,6 +71,7 @@ final class Exercise {
         equipmentType: EquipmentType? = .other,
         resistanceType: ResistanceType? = nil,
         movementPattern: MovementPattern? = nil,
+        movementPatterns: [MovementPattern] = [],
         forceType: ForceType? = nil,
         mechanics: ExerciseMechanics? = nil,
         gripStyle: GripStyle? = nil,
@@ -97,7 +99,16 @@ final class Exercise {
         self.trackingType = trackingType
         self.equipmentType = equipmentType ?? .other
         self.resistanceType = resistanceType
-        self.movementPattern = movementPattern
+        if !movementPatterns.isEmpty {
+            self.movementPatterns = movementPatterns
+            self.movementPattern = movementPattern ?? movementPatterns.first
+        } else if let movementPattern {
+            self.movementPatterns = [movementPattern]
+            self.movementPattern = movementPattern
+        } else {
+            self.movementPatterns = []
+            self.movementPattern = nil
+        }
         self.forceType = forceType
         self.mechanics = mechanics
         self.gripStyle = gripStyle
@@ -115,6 +126,16 @@ final class Exercise {
         self.repCountingStyle = repCountingStyle
         self.weightEntryStyle = weightEntryStyle
         self.loadUnitCount = loadUnitCount
+    }
+
+    var displayMovementPatterns: [MovementPattern] {
+        if !movementPatterns.isEmpty {
+            return movementPatterns
+        }
+        if let movementPattern {
+            return [movementPattern]
+        }
+        return []
     }
 
     var displayCategory: ExerciseCategory {

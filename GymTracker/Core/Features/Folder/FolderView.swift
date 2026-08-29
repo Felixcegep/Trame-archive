@@ -48,21 +48,23 @@ struct FolderView: View {
         let searchResults = searchText.isEmpty ? nil : makeSearchResults()
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
-                CurrentPlanCard(
-                    onOpenPlan: { target in
-                        onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
-                    },
-                    onOpenProgramPath: onOpenProgramPath,
-                    onOpenWeeklyReview: onOpenWeeklyReview,
-                    onChoosePlan: { onOpenRoute(.plans) },
-                    onStartPlannedWorkout: onStartPlannedWorkout,
-                    onStartRepeatingWorkout: onStartRepeatingWorkout,
-                    onResumePlan: onResumePlan,
-                    onPauseRepeatingPlan: onPauseRepeatingPlan,
-                    onResumeRepeatingPlan: onResumeRepeatingPlan,
-                    onEndRepeatingPlan: onEndRepeatingPlan
-                )
-                .gymAssembly(index: 0, isActive: isPlayingAssembly)
+                if searchText.isEmpty {
+                    CurrentPlanCard(
+                        onOpenPlan: { target in
+                            onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
+                        },
+                        onOpenProgramPath: onOpenProgramPath,
+                        onOpenWeeklyReview: onOpenWeeklyReview,
+                        onChoosePlan: { onOpenRoute(.plans) },
+                        onStartPlannedWorkout: onStartPlannedWorkout,
+                        onStartRepeatingWorkout: onStartRepeatingWorkout,
+                        onResumePlan: onResumePlan,
+                        onPauseRepeatingPlan: onPauseRepeatingPlan,
+                        onResumeRepeatingPlan: onResumeRepeatingPlan,
+                        onEndRepeatingPlan: onEndRepeatingPlan
+                    )
+                    .gymAssembly(index: 0, isActive: isPlayingAssembly)
+                }
 
                 searchField
                     .gymAssembly(index: 1, isActive: isPlayingAssembly)
@@ -81,7 +83,7 @@ struct FolderView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.xl)
+            .padding(.bottom, Spacing.xxxl)
         }
         .onAppear(perform: resolveAssembly)
         .folderScreenStyle()
@@ -194,7 +196,7 @@ struct FolderView: View {
             Image(systemName: AppIcon.search)
                 .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
-            TextField("Search Train", text: $searchText)
+            TextField("Search", text: $searchText)
                 .font(AppFont.bodyMedium)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
@@ -209,17 +211,13 @@ struct FolderView: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, Spacing.xs)
+        .padding(.horizontal, Spacing.m)
         .frame(minHeight: ComponentSize.minimumTouchTarget)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.trameSeparator)
-                .frame(height: 1)
-        }
+        .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     private var strengthSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             TrameDomainSectionRule(title: "STRENGTH", color: Color.trameStrength)
 
             VStack(spacing: 0) {
@@ -260,7 +258,7 @@ struct FolderView: View {
     }
 
     private var mobilitySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             TrameDomainSectionRule(title: "MOBILITY", color: Color.trameMobility)
 
             VStack(spacing: 0) {
@@ -338,9 +336,24 @@ struct FolderView: View {
     @ViewBuilder
     private func globalResults(_ results: FolderSearchResults) -> some View {
         if results.isEmpty {
-            ContentUnavailableView.search(text: searchText)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 56)
+            VStack(spacing: Spacing.m) {
+                Image(systemName: AppIcon.search)
+                    .font(AppFont.stageTitle)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
+                Text("No matches")
+                    .font(AppFont.titleSmallSemibold)
+                    .foregroundStyle(Color.trameText)
+                Text("Nothing in the library matches this search.")
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, Spacing.xxxl)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("train-search-empty")
         } else {
             LazyVStack(alignment: .leading, spacing: Spacing.xl) {
                 if !results.collections.isEmpty {

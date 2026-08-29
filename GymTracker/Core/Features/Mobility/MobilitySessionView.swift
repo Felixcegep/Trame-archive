@@ -10,6 +10,7 @@ import SwiftUI
 
 struct MobilitySessionView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let session: MobilitySession
     let linkedWorkoutName: String?
     let linkedWorkoutStartTime: Date?
@@ -122,8 +123,9 @@ struct MobilitySessionView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 if isLinkedWorkoutStage {
                     linkedWorkoutChrome
+                } else {
+                    progressHeader
                 }
-                progressHeader
                 if let current = session.currentEntry {
                     activeMovementRow(current, evidenceByResultID: evidenceByResultID)
                 }
@@ -143,66 +145,107 @@ struct MobilitySessionView: View {
     /// carries only the workout-stage presentation context.
     private var linkedWorkoutChrome: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.s) {
-                Button(action: onFinished) {
-                    Image(systemName: AppIcon.minimize)
-                        .font(AppFont.sectionTitle)
-                        .foregroundStyle(Color.trameText)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.gymPress)
-                .accessibilityLabel("Minimize workout")
-                .accessibilityIdentifier("minimize-workout")
-
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("WORKOUT")
-                        .font(AppFont.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(Color.trameSubdued)
-                    Text(linkedWorkoutName ?? session.nameSnapshot)
-                        .font(AppFont.metadata)
-                        .foregroundStyle(Color.trameText)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 0)
-
-                Text(linkedWorkoutStartTime ?? session.startTime, style: .timer)
-                    .font(AppFont.metadata.monospacedDigit())
-                    .foregroundStyle(Color.trameSubdued)
-                    .accessibilityLabel("Elapsed time")
-
-                Menu {
-                    Button(role: .destructive) {
-                        isShowingStopConfirmation = true
-                    } label: {
-                        Text("Stop mobility stage")
-                            .accessibilityIdentifier("stop-mobility-session")
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    HStack {
+                        minimizeWorkoutButton
+                        Spacer(minLength: Spacing.s)
+                        linkedStageMenu
                     }
-                } label: {
-                    Image(systemName: AppIcon.ellipsis)
-                        .font(AppFont.sectionTitle)
-                        .foregroundStyle(Color.trameText)
-                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
-                        .contentShape(Rectangle())
+                    linkedWorkoutIdentity
+                    elapsedWorkoutTime
                 }
-                .accessibilityLabel("Workout stage actions")
-                .accessibilityIdentifier("linked-mobility-menu")
+            } else {
+                HStack(spacing: Spacing.s) {
+                    minimizeWorkoutButton
+                    linkedWorkoutIdentity
+                    Spacer(minLength: 0)
+                    elapsedWorkoutTime
+                    linkedStageMenu
+                }
             }
 
-            HStack(spacing: Spacing.s) {
-                Text(session.context == .warmup ? "WARM-UP" : "COOLDOWN")
-                    .font(AppFont.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(Color.trameMobility)
-                Text("\(min(session.currentEntryIndex + 1, session.entries.count)) / \(session.entries.count)")
-                    .font(AppFont.micro.monospacedDigit())
-                    .foregroundStyle(Color.trameSubdued)
-                mobilityProgressRail
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    mobilityStagePosition
+                    mobilityProgressRail
+                }
+            } else {
+                HStack(spacing: Spacing.s) {
+                    mobilityStagePosition
+                    mobilityProgressRail
+                }
             }
         }
         .padding(.bottom, Spacing.s)
+    }
+
+    private var minimizeWorkoutButton: some View {
+        Button(action: onFinished) {
+            Image(systemName: AppIcon.minimize)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+                .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel("Minimize workout")
+        .accessibilityIdentifier("minimize-workout")
+    }
+
+    private var linkedWorkoutIdentity: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text("WORKOUT")
+                .font(AppFont.micro)
+                .tracking(0.8)
+                .foregroundStyle(Color.trameSubdued)
+            Text(linkedWorkoutName ?? session.nameSnapshot)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameText)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .layoutPriority(1)
+    }
+
+    private var elapsedWorkoutTime: some View {
+        Text(linkedWorkoutStartTime ?? session.startTime, style: .timer)
+            .font(AppFont.metadata.monospacedDigit())
+            .foregroundStyle(Color.trameSubdued)
+            .accessibilityLabel("Elapsed time")
+    }
+
+    private var linkedStageMenu: some View {
+        Menu {
+            Button(role: .destructive) {
+                isShowingStopConfirmation = true
+            } label: {
+                Text("Stop mobility stage")
+                    .accessibilityIdentifier("stop-mobility-session")
+            }
+        } label: {
+            Image(systemName: AppIcon.ellipsis)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+                .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Workout stage actions")
+        .accessibilityIdentifier("linked-mobility-menu")
+    }
+
+    private var mobilityStagePosition: some View {
+        HStack(spacing: Spacing.s) {
+            Text(session.context == .warmup ? "WARM-UP" : "COOLDOWN")
+                .font(AppFont.micro)
+                .tracking(0.8)
+                .foregroundStyle(Color.trameMobilityText)
+            Text("\(min(session.currentEntryIndex + 1, session.entries.count)) / \(session.entries.count)")
+                .font(AppFont.micro.monospacedDigit())
+                .foregroundStyle(Color.trameSubdued)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("active-workout-mobility-stage")
     }
 
     private var mobilityProgressRail: some View {
@@ -411,7 +454,7 @@ struct MobilitySessionView: View {
             // card does, so the state does not rest on the tinted surface
             // alone — which is invisible in grayscale and under Increase
             // Contrast.
-            Label("CURRENT MOVEMENT", systemImage: AppIcon.circleFill)
+            Label("CURRENT MOVEMENT", systemImage: AppIcon.currentPointer)
                 .font(AppFont.caption2Bold)
                 .tracking(0.55)
                 .foregroundStyle(Color.trameText)
@@ -470,8 +513,9 @@ struct MobilitySessionView: View {
             } else {
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     Text(entry.side.displayName.uppercased())
-                        .font(AppFont.metricLarge)
-                        .foregroundStyle(Color.trameMobility)
+                        .font(AppFont.sectionTitle)
+                        .tracking(0.8)
+                        .foregroundStyle(Color.trameMobilityText)
 
                     if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -559,10 +603,7 @@ struct MobilitySessionView: View {
 
     private func phaseResultInput(_ phase: MobilityPhaseResult) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("PHASE RESULT")
-                .font(AppFont.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(Color.trameSubdued)
+            TrameDomainSectionRule(title: "PHASE RESULT", color: .trameMobility)
 
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text(phase.side == .none ? phase.phaseType.title : phase.side.displayName)
@@ -609,10 +650,7 @@ struct MobilitySessionView: View {
 
     private func legacyResultInputs(_ entry: MobilityEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("RESULT")
-                .font(AppFont.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(Color.trameSubdued)
+            TrameDomainSectionRule(title: "RESULT", color: .trameMobility)
 
             ForEach(entry.orderedResults) { result in
                 VStack(alignment: .leading, spacing: Spacing.s) {
@@ -628,23 +666,29 @@ struct MobilitySessionView: View {
                         )
                     } else {
                         Stepper(
-                            "Performed repetitions: \(repetitionsByResult[result.id, default: 0])",
-                            value: repetitionsBinding(for: result, defaultValue: entry.targetRepetitions ?? 0),
+                            value: repetitionsBinding(for: result),
                             in: 0...100
-                        )
+                        ) {
+                            performedRepetitionsLabel(for: result)
+                        }
+                        .accessibilityLabel("Performed repetitions")
+                        .accessibilityValue(performedRepetitionsAccessibilityValue(for: result))
                         .accessibilityIdentifier("mobility-repetitions-\(result.side.rawValue)")
                     }
 
                     if requiresLoadInput(resultID: result.id, entry: entry) {
                         Stepper(
-                            "Performed load: \(loadsByResult[result.id, default: 0].formatted(.number.precision(.fractionLength(0...2))))",
                             value: Binding(
                                 get: { loadsByResult[result.id] ?? 0 },
                                 set: { loadsByResult[result.id] = $0 }
                             ),
                             in: 0...1000,
                             step: 0.5
-                        )
+                        ) {
+                            performedLoadLabel(for: result)
+                        }
+                        .accessibilityLabel("Performed load")
+                        .accessibilityValue(performedLoadAccessibilityValue(for: result))
                         .accessibilityIdentifier("mobility-load-\(result.side.rawValue)")
 
                         Picker("Load unit", selection: Binding(
@@ -750,21 +794,17 @@ struct MobilitySessionView: View {
                         .accessibilityHidden(true)
                 }
             }
-            .buttonStyle(MobilityPrimaryActionButtonStyle())
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("complete-mobility-phase")
 
-            HStack(spacing: Spacing.xl) {
-                Button("Save partial phase") { savePartialCurrentPhase() }
-                    .accessibilityIdentifier("save-partial-mobility-phase")
-
-                Spacer(minLength: Spacing.s)
-
-                Button("Skip phase") { skipCurrentPhase() }
-                    .foregroundStyle(Color.trameSubdued)
-                    .accessibilityIdentifier("skip-mobility-phase")
-            }
-            .font(AppFont.subheadlineSemibold)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            secondaryActions(
+                leadingTitle: "Save partial phase",
+                leadingIdentifier: "save-partial-mobility-phase",
+                leadingAction: savePartialCurrentPhase,
+                trailingTitle: "Skip phase",
+                trailingIdentifier: "skip-mobility-phase",
+                trailingAction: skipCurrentPhase
+            )
         }
     }
 
@@ -780,22 +820,73 @@ struct MobilitySessionView: View {
                             .accessibilityHidden(true)
                     }
                 }
-                .buttonStyle(MobilityPrimaryActionButtonStyle())
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("complete-mobility-movement")
 
-                HStack(spacing: Spacing.xl) {
-                    Button("Save partial result") { savePartialCurrent() }
-                        .accessibilityIdentifier("save-partial-mobility-movement")
-
-                    Spacer(minLength: Spacing.s)
-
-                    Button("Skip movement") { skipCurrent() }
-                        .foregroundStyle(Color.trameSubdued)
-                        .accessibilityIdentifier("skip-mobility-movement")
-                }
-                .font(AppFont.subheadlineSemibold)
-                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                secondaryActions(
+                    leadingTitle: "Save partial",
+                    leadingIdentifier: "save-partial-mobility-movement",
+                    leadingAction: savePartialCurrent,
+                    trailingTitle: "Skip movement",
+                    trailingIdentifier: "skip-mobility-movement",
+                    trailingAction: skipCurrent
+                )
         }
+    }
+
+    @ViewBuilder
+    private func secondaryActions(
+        leadingTitle: LocalizedStringKey,
+        leadingIdentifier: String,
+        leadingAction: @escaping () -> Void,
+        trailingTitle: LocalizedStringKey,
+        trailingIdentifier: String,
+        trailingAction: @escaping () -> Void
+    ) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: Spacing.xs) {
+                secondaryActionButton(
+                    leadingTitle,
+                    identifier: leadingIdentifier,
+                    action: leadingAction
+                )
+                secondaryActionButton(
+                    trailingTitle,
+                    identifier: trailingIdentifier,
+                    foreground: .trameSubdued,
+                    action: trailingAction
+                )
+            }
+        } else {
+            HStack(spacing: Spacing.xl) {
+                secondaryActionButton(
+                    leadingTitle,
+                    identifier: leadingIdentifier,
+                    action: leadingAction
+                )
+                Spacer(minLength: Spacing.s)
+                secondaryActionButton(
+                    trailingTitle,
+                    identifier: trailingIdentifier,
+                    foreground: .trameSubdued,
+                    action: trailingAction
+                )
+            }
+        }
+    }
+
+    private func secondaryActionButton(
+        _ title: LocalizedStringKey,
+        identifier: String,
+        foreground: Color = .trameText,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: action)
+            .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .accessibilityIdentifier(identifier)
     }
 
     @ViewBuilder
@@ -872,10 +963,7 @@ struct MobilitySessionView: View {
 
         if previousResultsByCurrentID.isEmpty == false {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("PREVIOUS RESULT")
-                    .font(AppFont.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(Color.trameSubdued)
+                TrameDomainSectionRule(title: "PREVIOUS RESULT", color: .trameMobility)
 
                 ForEach(entry.orderedResults) { result in
                     if let previousResult = previousResultsByCurrentID[result.id] {
@@ -1025,11 +1113,13 @@ struct MobilitySessionView: View {
         durationsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             ($0.id, $0.performedDurationSeconds ?? elapsedSeconds(for: entry))
         })
-        repetitionsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
-            ($0.id, $0.performedRepetitions ?? 0)
+        repetitionsByResult = Dictionary(uniqueKeysWithValues: entry.results.compactMap {
+            guard let value = $0.performedRepetitions else { return nil }
+            return ($0.id, value)
         })
-        loadsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
-            ($0.id, $0.performedLoadValue ?? 0)
+        loadsByResult = Dictionary(uniqueKeysWithValues: entry.results.compactMap {
+            guard let value = $0.performedLoadValue else { return nil }
+            return ($0.id, value)
         })
         loadUnitsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             ($0.id, $0.performedLoadUnitRaw ?? entry.prescribedLoadUnitRaw ?? "")
@@ -1302,8 +1392,55 @@ struct MobilitySessionView: View {
         Binding(get: { durationsByResult[result.id] ?? defaultValue }, set: { durationsByResult[result.id] = $0 })
     }
 
-    private func repetitionsBinding(for result: MobilityResult, defaultValue: Int) -> Binding<Int> {
-        Binding(get: { repetitionsByResult[result.id] ?? defaultValue }, set: { repetitionsByResult[result.id] = $0 })
+    private func repetitionsBinding(for result: MobilityResult) -> Binding<Int> {
+        Binding(
+            get: { repetitionsByResult[result.id] ?? 0 },
+            set: { repetitionsByResult[result.id] = $0 }
+        )
+    }
+
+    @ViewBuilder
+    private func performedRepetitionsLabel(for result: MobilityResult) -> some View {
+        LabeledContent("Performed repetitions") {
+            if let repetitions = repetitionsByResult[result.id], repetitions > 0 {
+                Text(repetitions, format: .number)
+                    .monospacedDigit()
+            } else {
+                Text("Not recorded")
+                    .foregroundStyle(Color.trameSubdued)
+            }
+        }
+    }
+
+    private func performedRepetitionsAccessibilityValue(for result: MobilityResult) -> String {
+        guard let repetitions = repetitionsByResult[result.id], repetitions > 0 else {
+            return String(localized: "Not recorded")
+        }
+        return repetitions.formatted()
+    }
+
+    @ViewBuilder
+    private func performedLoadLabel(for result: MobilityResult) -> some View {
+        LabeledContent("Performed load") {
+            if let load = loadsByResult[result.id], load > 0 {
+                Text(load.formatted(.number.precision(.fractionLength(0...2))))
+                    .monospacedDigit()
+            } else {
+                Text("Not recorded")
+                    .foregroundStyle(Color.trameSubdued)
+            }
+        }
+    }
+
+    private func performedLoadAccessibilityValue(for result: MobilityResult) -> String {
+        guard let load = loadsByResult[result.id], load > 0 else {
+            return String(localized: "Not recorded")
+        }
+        let formatted = load.formatted(.number.precision(.fractionLength(0...2)))
+        return loadUnitsByResult[result.id]
+            .flatMap(MobilityLoadUnit.init(rawValue:))
+            .map { "\(formatted) \($0.abbreviation)" }
+            ?? formatted
     }
 
     private func intensityBinding(for result: MobilityResult) -> Binding<Int> {
@@ -1602,27 +1739,5 @@ struct MobilitySessionView: View {
     private func positiveValue(_ value: Int?) -> Int? {
         guard let value, value > 0 else { return nil }
         return value
-    }
-}
-
-/// Coral is an action semantic only inside Mobility execution. It never
-/// recolors the surrounding workout shell or the separately persisted
-/// MobilitySession evidence.
-private struct MobilityPrimaryActionButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(AppFont.sectionTitle)
-            .foregroundStyle(Color.trameSemanticFieldInk)
-            .padding(.horizontal, Spacing.l)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(
-                Color.trameMobility,
-                in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-            )
-            .opacity(isEnabled ? (configuration.isPressed ? 0.82 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.99 : 1)
-            .contentShape(Rectangle())
     }
 }

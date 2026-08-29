@@ -51,6 +51,15 @@ nonisolated enum MealSlot: String, Codable, CaseIterable, Hashable, Sendable {
     case snack
 
     var displayName: String { rawValue.capitalized }
+
+    static func suggested(at date: Date = .now, calendar: Calendar = .current) -> MealSlot {
+        switch calendar.component(.hour, from: date) {
+        case 5..<11: .breakfast
+        case 11..<15: .lunch
+        case 17..<22: .dinner
+        default: .snack
+        }
+    }
 }
 
 nonisolated enum NutritionGoalPhase: String, Codable, CaseIterable, Hashable, Sendable {

@@ -38,15 +38,21 @@ enum WorkoutRestPolicy {
     /// The pattern's demand before equipment is considered.
     private static func baseSeconds(for pattern: MovementPattern?) -> Int {
         switch pattern {
-        case .squat, .hinge:
+        case .squat, .hinge, .olympicLift:
             // Highest systemic cost: the whole body is under the bar.
             150
         case .horizontalPush, .verticalPush, .horizontalPull, .verticalPull:
             90
-        case .lunge, .carry, .locomotion:
+        case .lunge, .carry, .locomotion, .jump, .throwMovement:
             90
-        case .rotation, .antiRotation, .antiExtension, .antiLateralFlexion:
+        case .rotation, .antiRotation, .antiExtension, .antiLateralFlexion,
+             .spinalFlexion, .spinalExtension, .lateralFlexion, .isometricSupport:
             // Bracing and rotational work is local and recovers quickly.
+            60
+        case .shoulderFlexion, .shoulderExtension, .shoulderAbduction,
+             .horizontalAdduction, .horizontalAbduction, .elbowFlexion,
+             .elbowExtension, .hipAbduction, .hipAdduction, .plantarFlexion, .dorsiflexion:
+            // Isolation movements recover quickly.
             60
         case .other, .none:
             // Unknown pattern gets the general-purpose middle value rather than

@@ -150,6 +150,17 @@ extension Color {
         dark: UIColor(red: 0xFF / 255.0, green: 0x8B / 255.0, blue: 0x74 / 255.0, alpha: 1.0)
     )
 
+    /// Accessible Mobility foreground for labels on the canvas. The authored
+    /// coral remains the domain rail/fill; its Pale contrast is 2.70:1, so it
+    /// must not carry small text. This counterpart is 5.34:1 in Pale and 8.28:1
+    /// in Dark, with stronger Increase Contrast variants.
+    static let trameMobilityText = dynamicColor(
+        light: UIColor(red: 0xA5 / 255.0, green: 0x42 / 255.0, blue: 0x30 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xFF / 255.0, green: 0x8B / 255.0, blue: 0x74 / 255.0, alpha: 1.0),
+        lightIncreasedContrast: UIColor(red: 0x84 / 255.0, green: 0x30 / 255.0, blue: 0x22 / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0xFF / 255.0, green: 0xB5 / 255.0, blue: 0xA5 / 255.0, alpha: 1.0)
+    )
+
     static let trameConditioning = dynamicColor(
         light: UIColor(red: 0xB9 / 255.0, green: 0x4A / 255.0, blue: 0x32 / 255.0, alpha: 1.0),
         dark: UIColor(red: 0xE8 / 255.0, green: 0x7C / 255.0, blue: 0x66 / 255.0, alpha: 1.0)

@@ -49,7 +49,10 @@ struct ProgressionReceiptLedgerView: View {
                 Section {
                     decisionSummaryChart(decisionSummary)
                 } header: {
-                    Text(String(localized: "progression.ledger.summary.title", defaultValue: "Recommendation outcomes"))
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey(String(localized: "progression.ledger.summary.title", defaultValue: "Recommendation outcomes")),
+                        color: Color.trameCompetition
+                    )
                 }
             }
 
@@ -72,13 +75,16 @@ struct ProgressionReceiptLedgerView: View {
                         .accessibilityIdentifier("progression-ledger-row-\(entry.id.uuidString)")
                     }
                 } header: {
-                    Text(String(localized: "progression.ledger.section.title", defaultValue: "Recommendation history"))
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey(String(localized: "progression.ledger.section.title", defaultValue: "Recommendation history")),
+                        color: Color.trameStrength
+                    )
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(String(localized: "progression.ledger.title", defaultValue: "Training ledger"))
         .accessibilityIdentifier("progression-ledger-screen")
         .task(id: inputID) {
@@ -126,7 +132,7 @@ struct ProgressionReceiptLedgerView: View {
             .annotation(position: .trailing) {
                 Text(item.count, format: .number)
                     .font(AppFont.captionSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
         }
         .chartXAxis(.hidden)
@@ -154,10 +160,10 @@ struct ProgressionReceiptLedgerView: View {
 
     private func summaryColor(_ decision: ProgressionReceiptLedgerProjection.DecisionState) -> Color {
         switch decision {
-        case .accepted: return .gymSuccess
-        case .acceptedWithModifiedValue: return .gymPrimary
-        case .declined, .outcomeNotRecorded: return .gymSubduedText
-        case .pending: return .gymAccent
+        case .accepted: return .trameCompleted
+        case .acceptedWithModifiedValue: return .trameStrength
+        case .declined, .outcomeNotRecorded: return .trameSubdued
+        case .pending: return .trameAttention
         }
     }
 
@@ -195,18 +201,18 @@ private struct ProgressionReceiptLedgerRow: View {
                 Spacer(minLength: 0)
                 Text(entry.createdAt, style: .date)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             Text(ProgressionReceiptLedgerPresentation.proposalSummary(entry.proposal))
                 .font(AppFont.bodyMedium)
-                .foregroundStyle(Color.gymDataEmphasis)
+                .foregroundStyle(Color.trameText)
             Text(ProgressionReceiptLedgerPresentation.ruleLabel(version: entry.ruleVersion))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             if let applied = ProgressionReceiptLedgerPresentation.appliedValue(entry) {
                 Text(applied)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymSuccess)
+                    .foregroundStyle(Color.trameCompleted)
             }
         }
         .accessibilityElement(children: .combine)
@@ -215,10 +221,10 @@ private struct ProgressionReceiptLedgerRow: View {
 
     private var statusColor: Color {
         switch entry.decision {
-        case .accepted: return .gymSuccess
-        case .acceptedWithModifiedValue: return .gymPrimary
-        case .declined, .outcomeNotRecorded: return .gymSubduedText
-        case .pending: return .gymAccent
+        case .accepted: return .trameCompleted
+        case .acceptedWithModifiedValue: return .trameStrength
+        case .declined, .outcomeNotRecorded: return .trameSubdued
+        case .pending: return .trameAttention
         }
     }
 
@@ -233,7 +239,7 @@ private struct ProgressionReceiptLedgerDetailView: View {
 
     var body: some View {
         List {
-            Section(String(localized: "progression.ledger.detail.proposal", defaultValue: "Proposal")) {
+            Section {
                 detailRow(
                     title: String(localized: "progression.ledger.detail.proposedChange", defaultValue: "Proposed change"),
                     value: ProgressionReceiptLedgerPresentation.proposalSummary(entry.proposal)
@@ -242,9 +248,14 @@ private struct ProgressionReceiptLedgerDetailView: View {
                     title: String(localized: "progression.ledger.detail.rule", defaultValue: "Rule"),
                     value: ProgressionReceiptLedgerPresentation.ruleLabel(version: entry.ruleVersion)
                 )
+            } header: {
+                TrameDomainSectionRule(
+                    title: LocalizedStringKey(String(localized: "progression.ledger.detail.proposal", defaultValue: "Proposal")),
+                    color: Color.trameStrength
+                )
             }
 
-            Section(String(localized: "progression.ledger.detail.evidence", defaultValue: "Evidence")) {
+            Section {
                 detailRow(
                     title: String(localized: "progression.ledger.detail.action", defaultValue: "Action"),
                     value: ProgressionReceiptLedgerPresentation.evidenceLabel(entry.evidence.actionAvailability, kind: .action)
@@ -259,9 +270,14 @@ private struct ProgressionReceiptLedgerDetailView: View {
                         value: String(localized: "progression.ledger.detail.reasonRecorded", defaultValue: "Structured reason recorded")
                     )
                 }
+            } header: {
+                TrameDomainSectionRule(
+                    title: LocalizedStringKey(String(localized: "progression.ledger.detail.evidence", defaultValue: "Evidence")),
+                    color: Color.trameCompetition
+                )
             }
 
-            Section(String(localized: "progression.ledger.detail.decision", defaultValue: "Decision")) {
+            Section {
                 detailRow(
                     title: String(localized: "progression.ledger.detail.outcome", defaultValue: "Outcome"),
                     value: ProgressionReceiptLedgerPresentation.decisionLabel(entry.decision)
@@ -272,9 +288,14 @@ private struct ProgressionReceiptLedgerDetailView: View {
                         value: applied
                     )
                 }
+            } header: {
+                TrameDomainSectionRule(
+                    title: LocalizedStringKey(String(localized: "progression.ledger.detail.decision", defaultValue: "Decision")),
+                    color: Color.trameAction
+                )
             }
 
-            Section(String(localized: "progression.ledger.detail.source", defaultValue: "Source")) {
+            Section {
                 detailRow(
                     title: String(localized: "progression.ledger.detail.created", defaultValue: "Created"),
                     value: entry.createdAt.formatted(date: .abbreviated, time: .shortened)
@@ -289,11 +310,16 @@ private struct ProgressionReceiptLedgerDetailView: View {
                     title: String(localized: "progression.ledger.detail.identifiers", defaultValue: "Run and workout"),
                     value: ProgressionReceiptLedgerPresentation.sourceLabel(entry)
                 )
+            } header: {
+                TrameDomainSectionRule(
+                    title: LocalizedStringKey(String(localized: "progression.ledger.detail.source", defaultValue: "Source")),
+                    color: Color.trameSubdued
+                )
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(String(localized: "progression.ledger.detail.title", defaultValue: "Receipt"))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("progression-ledger-detail-\(entry.id.uuidString)")
@@ -303,7 +329,7 @@ private struct ProgressionReceiptLedgerDetailView: View {
         LabeledContent(title) {
             Text(value)
                 .multilineTextAlignment(.trailing)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
         }
     }
 }

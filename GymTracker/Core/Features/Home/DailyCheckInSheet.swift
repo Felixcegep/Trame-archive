@@ -89,7 +89,7 @@ struct DailyCheckInSheet: View {
                 .padding(.bottom, Spacing.xl)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Daily check-in")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -128,19 +128,19 @@ struct DailyCheckInSheet: View {
     /// go?" — so they share a card and are separated by dividers rather than by
     /// three competing headlines.
     private var ratingsCard: some View {
-        GymCard {
+        trameSurface {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("How did today go?")
                     .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(dayLabel)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             moodSection
 
-            Divider().overlay(Color.gymBorder)
+            Divider().overlay(Color.trameSeparator)
 
             ratingSection(
                 "Sleep",
@@ -150,7 +150,7 @@ struct DailyCheckInSheet: View {
             )
 
             if hasWorkoutForDay {
-                Divider().overlay(Color.gymBorder)
+                Divider().overlay(Color.trameSeparator)
 
                 ratingSection(
                     "Workout",
@@ -185,18 +185,18 @@ struct DailyCheckInSheet: View {
                     .font(AppFont.titleMedium)
                     .frame(width: 46, height: 46)
                     .background(
-                        isSelected ? Color.gymPrimarySurface : Color.gymRowSurface,
+                        isSelected ? Color.trameCurrent : Color.trameRow,
                         in: Circle()
                     )
                     .overlay {
                         Circle().stroke(
-                            isSelected ? Color.gymPrimary : Color.gymBorder,
+                            isSelected ? Color.trameAction : Color.trameSeparator,
                             lineWidth: isSelected ? 2 : 1
                         )
                     }
                 Text(option.title)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(isSelected ? Color.gymText : Color.gymSubduedText)
+                    .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -230,17 +230,17 @@ struct DailyCheckInSheet: View {
                     } label: {
                         Text(option.0)
                             .font(AppFont.footnoteMedium)
-                            .foregroundStyle(isSelected ? Color.gymText : Color.gymSubduedText)
+                            .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                             .background(
-                                isSelected ? Color.gymPrimarySurface : Color.gymRowSurface,
+                                isSelected ? Color.trameCurrent : Color.trameRow,
                                 in: Capsule()
                             )
                             .overlay {
                                 Capsule().stroke(
-                                    isSelected ? Color.gymPrimary : Color.clear,
+                                    isSelected ? Color.trameAction : Color.clear,
                                     lineWidth: 1.5
                                 )
                             }
@@ -257,25 +257,34 @@ struct DailyCheckInSheet: View {
     // MARK: - Weight
 
     private var weightCard: some View {
-        GymCard {
+        trameSurface {
             HStack(alignment: .firstTextBaseline) {
                 GymEyebrow("Body weight")
                 Spacer(minLength: Spacing.s)
                 Button("Not now") { withAnimation(reduceMotion ? nil : AppMotion.compact) { hidesWeightPrompt = true } }
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameAction)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityHint("Hides the weight field for this check-in")
             }
             Text("Your optional \(weightCadence == .weekly ? "weekly" : "monthly") measurement is due.")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             HStack(spacing: Spacing.m) {
                 TextField("0", text: $weightValue)
                     .keyboardType(.decimalPad)
                     .font(AppFont.headlineMonospaced)
                     .frame(maxWidth: .infinity)
-                    .gymFieldStyle()
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .padding(.horizontal, Spacing.m)
+                    .background(
+                        Color.trameRow,
+                        in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                            .stroke(Color.trameSeparator)
+                    }
                     .accessibilityLabel("Current weight")
                     .accessibilityIdentifier("daily-check-in-weight")
                 Picker("Unit", selection: $weightUnit) {
@@ -292,19 +301,19 @@ struct DailyCheckInSheet: View {
     // MARK: - Note
 
     private var noteCard: some View {
-        GymCard {
+        trameSurface {
             GymEyebrow("Note")
             TextEditor(text: $note)
                 .font(AppFont.subheadline)
                 .frame(minHeight: 76)
                 .scrollContentBackground(.hidden)
                 .padding(Spacing.xs)
-                .background(Color.gymRowSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     if note.isEmpty {
                         Text("Anything worth remembering?")
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                             .padding(.leading, Spacing.md)
                             .padding(.top, Spacing.m)
                             .allowsHitTesting(false)
@@ -323,7 +332,7 @@ struct DailyCheckInSheet: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text("Everything is optional. Your answers and weight never change a workout or nutrition target automatically.")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Button {
                 save(status: .skipped)
             } label: {
@@ -332,10 +341,22 @@ struct DailyCheckInSheet: View {
                     .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .contentShape(Rectangle())
             .accessibilityIdentifier("daily-check-in-skip")
             .accessibilityHint("Records the day as skipped without answers")
+        }
+    }
+
+    private func trameSurface<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator, radius: Radius.card) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.l)
         }
     }
 

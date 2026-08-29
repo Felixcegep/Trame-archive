@@ -78,10 +78,11 @@ struct TrainingCalendarView: View {
                     )
                 }
             }
-            .padding(.horizontal, Spacing.l)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.m)
+            .padding(.bottom, Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Training Calendar")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-calendar-screen")
@@ -196,14 +197,15 @@ struct TrainingCalendarView: View {
                 selectFirstDayInDisplayedMonth()
             } label: {
                 Image(systemName: AppIcon.chevronLeft)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .accessibilityLabel("Previous month")
             .accessibilityIdentifier("training-calendar-previous-month")
 
             Text(displayedMonth.formatted(.dateTime.month(.wide).year()))
                 .font(AppFont.titleSmallSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .frame(maxWidth: .infinity)
 
             Button {
@@ -211,8 +213,9 @@ struct TrainingCalendarView: View {
                 selectFirstDayInDisplayedMonth()
             } label: {
                 Image(systemName: AppIcon.chevronRight)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .accessibilityLabel("Next month")
             .accessibilityIdentifier("training-calendar-next-month")
 
@@ -220,8 +223,10 @@ struct TrainingCalendarView: View {
                 displayedMonth = .now
                 selectedDay = .today
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.gymPrimary)
+            .font(AppFont.metadata)
+            .foregroundStyle(Color.trameText)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .buttonStyle(.plain)
             .accessibilityIdentifier("training-calendar-today")
         }
     }
@@ -232,7 +237,7 @@ struct TrainingCalendarView: View {
             ForEach(symbols, id: \.self) { symbol in
                 Text(symbol)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(maxWidth: .infinity)
                     .accessibilityHidden(true)
             }
@@ -244,23 +249,33 @@ struct TrainingCalendarView: View {
         let planned = days.reduce(0) { $0 + $1.plannedWorkouts.count }
         let completed = days.reduce(0) { $0 + $1.completedWorkoutCount }
         let activeDays = days.filter { $0.completedWorkoutCount > 0 }.count
-        return GymCard(variant: .completed) {
-            GymSectionHeader(title: "Month at a glance", detail: "A concise view of planned and performed training.", systemImage: AppIcon.chart)
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("MONTH")
+                .font(AppFont.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(Color.trameSubdued)
             HStack(spacing: Spacing.l) {
                 calendarMetric(value: planned, label: "Planned")
-                Divider()
+                Divider().overlay(Color.trameSeparator)
                 calendarMetric(value: completed, label: "Completed")
-                Divider()
+                Divider().overlay(Color.trameSeparator)
                 calendarMetric(value: activeDays, label: "Training days")
             }
+        }
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
         }
         .accessibilityIdentifier("training-calendar-month-summary")
     }
 
     private func calendarMetric(value: Int, label: LocalizedStringKey) -> some View {
         VStack(spacing: Spacing.xxs) {
-            Text("\(value)").font(AppFont.titleSmallSemiboldMonospaced).foregroundStyle(Color.gymText)
-            Text(label).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+            Text("\(value)").font(AppFont.metricCompact).foregroundStyle(Color.trameText)
+            Text(label).font(AppFont.caption).foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity)
     }
@@ -322,6 +337,7 @@ private struct TrainingCalendarProjectionCache {
 }
 
 private struct TrainingCalendarDayButton: View {
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     let day: TrainingCalendarDay
     let isSelected: Bool
     let isToday: Bool
@@ -335,12 +351,21 @@ private struct TrainingCalendarDayButton: View {
                 HStack(spacing: Spacing.xxs) {
                     if !day.plannedWorkouts.isEmpty {
                         Image(systemName: AppIcon.plan)
+                            .foregroundStyle(Color.trameStrength)
                     }
                     if day.completedWorkoutCount > 0 {
                         Image(systemName: AppIcon.checkmarkCircle)
+                            .foregroundStyle(Color.trameCompleted)
                     }
                     if !day.mobilitySessions.isEmpty || !day.mobilityProgramSessions.isEmpty {
                         Image(systemName: AppIcon.mobility)
+                            .foregroundStyle(Color.trameMobility)
+                    }
+                    if day.checkIn != nil || day.creatine != nil
+                        || (featureFlags.isEnabled(.nutrition) && day.nutrition != nil) {
+                        Circle()
+                            .fill(Color.trameAttention)
+                            .frame(width: 5, height: 5)
                     }
                 }
                 .font(AppFont.caption2Bold)
@@ -348,12 +373,10 @@ private struct TrainingCalendarDayButton: View {
             }
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, minHeight: Spacing.xxxl + Spacing.l)
-            .background(backgroundColor, in: RoundedRectangle(cornerRadius: Radius.medium))
-            .overlay {
-                if isToday && !isSelected {
-                    RoundedRectangle(cornerRadius: Radius.medium)
-                        .stroke(Color.gymPrimary, lineWidth: 1)
-                }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(isSelected ? Color.trameText : (isToday ? Color.trameStrength : Color.clear))
+                    .frame(height: isSelected ? 3 : 1)
             }
         }
         .buttonStyle(.gymPress)
@@ -363,14 +386,8 @@ private struct TrainingCalendarDayButton: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var backgroundColor: Color {
-        if isSelected { return Color.gymPrimary }
-        return day.isInDisplayedMonth ? Color.gymCard : Color.gymBackground
-    }
-
     private var foregroundColor: Color {
-        if isSelected { return .white }
-        return day.isInDisplayedMonth ? Color.gymText : Color.gymSubduedText
+        day.isInDisplayedMonth ? Color.trameText : Color.trameSubdued
     }
 
     private var accessibilityLabel: String {
@@ -381,7 +398,7 @@ private struct TrainingCalendarDayButton: View {
         if day.completedWorkoutCount > 0 { parts.append("\(day.completedWorkoutCount) completed workout\(day.completedWorkoutCount == 1 ? "" : "s")") }
         if !day.mobilitySessions.isEmpty { parts.append("\(day.mobilitySessions.count) mobility session\(day.mobilitySessions.count == 1 ? "" : "s")") }
         if !day.mobilityProgramSessions.isEmpty { parts.append("\(day.mobilityProgramSessions.count) mobility plan session\(day.mobilityProgramSessions.count == 1 ? "" : "s")") }
-        if day.nutrition != nil { parts.append("nutrition logged") }
+        if featureFlags.isEnabled(.nutrition), day.nutrition != nil { parts.append("nutrition logged") }
         if day.checkIn != nil { parts.append("check-in recorded") }
         return parts.joined(separator: ", ")
     }
@@ -402,7 +419,7 @@ private struct TrainingCalendarDayAgenda: View {
         VStack(alignment: .leading, spacing: Spacing.l) {
             Text(day.date.formatted(date: .complete, time: .omitted))
                 .font(AppFont.titleSmallSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .accessibilityIdentifier("training-calendar-selected-day")
 
             if day.hasContent {
@@ -430,34 +447,35 @@ private struct TrainingCalendarDayAgenda: View {
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(item.workoutName).font(AppFont.subheadlineSemibold)
-                                Text(item.planName).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                                Text(item.planName).font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                             }
                             Spacer()
                             PlanCalendarStateBadge(state: item.state)
                         }
                         if item.isStartable || item.isEditable {
-                            HStack(spacing: Spacing.s) {
-                                if item.isStartable {
-                                    Button { onStart(item) } label: {
-                                        Label("Start", systemImage: AppIcon.play)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .tint(Color.gymPrimary)
-                                    .accessibilityIdentifier("training-calendar-start-\(item.id)")
+                            if item.isStartable {
+                                Button { onStart(item) } label: {
+                                    Label("Start", systemImage: AppIcon.play)
                                 }
-                                if item.isEditable {
-                                    Button { onReschedule(item) } label: {
-                                        Label("Reschedule", systemImage: AppIcon.reschedule)
+                                .buttonStyle(.tramePrimaryAction)
+                                .accessibilityIdentifier("training-calendar-start-\(item.id)")
+                            }
+                            if item.isEditable || item.state == .available {
+                                HStack(spacing: Spacing.s) {
+                                    if item.isEditable {
+                                        Button { onReschedule(item) } label: {
+                                            Label("Reschedule", systemImage: AppIcon.reschedule)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .accessibilityIdentifier("training-calendar-reschedule-\(item.id)")
                                     }
-                                    .buttonStyle(.bordered)
-                                    .accessibilityIdentifier("training-calendar-reschedule-\(item.id)")
-                                }
-                                if item.state == .available {
-                                    Button(role: .destructive) { onSkip(item) } label: {
-                                        Label("Skip", systemImage: AppIcon.skip)
+                                    if item.state == .available {
+                                        Button(role: .destructive) { onSkip(item) } label: {
+                                            Label("Skip", systemImage: AppIcon.skip)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .accessibilityIdentifier("training-calendar-skip-\(item.id)")
                                     }
-                                    .buttonStyle(.bordered)
-                                    .accessibilityIdentifier("training-calendar-skip-\(item.id)")
                                 }
                             }
                         }
@@ -481,12 +499,12 @@ private struct TrainingCalendarDayAgenda: View {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
                             Text(item.sessionName).font(AppFont.subheadlineSemibold)
-                            Text(item.programName).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                            Text(item.programName).font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                         }
                         Spacer()
                         Text(mobilityProgramStatusLabel(item))
                             .font(AppFont.caption2Bold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                     .accessibilityIdentifier("training-calendar-mobility-plan-\(item.id)")
                     if item.id != pending.last?.id { Divider() }
@@ -567,30 +585,30 @@ private struct TrainingCalendarDayAgenda: View {
 
     @ViewBuilder
     private var contextSection: some View {
-        if featureFlags.isEnabled(.nutrition), let nutrition = day.nutrition {
+        if (featureFlags.isEnabled(.nutrition) && day.nutrition != nil)
+            || day.checkIn != nil
+            || day.creatine != nil {
             agendaSection("Daily context", icon: AppIcon.nutrition) {
-                Button(action: onOpenNutrition) {
-                    HStack(spacing: Spacing.m) {
-                        Image(systemName: AppIcon.nutrition).foregroundStyle(Color.gymSecondary)
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Nutrition").font(AppFont.subheadlineSemibold)
-                            Text("\(FoodLibraryService.format(nutrition.totals.calories)) kcal · \(FoodLibraryService.format(nutrition.totals.protein)) g protein")
-                                .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
-                            if nutrition.totals.hasUnknownValues {
-                                Text("Some nutrients unknown").font(AppFont.caption).foregroundStyle(Color.gymAccent)
+                if featureFlags.isEnabled(.nutrition), let nutrition = day.nutrition {
+                    Button(action: onOpenNutrition) {
+                        HStack(spacing: Spacing.m) {
+                            Image(systemName: AppIcon.nutrition).foregroundStyle(Color.trameConditioning)
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Nutrition").font(AppFont.subheadlineSemibold)
+                                Text("\(FoodLibraryService.format(nutrition.totals.calories)) kcal · \(FoodLibraryService.format(nutrition.totals.protein)) g protein")
+                                    .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
+                                if nutrition.totals.hasUnknownValues {
+                                    Text("Some nutrients unknown").font(AppFont.caption).foregroundStyle(Color.trameAttention)
+                                }
                             }
+                            Spacer()
+                            Text("\(nutrition.mealCount) meal\(nutrition.mealCount == 1 ? "" : "s")")
+                                .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                         }
-                        Spacer()
-                        Text("\(nutrition.mealCount) meal\(nutrition.mealCount == 1 ? "" : "s")")
-                            .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("training-calendar-nutrition")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("training-calendar-nutrition")
-            }
-        }
-        if day.checkIn != nil || day.creatine != nil {
-            agendaSection("Daily context", icon: AppIcon.routine) {
                 if let checkIn = day.checkIn {
                     Button(action: onOpenJournalHistory) {
                         performedRow(title: "Journal", detail: checkIn.title, icon: AppIcon.routine)
@@ -611,25 +629,34 @@ private struct TrainingCalendarDayAgenda: View {
 
     private func agendaSection<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Label(title, systemImage: icon)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+            HStack(spacing: Spacing.s) {
+                Image(systemName: icon)
+                    .foregroundStyle(Color.trameStrength)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
+                    .textCase(.uppercase)
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card))
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
     }
 
     private func performedRow(title: String, detail: String, icon: String) -> some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: icon).foregroundStyle(Color.gymPrimary)
+            Image(systemName: icon).foregroundStyle(Color.trameStrength)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title).font(AppFont.subheadlineSemibold).foregroundStyle(Color.gymText)
-                Text(detail).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                Text(title).font(AppFont.subheadlineSemibold).foregroundStyle(Color.trameText)
+                Text(detail).font(AppFont.caption).foregroundStyle(Color.trameSubdued)
             }
             Spacer()
-            Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
+            Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

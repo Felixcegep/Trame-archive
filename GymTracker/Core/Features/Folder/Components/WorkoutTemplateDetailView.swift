@@ -77,7 +77,7 @@ struct WorkoutTemplateDetailView: View {
                             FolderRow(
                                 title: templateExercise.exercise.name,
                                 subtitle: prescriptionSummary(templateExercise),
-                                systemImage: "figure.strengthtraining.traditional"
+                                systemImage: AppIcon.exercise
                             )
                         }
                         .accessibilityIdentifier("template-exercise-editor-\(templateExercise.exercise.name)")

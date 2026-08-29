@@ -377,7 +377,9 @@ enum CatalogMetadataInstaller {
     }
 
     private static func makeExercise(from resource: ExerciseCatalogResource) -> Exercise {
-        Exercise(
+        let force = resource.forceType.flatMap(ForceType.init(rawValue:))
+        let patterns = resource.movementPatterns.map { enumValue(MovementPattern.self, raw: $0, fallback: .other) }
+        return Exercise(
             name: resource.name,
             primaryMuscles: resource.primaryMuscles.compactMap(Muscle.init(rawValue:)),
             secondaryMuscles: resource.secondaryMuscles.compactMap(Muscle.init(rawValue:)),
@@ -386,6 +388,8 @@ enum CatalogMetadataInstaller {
             equipmentType: enumValue(EquipmentType.self, raw: resource.equipment, fallback: .other),
             resistanceType: enumValue(ResistanceType.self, raw: resource.resistanceType, fallback: .other),
             movementPattern: enumValue(MovementPattern.self, raw: resource.movementPattern, fallback: .other),
+            movementPatterns: patterns,
+            forceType: force,
             difficulty: enumValue(Difficulty.self, raw: resource.difficulty, fallback: .beginner),
             tags: resource.tags
         )
@@ -406,24 +410,61 @@ enum CatalogMetadataInstaller {
         let equipment = enumValue(EquipmentType.self, raw: resource.equipment, fallback: .other)
         let resistance = enumValue(ResistanceType.self, raw: resource.resistanceType, fallback: .other)
         let movement = enumValue(MovementPattern.self, raw: resource.movementPattern, fallback: .other)
+        let patterns = resource.movementPatterns.map { enumValue(MovementPattern.self, raw: $0, fallback: .other) }
+        let force = resource.forceType.flatMap(ForceType.init(rawValue:))
         let difficulty = enumValue(Difficulty.self, raw: resource.difficulty, fallback: .beginner)
-        let changed = exercise.catalogueKey != key || exercise.name != resource.name
-            || exercise.primaryMuscles != primary || exercise.secondaryMuscles != secondary
-            || exercise.category != category || exercise.trackingType != tracking
-            || exercise.equipmentType != equipment || exercise.resistanceType != resistance
-            || exercise.movementPattern != movement || exercise.difficulty != difficulty
-            || exercise.tags != resource.tags
+
+        var changed = exercise.catalogueKey != key || exercise.name != resource.name
         exercise.catalogueKey = key
         exercise.name = resource.name
-        exercise.primaryMuscles = primary
-        exercise.secondaryMuscles = secondary
-        exercise.category = category
-        exercise.trackingType = tracking
-        exercise.equipmentType = equipment
-        exercise.resistanceType = resistance
-        exercise.movementPattern = movement
-        exercise.difficulty = difficulty
-        exercise.tags = resource.tags
+
+        if !primary.isEmpty && exercise.primaryMuscles != primary {
+            exercise.primaryMuscles = primary
+            changed = true
+        }
+        if exercise.secondaryMuscles != secondary {
+            exercise.secondaryMuscles = secondary
+            changed = true
+        }
+        if exercise.category != category && category != .other {
+            exercise.category = category
+            changed = true
+        }
+        if exercise.trackingType != tracking {
+            exercise.trackingType = tracking
+            changed = true
+        }
+        if exercise.equipmentType != equipment && equipment != .other {
+            exercise.equipmentType = equipment
+            changed = true
+        }
+        if exercise.resistanceType != resistance && resistance != .other {
+            exercise.resistanceType = resistance
+            changed = true
+        }
+        if !patterns.isEmpty && exercise.movementPatterns != patterns {
+            exercise.movementPatterns = patterns
+            exercise.movementPattern = patterns.first
+            changed = true
+        } else if movement != .other || exercise.movementPattern == nil || exercise.movementPattern == .other {
+            if exercise.movementPattern != movement {
+                exercise.movementPattern = movement
+                exercise.movementPatterns = [movement]
+                changed = true
+            }
+        }
+        if let force, exercise.forceType != force {
+            exercise.forceType = force
+            changed = true
+        }
+        if exercise.difficulty != difficulty {
+            exercise.difficulty = difficulty
+            changed = true
+        }
+        if exercise.tags != resource.tags {
+            exercise.tags = resource.tags
+            changed = true
+        }
         return changed
     }
 

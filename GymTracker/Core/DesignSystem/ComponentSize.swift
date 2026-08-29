@@ -22,4 +22,8 @@ enum ComponentSize {
     static let todayActionHeight: CGFloat = 54
     static let todayWeekMark: CGFloat = 28
     static let todayQuickAccessIcon: CGFloat = 40
+    /// Extra scroll padding so the last row of a tab-root list can rest above
+    /// the tab bar without a fixed canvas strip. Apply via
+    /// `contentMargins(.bottom, tabBarClearance, for: .scrollContent)`.
+    static let tabBarClearance: CGFloat = 49
 }

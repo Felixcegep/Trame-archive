@@ -47,25 +47,15 @@ struct SetRowView: View {
         .onTapGesture {
             beginEditingIfNeeded()
         }
-        .background(rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                .stroke(rowBorder, lineWidth: rowBorderWidth)
-        }
-        // A shape, not a hue. The current row was previously marked by a tinted
-        // fill, a tinted index, and this bar — three cues that are all the same
-        // cue, and all of which vanish in grayscale, under Increase Contrast, or
-        // for a red/green-blind lifter. The pointer reads as "you are here" from
-        // its silhouette. It stays inside the row's own leading padding, so the
-        // value columns lose no width to it.
+        // Set state belongs to the ledger, not to a stack of green cards. A
+        // single structural rail marks the current/editing row; completed and
+        // pending rows stay on the same canvas.
         .overlay(alignment: .leading) {
-            if isCurrentSet, !exerciseSet.done, !isEditingCompletedSet {
-                Image(systemName: AppIcon.currentPointer)
-                    .font(AppFont.micro)
-                    .foregroundStyle(Color.trameAction)
-                    // Clear of the current row's structural outline.
-                    .padding(.leading, Spacing.xs)
+            if isActiveSet || isEditingCompletedSet {
+                Rectangle()
+                    .fill(isEditingCompletedSet ? Color.trameStrength : Color.trameText)
+                    .frame(width: 4)
+                    .padding(.vertical, Spacing.xs)
                     .accessibilityHidden(true)
             }
         }
@@ -216,33 +206,6 @@ struct SetRowView: View {
 
     private var isCurrentSet: Bool {
         exerciseEntry.orderedSets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
-    }
-
-    /// Untouched sets belong to the open table. Opaque fields are reserved for
-    /// meaningful state: current, completed, or explicit completed-set editing.
-    private var rowSurface: Color {
-        if isEditingCompletedSet {
-            return Color.trameCurrent
-        }
-        if exerciseSet.done {
-            return Color.trameRow
-        }
-        if isActiveSet {
-            return Color.trameCurrent
-        }
-        return Color.clear
-    }
-
-    /// Current/editing state gets a structural edge in addition to its fill and
-    /// pointer. Completed state already carries a checkmark and opaque row field.
-    private var rowBorder: Color {
-        if isEditingCompletedSet { return Color.trameStrength }
-        if isActiveSet { return Color.trameActionOutline }
-        return Color.clear
-    }
-
-    private var rowBorderWidth: CGFloat {
-        isEditingCompletedSet || isActiveSet ? 1.5 : 1
     }
 
     /// The one row the lifter is on: next up, and not yet logged.

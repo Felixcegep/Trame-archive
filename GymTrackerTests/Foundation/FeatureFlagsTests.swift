@@ -2,12 +2,11 @@ import XCTest
 @testable import GymTracker
 
 final class FeatureFlagsTests: XCTestCase {
-    func testInternalDevelopmentChannelEnablesEveryFlagExceptHiddenNutrition() {
+    func testInternalDevelopmentChannelEnablesEveryFlag() {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .internalDevelopment)
-        let expected = Set(FeatureFlag.allCases).subtracting([.nutrition, .recipeGeneration])
-        XCTAssertEqual(Set(configuration.enabledFlags), expected)
-        XCTAssertFalse(configuration.isEnabled(.nutrition))
-        XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
+        XCTAssertEqual(Set(configuration.enabledFlags), Set(FeatureFlag.allCases))
+        XCTAssertTrue(configuration.isEnabled(.nutrition))
+        XCTAssertTrue(configuration.isEnabled(.recipeGeneration))
     }
 
     func testReleaseChannelMatchesGeneralAvailabilityMatrix() {
@@ -73,14 +72,14 @@ final class FeatureFlagsTests: XCTestCase {
             Set(configuration.enabledFlags),
             Set(FeatureFlag.allCases).subtracting([
                 .mobilityAssessment, .mobilityProgram, .recipeGeneration,
-                .workoutGeneration, .nutrition, .sportSpecializations
+                .workoutGeneration, .sportSpecializations
             ])
         )
         XCTAssertFalse(configuration.isEnabled(.mobilityAssessment))
         XCTAssertFalse(configuration.isEnabled(.mobilityProgram))
         XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
         XCTAssertFalse(configuration.isEnabled(.workoutGeneration))
-        XCTAssertFalse(configuration.isEnabled(.nutrition))
+        XCTAssertTrue(configuration.isEnabled(.nutrition))
         XCTAssertFalse(configuration.isEnabled(.sportSpecializations))
     }
 

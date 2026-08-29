@@ -203,19 +203,21 @@ struct AthleteIntelligenceSection: View {
     private var compactAthleteProfileRow: some View {
         Button { isEditingProfile = true } label: {
             HStack(spacing: Spacing.m) {
-                GymIconChip(systemImage: AppIcon.settings, tint: .gymPrimary)
+                Image(systemName: AppIcon.settings)
+                    .foregroundStyle(Color.trameStrength)
+                    .frame(width: ComponentSize.minimumTouchTarget)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Training profile")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(profileTitle)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 Spacer(minLength: Spacing.s)
                 Text("Edit")
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
@@ -227,18 +229,18 @@ struct AthleteIntelligenceSection: View {
     }
 
     private func athleteProfileCard(suggestion: SportProfileSuggestion?) -> some View {
-        GymCard {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator) {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack(alignment: .top, spacing: Spacing.m) {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         GymEyebrow("Athlete profile")
                         Text(profileTitle)
                             .font(AppFont.titleSmallSemibold)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                         if let detail = profileDetail {
                             Text(detail)
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -250,7 +252,7 @@ struct AthleteIntelligenceSection: View {
                 }
 
                 if shouldOfferSuggestion, let suggestion {
-                    Divider().overlay(Color.gymBorder)
+                    Divider().overlay(Color.trameSeparator)
                     suggestionView(suggestion)
                 }
             }
@@ -299,10 +301,10 @@ struct AthleteIntelligenceSection: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text(String(localized: "Your recent training looks mostly like \(suggestion.discipline.title)."))
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(suggestion.reasons.first ?? String(localized: "Based on completed training snapshots."))
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             HStack(spacing: Spacing.s) {
                 Button(String(localized: "Use \(suggestion.discipline.title)")) {
                     applySuggestion(suggestion)
@@ -341,13 +343,13 @@ struct AthleteIntelligenceSection: View {
     private func lensButton(_ lens: ProgressLens) -> some View {
         Button(lens.title) { selectedLens = lens }
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(selectedLens == lens ? Color.white : Color.gymText)
+            .foregroundStyle(selectedLens == lens ? Color.trameSemanticFieldInk : Color.trameText)
             .padding(.horizontal, Spacing.l)
             .frame(minHeight: 44)
             .background(
-                Capsule().fill(selectedLens == lens ? Color.gymPrimaryDeep : Color.gymCard)
+                Capsule().fill(selectedLens == lens ? Color.trameStrength : Color.trameSurface)
             )
-            .overlay(Capsule().stroke(Color.gymBorder, lineWidth: selectedLens == lens ? 0 : 1))
+            .overlay(Capsule().stroke(Color.trameSeparator, lineWidth: selectedLens == lens ? 0 : 1))
             .accessibilityAddTraits(selectedLens == lens ? .isSelected : [])
             .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
     }
@@ -367,10 +369,12 @@ struct AthleteIntelligenceSection: View {
                 .listRowInsets(EdgeInsets())
         } else {
             HStack(spacing: Spacing.m) {
-                GymIconChip(systemImage: AppIcon.info, tint: .gymPrimary)
+                Image(systemName: AppIcon.info)
+                    .foregroundStyle(Color.trameStrength)
+                    .frame(width: ComponentSize.minimumTouchTarget)
                 Text("Complete at least four workouts across two weeks to compare how your sport focus changes over time.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, Spacing.xs)
@@ -389,7 +393,7 @@ struct AthleteIntelligenceSection: View {
         _ projection: GlobalProgressProjection,
         delta: ProgressMetricDelta?
     ) -> some View {
-        GymCard {
+        TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator) {
             GymEyebrow("Selected period")
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xl) {
                 metric(
@@ -458,21 +462,21 @@ struct AthleteIntelligenceSection: View {
             )
             .chartYAxis {
                 AxisMarks { value in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisGridLine().foregroundStyle(Color.trameSeparator)
+                    AxisTick().foregroundStyle(Color.trameSeparator)
                     AxisValueLabel {
                         if let proportion = value.as(Double.self) {
                             Text(proportion, format: .percent.precision(.fractionLength(0)))
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                 }
             }
             .chartXAxis {
                 AxisMarks { _ in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
-                    AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                    AxisGridLine().foregroundStyle(Color.trameSeparator)
+                    AxisTick().foregroundStyle(Color.trameSeparator)
+                    AxisValueLabel().foregroundStyle(Color.trameSubdued)
                 }
             }
             .chartLegend(.automatic)
@@ -489,18 +493,18 @@ struct AthleteIntelligenceSection: View {
                 ContentUnavailableView(String(localized: "No sport highlights"), systemImage: AppIcon.chart)
             } else {
                 ForEach(highlights.filter { $0.metric == .completedWorkouts }) { highlight in
-                    GymCard {
+                    TrameColorField(fill: .trameSurface, ink: .trameText, border: .trameSeparator) {
                         HStack {
                             VStack(alignment: .leading, spacing: Spacing.xs) {
                                 Text(highlight.discipline.title)
                                     .font(AppFont.subheadlineSemibold)
                                 Text(highlightText(highlight))
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                             Spacer()
                             Image(systemName: AppIcon.chevronRight)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                     .contentShape(Rectangle())
@@ -544,11 +548,11 @@ struct AthleteIntelligenceSection: View {
             Text(value)
                 .font(AppFont.displayMedium)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .minimumScaleFactor(0.7)
             Text(label)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             if let delta {
                 Label(delta.text, systemImage: delta.icon)
                     .font(AppFont.captionSemiboldMonospaced)

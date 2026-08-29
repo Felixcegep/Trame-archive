@@ -9,11 +9,11 @@ Source of truth: No — superseded by the Trame Performance Editorial documents
 > UI and new prototypes must follow [`TrameDesignConstitution.md`](../Design/TrameDesignConstitution.md),
 > [`DesignSystem.md`](../DesignSystem.md), the approved specimen/calibration
 > manifest [`Documentation/Design/Reference/README.md`](../Design/Reference/README.md),
-> and [`TrameMigrationPlan.md`](../Design/TrameMigrationPlan.md). The approved
-> specimen is `/Users/felixlachapelle/Documents/redesign/Favorie/trame-theme-lab (1).html`.
-> Performance Lab — Dark is principal/default; Performance Lab — Pale is the
-> supported alternate. Do not copy the legacy warm-cream palette, tinted-card
-> treatment, or SF Rounded roles into new work.
+> and [`TrameMigrationPlan.md`](../Design/TrameMigrationPlan.md). The final visual
+> authority is `/Users/felixlachapelle/Downloads/32 — Final Direction · Trame Core Concept.pdf`.
+> Core Concept — Pale is the authored appearance and Dark is its accessible
+> low-light counterpart. The HTML theme lab is interaction research only where
+> it does not conflict with the PDF.
 
 The screenshots, prototype components, and token files in this bundle remain
 historical evidence of earlier GymTracker decisions. They are useful for

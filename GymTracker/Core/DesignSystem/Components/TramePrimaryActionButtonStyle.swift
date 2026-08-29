@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The dominant Trame command: opaque lime, compact rectangular geometry, and
+/// The dominant Trame command: inverse Ink/Paper, compact rectangular geometry, and
 /// no decorative depth. This lives beside the legacy `gymPrimary` style so a
 /// feature can migrate without silently restyling every older call site.
 struct TramePrimaryActionButtonStyle: ButtonStyle {

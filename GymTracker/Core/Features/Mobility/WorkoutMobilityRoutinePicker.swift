@@ -99,7 +99,7 @@ struct WorkoutMobilityRoutinePicker: View {
     var body: some View {
         NavigationStack {
             content
-                .background(Color.gymBackground)
+                .background(Color.trameCanvas)
                 .navigationTitle(placement.pickerTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -194,19 +194,18 @@ struct WorkoutMobilityRoutinePicker: View {
             selection = routine
         } label: {
             HStack(alignment: .center, spacing: Spacing.m) {
-                GymIconChip(
-                    systemImage: routine.purpose.map(purposeIcon) ?? AppIcon.mobility,
-                    tint: isSelected ? Color.gymPrimary : Color.gymAccent
-                )
+                Image(systemName: routine.purpose.map(purposeIcon) ?? AppIcon.mobility)
+                    .foregroundStyle(isSelected ? Color.trameCompleted : Color.trameMobility)
+                    .frame(width: ComponentSize.minimumTouchTarget)
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(routine.name)
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
 
                     Text(WorkoutMobilityPresentation.routineSummary(for: routine))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -215,7 +214,7 @@ struct WorkoutMobilityRoutinePicker: View {
                 // A symbol, not only a tint, carries the selected state.
                 if isSelected {
                     Image(systemName: AppIcon.checkmarkCircle)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameCompleted)
                         .accessibilityHidden(true)
                 }
             }
@@ -232,10 +231,10 @@ struct WorkoutMobilityRoutinePicker: View {
         selection?.id != currentRoutine?.id
     }
 
-    /// Archived routines are never offered. The callers already query
-    /// non-archived routines; this keeps the picker correct on its own terms.
+    /// Linked stages must be immediately runnable. Archived and empty routines
+    /// stay editable in Mobility, but are not valid workout stages.
     private var selectableRoutines: [MobilityRoutine] {
-        routines.filter { $0.isArchived == false }
+        routines.filter { $0.isArchived == false && $0.orderedItems.isEmpty == false }
     }
 
     private var visibleGroups: [PickerGroup] {
@@ -320,16 +319,18 @@ struct WorkoutMobilityLinkRow: View {
 
     private var rowContent: some View {
         HStack(alignment: .center, spacing: Spacing.m) {
-            GymIconChip(systemImage: placement.systemImage, tint: Color.gymAccent)
+            Image(systemName: placement.systemImage)
+                .foregroundStyle(Color.trameMobility)
+                .frame(width: ComponentSize.minimumTouchTarget)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(placement.title)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
 
                 Text(detailText)
                     .font(AppFont.caption)
-                    .foregroundStyle(unavailableName == nil ? Color.gymSubduedText : Color.gymDestructive)
+                    .foregroundStyle(unavailableName == nil ? Color.trameSubdued : Color.trameDestructiveText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -339,7 +340,7 @@ struct WorkoutMobilityLinkRow: View {
             // edited or is a locked snapshot.
             Image(systemName: isEditable ? AppIcon.chevronRight : AppIcon.lock)
                 .font(isEditable ? AppFont.captionBold : AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)

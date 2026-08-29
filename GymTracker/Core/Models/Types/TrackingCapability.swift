@@ -66,6 +66,29 @@ nonisolated struct TrackingCapabilityProfile: Codable, Hashable, Sendable {
 }
 
 extension TrackingType {
+    /// How this exercise is logged, named once, for the surfaces that show
+    /// numbers before they show captions.
+    ///
+    /// `nil` for weight and reps: the value captions already read "Reps" and
+    /// "Weight", and restating them as a phrase above the same two numbers is
+    /// the parent-context repetition the design rules ask to remove. Every
+    /// other type either drops a field the lifter expects — no load on a
+    /// bodyweight movement — or means something different by the field it
+    /// keeps, and the panel is where that has to be said.
+    ///
+    /// Calories are also `nil`: the single value pill is already named
+    /// "Calories" and nothing about it is surprising.
+    nonisolated var loggingOrientation: String? {
+        switch self {
+        case .weightAndReps, .calories: nil
+        case .repsOnly: String(localized: "Bodyweight reps")
+        case .weightedBodyweight: String(localized: "Added weight + reps")
+        case .assistedBodyweight: String(localized: "Assisted reps")
+        case .duration: String(localized: "Hold time")
+        case .durationAndDistance: String(localized: "Time + distance")
+        }
+    }
+
     nonisolated var capabilityProfile: TrackingCapabilityProfile {
         switch self {
         case .weightAndReps, .weightedBodyweight, .assistedBodyweight:

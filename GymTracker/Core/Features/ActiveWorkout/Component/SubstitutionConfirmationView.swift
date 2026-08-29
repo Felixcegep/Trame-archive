@@ -32,7 +32,7 @@ struct SubstitutionConfirmationView: View {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text(headline)
                         .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(SubstitutionPresentation.suitabilityTitle(evaluation.suitability))
                         .font(AppFont.footnote)
@@ -49,10 +49,10 @@ struct SubstitutionConfirmationView: View {
             Section {
                 Text(SubstitutionPresentation.comparabilityDetail(evaluation.comparability))
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 Text(prescriptionEffect)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             } header: {
                 Text("What changes")
             }
@@ -84,7 +84,7 @@ struct SubstitutionConfirmationView: View {
                 } else {
                     Text(SubstitutionPresentation.progressionEffect(progressionPolicy))
                         .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             } header: {
                 Text("Progression")
@@ -153,11 +153,11 @@ struct SubstitutionConfirmationView: View {
             HStack {
                 Text(title)
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Spacer(minLength: Spacing.s)
                 if scope == value {
                     Image(systemName: AppIcon.checkmark)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameStrength)
                         .accessibilityHidden(true)
                 }
             }

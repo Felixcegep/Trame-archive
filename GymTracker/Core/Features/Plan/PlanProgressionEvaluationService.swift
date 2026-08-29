@@ -312,7 +312,7 @@ enum PlanProgressionEvaluationService {
         // attempt program use quality without counting bar-only warm-ups.
         let sets = entry.orderedSets.filter {
             $0.prescribedSetType != .warmup
-                && $0.setType != .warmup
+                && !$0.setType.isStrengthAnalyticsExcluded
                 && $0.prescribedProgressionEligible != false
         }
         let requiredSets = sets.filter { $0.isPrescribedOptional != true }.count

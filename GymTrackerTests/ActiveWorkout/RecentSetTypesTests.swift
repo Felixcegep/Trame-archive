@@ -11,7 +11,7 @@ final class RecentSetTypesTests: XCTestCase {
     func testDecodeFiltersOutUnknownRawValues() {
         let raw = "normal,fake_type,dropSet"
         let decoded = RecentSetTypes.decode(raw)
-        XCTAssertEqual(decoded, [.dropSet])
+        XCTAssertTrue(decoded.isEmpty)
     }
     
     func testDecodeFiltersOutCommonTypes() {
@@ -24,7 +24,7 @@ final class RecentSetTypesTests: XCTestCase {
     func testDecodeDeduplicatesTypes() {
         let raw = "amrap,dropSet,amrap,technique"
         let decoded = RecentSetTypes.decode(raw)
-        XCTAssertEqual(decoded, [.amrap, .dropSet, .technique])
+        XCTAssertEqual(decoded, [.amrap, .technique])
     }
     
     func testDecodeRespectsLimit() {
@@ -50,18 +50,51 @@ final class RecentSetTypesTests: XCTestCase {
     func testRecordingNewTypeAddsToFront() {
         let initial = "dropSet"
         let updated = RecentSetTypes.recording(.amrap, into: initial)
-        XCTAssertEqual(updated, "amrap,dropSet")
+        XCTAssertEqual(updated, "amrap")
     }
     
     func testRecordingExistingTypeMovesToFront() {
         let initial = "dropSet,amrap,technique"
         let updated = RecentSetTypes.recording(.technique, into: initial)
-        XCTAssertEqual(updated, "technique,dropSet,amrap")
+        XCTAssertEqual(updated, "technique,amrap")
     }
     
     func testRecordingPushesOutOldestTypeWhenFull() {
         let initial = "dropSet,amrap,technique" // 3 items
         let updated = RecentSetTypes.recording(.failure, into: initial)
-        XCTAssertEqual(updated, "failure,dropSet,amrap")
+        XCTAssertEqual(updated, "failure,amrap,technique")
+    }
+
+    func testDropSetRoleIsNeverRememberedBecauseDropsetIsAMethod() {
+        XCTAssertEqual(RecentSetTypes.recording(.dropSet, into: "amrap"), "amrap")
+    }
+
+    func testStretchIsRememberedLikeEveryOtherNonCommonRole() {
+        XCTAssertEqual(RecentSetTypes.recording(.stretch, into: "amrap"), "stretch,amrap")
+        XCTAssertEqual(RecentSetTypes.decode("stretch,amrap"), [.stretch, .amrap])
+    }
+
+    func testStretchIsOfferedInTheSpecialGroup() {
+        XCTAssertEqual(SetType.stretch.group, .special)
+        XCTAssertTrue(SetTypeGroup.special.members.contains(.stretch))
+    }
+
+    func testStretchIsExcludedFromStrengthAnalyticsLikeWarmup() {
+        XCTAssertTrue(SetType.warmup.isStrengthAnalyticsExcluded)
+        XCTAssertTrue(SetType.stretch.isStrengthAnalyticsExcluded)
+        XCTAssertFalse(SetType.normal.isStrengthAnalyticsExcluded)
+        XCTAssertFalse(SetType.recovery.isStrengthAnalyticsExcluded)
+    }
+
+    /// A type nobody filed into a group would be unreachable from the picker,
+    /// so the grid and the lookup have to agree for every case.
+    func testEverySetTypeIsReachableFromExactlyOneGroup() {
+        for type in SetType.allCases {
+            XCTAssertTrue(
+                SetTypeGroup.allCases
+                    .filter { $0.members.contains(type) } == [type.group],
+                "\(type.rawValue) is not offered by exactly its own group"
+            )
+        }
     }
 }

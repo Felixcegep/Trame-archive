@@ -80,6 +80,16 @@ struct SetInputAccessoryPanel: View {
         }
     }
 
+    /// The hold this set was prescribed, in seconds.
+    ///
+    /// Falls back to the prescribed rep count, which is where a duration
+    /// authored as a plain number lands — the same reading the target line
+    /// above the keypad already takes for timed work.
+    private func prescribedDuration(of set: ExerciseSet) -> TimeInterval? {
+        set.prescribedDurationSecondsSnapshot
+            ?? set.prescribedRepetitions.map(TimeInterval.init)
+    }
+
     private func handle(_ key: KeypadKey, field: SetInputFocus.Field, set: ExerciseSet) {
         guard let text = coordinator.applyKey(key, decimalSeparator: decimalSeparator) else { return }
         viewModel.commitTypedValue(text, field: field, in: set)
@@ -110,11 +120,19 @@ struct SetInputAccessoryPanel: View {
                     contextHeader(exercise: exercise, set: set)
 
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text("Current value")
+                        // The value block's own heading carries the tracking
+                        // type where there is something to say about it — a
+                        // held position, assistance, added load. It replaces
+                        // "Current value" rather than joining it: the panel
+                        // pays for every line out of the set list above, and
+                        // two captions stacked over the same numbers is one
+                        // caption too many.
+                        Text(valueBlockCaption(exercise: exercise))
                             .font(AppFont.micro)
                             .tracking(0.6)
                             .textCase(.uppercase)
                             .foregroundStyle(Color.trameSubdued)
+                            .accessibilityIdentifier("panel-value-caption")
 
                         valueRow(exercise: exercise, set: set)
                     }
@@ -127,7 +145,12 @@ struct SetInputAccessoryPanel: View {
 
                     validationBanner
 
-                    chipRow(exercise: exercise, set: set)
+                    // Contextual commands belong to the normal panel state.
+                    // Once the first exact digit is typed, the value, keypad,
+                    // reference, and value-only action are the entire task.
+                    if coordinator.entryText == nil {
+                        chipRow(exercise: exercise, set: set)
+                    }
 
                     // The keypad is part of this panel rather than a text
                     // field's `inputView`. Nothing here is a first responder,
@@ -170,7 +193,9 @@ struct SetInputAccessoryPanel: View {
                     } else if focusedField == .duration, !isTypingExactValue {
                         // Timed work gets its own keyboard. See `DurationKeypad`
                         // for why a digit pad is the wrong instrument here.
-                        DurationKeypad { key in
+                        DurationKeypad(
+                            presets: DurationKeypad.presets(including: prescribedDuration(of: set))
+                        ) { key in
                             handleDuration(key, set: set)
                         }
                     } else {
@@ -296,7 +321,7 @@ struct SetInputAccessoryPanel: View {
                 // under VoiceOver, which is the one thing a floating panel's
                 // only route back to the workout list must never do.
                 HStack(spacing: Spacing.xxs) {
-                    Text(exerciseIdentityText(exercise: exercise))
+                    Text(exercise.exercise.name)
                         .font(AppFont.captionBold)
                         .tracking(0.6)
                         .textCase(.uppercase)
@@ -354,10 +379,12 @@ struct SetInputAccessoryPanel: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Spacing.s)
                 .padding(.vertical, Spacing.s)
-                .background(
-                    Color.trameRow,
-                    in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
-                )
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
                 .accessibilityLabel(reference)
                 .accessibilityIdentifier("panel-reference-landmarks")
         }
@@ -365,15 +392,6 @@ struct SetInputAccessoryPanel: View {
 
     private func setPosition(of set: ExerciseSet, in exercise: ExerciseEntry) -> Int {
         exercise.orderedSets.firstIndex(where: { $0.persistentModelID == set.persistentModelID }) ?? 0
-    }
-
-    private func exerciseIdentityText(exercise: ExerciseEntry) -> String {
-        var parts = [exercise.exercise.name]
-        let semantics = exercise.loggingSemanticsSnapshot
-        if semantics.laterality == .unilateral && semantics.repCountingStyle == .perSide {
-            parts.append(String(localized: "per side"))
-        }
-        return parts.joined(separator: " · ")
     }
 
     private func setPositionText(exercise: ExerciseEntry, set: ExerciseSet) -> String {
@@ -583,6 +601,17 @@ struct SetInputAccessoryPanel: View {
             : coarseWeightStep(for: exercise, set: set)
     }
 
+    /// The heading over the whole value block.
+    ///
+    /// Names the logging semantics when the tracking type has semantics worth
+    /// naming, and otherwise says which numbers these are. A lifter arriving at
+    /// an assisted or timed exercise reads the difference here, before the
+    /// keypad underneath turns out not to be a digit pad.
+    private func valueBlockCaption(exercise: ExerciseEntry) -> String {
+        exercise.trackingTypeSnapshot.loggingOrientation
+            ?? String(localized: "Current value")
+    }
+
     /// The caption above a value.
     ///
     /// The weight field means three different things depending on how the
@@ -631,7 +660,7 @@ struct SetInputAccessoryPanel: View {
                 coordinator.focusField(field)
             } label: {
                 Text(shown.isEmpty ? "—" : shown)
-                    .font(AppFont.titleSmallSemiboldMonospaced)
+                    .font(AppFont.metricLarge)
                     .foregroundStyle(Color.trameText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -689,17 +718,11 @@ struct SetInputAccessoryPanel: View {
             }
         }
         .frame(minHeight: ComponentSize.minimumTouchTarget)
-        // Tight on purpose: the two 44-point steppers beside it are fixed, so
-        // every point of pill padding comes straight out of the number.
         .padding(.horizontal, Spacing.xs)
-        .background(isActive ? Color.trameCurrent : Color.trameRow)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
-                .stroke(
-                    isActive ? Color.trameActionOutline : Color.trameSeparator,
-                    lineWidth: isActive ? 1.5 : 1
-                )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(isActive ? Color.trameText : Color.trameSeparator)
+                .frame(height: isActive ? 3 : 1)
         }
     }
 
@@ -720,14 +743,12 @@ struct SetInputAccessoryPanel: View {
                     .font(AppFont.caption2Bold)
             }
             .foregroundStyle(Color.trameText)
-            // Given the same capsule the other panel chips wear. As bare tinted
-            // text beside a caption it read as a label, so the fact that the
-            // step size could be changed at all was invisible.
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(Color.trameCurrent, in: Capsule())
-            .overlay { Capsule().stroke(Color.trameSeparator, lineWidth: 1) }
-            .contentShape(Capsule())
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.trameSeparator).frame(height: 1)
+            }
+            .contentShape(Rectangle())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel("Weight adjustment increment")
@@ -771,8 +792,11 @@ struct SetInputAccessoryPanel: View {
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(Color.trameText)
                 .frame(width: controlSize, height: controlSize)
-                .background(Color.trameRow, in: Circle())
-                .contentShape(Circle()),
+                .background(Color.trameRow)
+                .overlay {
+                    Rectangle().stroke(Color.trameSeparator, lineWidth: 1)
+                }
+                .contentShape(Rectangle()),
             accessibilityLabel: step < 0
                 ? "Decrease \(fieldName(field)) by \(Formatters.formatFloat(Float(abs(step))))"
                 : "Increase \(fieldName(field)) by \(Formatters.formatFloat(Float(step)))",
@@ -832,19 +856,18 @@ struct SetInputAccessoryPanel: View {
                         .foregroundStyle(Color.trameSubdued)
                 }
 
-                // Scrolls rather than compressing: at accessibility text sizes
-                // five capsules cannot share a phone width, and a quick value
-                // squeezed to three characters is no longer quick.
-                ScrollView(.horizontal) {
-                    HStack(spacing: Spacing.xs) {
-                        ForEach(values) { value in
-                            quickValueButton(value, set: set)
-                        }
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: Spacing.xs),
+                        GridItem(.flexible(), spacing: Spacing.xs),
+                        GridItem(.flexible(), spacing: Spacing.xs)
+                    ],
+                    spacing: Spacing.xs
+                ) {
+                    ForEach(values) { value in
+                        quickValueButton(value, set: set)
                     }
-                    .padding(.horizontal, Spacing.xxs)
                 }
-                .scrollIndicators(.hidden)
-                .scrollClipDisabled()
             }
             .accessibilityIdentifier("quick-value-row")
         }
@@ -865,12 +888,12 @@ struct SetInputAccessoryPanel: View {
                 .lineLimit(1)
                 .foregroundStyle(Color.trameText)
                 .padding(.horizontal, Spacing.m)
-                .frame(minHeight: ComponentSize.minimumTouchTarget)
-                .background(
-                    value.isProminent ? Color.trameCurrent : Color.trameRow,
-                    in: Capsule()
-                )
-                .contentShape(Capsule())
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                .background(value.isProminent ? Color.trameCurrent : Color.clear)
+                .overlay {
+                    Rectangle().stroke(Color.trameSeparator, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .accessibilityLabel(Text(value.accessibilityLabel))
@@ -1328,19 +1351,63 @@ struct SetInputAccessoryPanel: View {
     // MARK: - Footer
 
     private func footer(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
-        Button {
-            confirm(exercise: exercise, set: set)
-        } label: {
-            Label("Complete set", systemImage: AppIcon.checkmark)
+        Group {
+            // While the panel is standing in for the component controls, a
+            // full-strength "Complete set" contradicts the amber refusal
+            // directly above it: the dominant control on screen offers an
+            // action the screen has already refused, and tapping it can only
+            // shake. The button states the outstanding work instead and stays
+            // inert until the outcomes exist — the resolver above it is the
+            // only thing left to do, and it re-enables this on its own.
+            if isResolvingComponents(set) {
+                Button {} label: {
+                    Label("Record every outcome", systemImage: AppIcon.circleDashed)
+                }
+                .buttonStyle(.tramePrimaryAction)
+                .disabled(true)
+                .accessibilityLabel("Record every outcome")
+                .accessibilityHint("Record each complex component outcome above to complete this set.")
+                .accessibilityIdentifier("panel-complete-set")
+            } else if coordinator.entryText != nil {
+                Button {
+                    viewModel.flushPendingTypedInputSave()
+                    coordinator.endEntry()
+                    coordinator.focus = nil
+                } label: {
+                    HStack(spacing: Spacing.m) {
+                        Text(exactCommitTitle(exercise: exercise, set: set))
+
+                        Spacer(minLength: Spacing.s)
+
+                        Image(systemName: AppIcon.chevronRight)
+                            .font(AppFont.subheadlineSemibold)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.tramePrimaryAction)
+                .accessibilityHint("Keeps this value without completing the set.")
+                .accessibilityIdentifier("panel-use-value")
+            } else {
+                Button {
+                    confirm(exercise: exercise, set: set)
+                } label: {
+                    Label("Complete set", systemImage: AppIcon.checkmark)
+                }
+                .buttonStyle(.tramePrimaryAction)
+                .gymShake(trigger: coordinator.blockedAttemptCount)
+                .accessibilityLabel("Complete set")
+                .accessibilityHint("Marks this set done, starts rest, and moves to the next set.")
+                .accessibilityIdentifier("panel-complete-set")
+            }
         }
-        .buttonStyle(.tramePrimaryAction)
-        // The button the lifter actually tapped shakes too, not just the
-        // message. The tap is the moment their attention is on the screen; a
-        // refusal that only renders somewhere else has already missed it.
-        .gymShake(trigger: coordinator.blockedAttemptCount)
-        .accessibilityLabel("Complete set")
-        .accessibilityHint("Marks this set done, starts rest, and moves to the next set.")
-        .accessibilityIdentifier("panel-complete-set")
+    }
+
+    private func exactCommitTitle(exercise: ExerciseEntry, set: ExerciseSet) -> String {
+        let value = displayValue(field: focusedField, set: set)
+        let unit = unitLabel(field: focusedField, exercise: exercise, set: set)
+        return unit.isEmpty
+            ? String(localized: "Use \(value)")
+            : String(localized: "Use \(value) \(unit)")
     }
 
     private func navigationButton(systemImage: String, offset: Int) -> some View {
@@ -1497,6 +1564,16 @@ struct SetInputAccessoryPanel: View {
     private func unitLabel(field: SetInputFocus.Field, exercise: ExerciseEntry, set: ExerciseSet) -> String {
         switch field {
         case .repetitions:
+            // Per-side counting rides on the unit rather than the caption, the
+            // same place per-load-unit weight states itself: it belongs to the
+            // number, and putting it there is also what gets it spoken — the
+            // pill's accessibility label is built from this string. It used to
+            // sit beside the exercise name in the header, where a long name
+            // truncated it away.
+            let semantics = exercise.loggingSemanticsSnapshot
+            if semantics.laterality == .unilateral && semantics.repCountingStyle == .perSide {
+                return String(localized: "rep / side")
+            }
             return "rep"
         case .weight:
             // Per-load-unit exercises (a pair of dumbbells, one per hand) log

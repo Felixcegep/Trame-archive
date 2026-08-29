@@ -26,7 +26,7 @@ struct BlockScoreEntrySheet: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 Text(block.scoreKind.title)
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
 
                 if block.scoreKind == .roundsAndRepetitions {
                     numericField("Completed rounds", text: $completedRounds)
@@ -37,12 +37,12 @@ struct BlockScoreEntrySheet: View {
                 } else {
                     Text("This block has no primary score. Choose a score type when creating it to record a result here.")
                         .font(AppFont.body)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 Spacer()
             }
             .padding(Spacing.xl)
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Record Score")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

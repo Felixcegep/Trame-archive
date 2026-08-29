@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Post-save receipt list: one card per unresolved
+/// Post-save receipt list: one open proposal per unresolved
 /// `PlanProgressionRecommendationRecord` for the plan run and workout that
 /// was just saved.
 ///
@@ -51,7 +51,7 @@ struct ProgressionReceiptSheet: View {
                 }
                 .padding(Spacing.l)
             }
-            .background(Color.gymBackground.ignoresSafeArea())
+            .background(Color.trameCanvas.ignoresSafeArea())
             .navigationTitle("Progression updates")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -161,36 +161,39 @@ private struct ProgressionReceiptCard: View {
     @State private var isShowingWhy = false
 
     var body: some View {
-        GymCard(variant: .current, radius: Radius.medium) {
-            VStack(alignment: .leading, spacing: Spacing.l) {
-                header
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            header
 
-                // Named sections, because a receipt is not a confirmation
-                // prompt. The card previously ran identity, rule, proposal and
-                // evidence together as four undifferentiated lines, which read
-                // as an ordinary "are you sure?" — and this is the surface
-                // where the product's reasoning is meant to be legible.
-                receiptSection("WHY THIS CHANGED") {
-                    evidence
+            // Named sections, because a receipt is not a confirmation prompt.
+            receiptSection("WHY THIS CHANGED") {
+                evidence
 
-                    // The sheet below is the expanded form, not a replacement,
-                    // so the fast path stays on the card.
-                    whyButton
-                }
-
-                receiptSection("EFFECT ON YOUR PLAN") {
-                    Text(presentation.planEffectText)
-                        .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if let preview = presentation.preview {
-                    previewDetails(preview)
-                }
-
-                actions
+                whyButton
             }
+
+            receiptSection("EFFECT ON YOUR PLAN") {
+                Text(presentation.planEffectText)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let preview = presentation.preview {
+                previewDetails(preview)
+            }
+
+            actions
+        }
+        .padding(.leading, Spacing.m)
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(Color.trameStrength).frame(width: 4)
+        }
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
         }
         // Keep the card addressable as one VoiceOver element with the
         // proposed change and evidence read before its actions, while still
@@ -212,23 +215,25 @@ private struct ProgressionReceiptCard: View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Label(presentation.exerciseName, systemImage: AppIcon.progression)
                 .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
 
             if let target = presentation.proposedLoadText {
                 Text("Next target: \(target)")
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.metricHero)
+                    .foregroundStyle(Color.trameText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(presentation.proposedChangeText)
                     .font(AppFont.titleSmallSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(presentation.ruleLabel)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
     }
 
@@ -237,10 +242,7 @@ private struct ProgressionReceiptCard: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(title)
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+            TrameDomainSectionRule(title: title, color: Color.trameStrength)
 
             content()
         }
@@ -269,12 +271,12 @@ private struct ProgressionReceiptCard: View {
                         Image(systemName: AppIcon.progression)
                     }
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .accessibilityIdentifier("progression-receipt-preview-change-\(index)-\(presentation.id.uuidString)")
                 }
                 Text(details.futureScope)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("progression-receipt-preview-scope-\(presentation.id.uuidString)")
             }
@@ -290,13 +292,13 @@ private struct ProgressionReceiptCard: View {
                         Image(systemName: AppIcon.checkmark)
                     }
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityIdentifier("progression-receipt-preview-unchanged-\(index)-\(presentation.id.uuidString)")
                 }
                 if let availabilityNote = details.availabilityNote {
                     Text(availabilityNote)
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("progression-receipt-preview-incomplete-\(presentation.id.uuidString)")
                 }
@@ -310,14 +312,14 @@ private struct ProgressionReceiptCard: View {
             ForEach(presentation.evidenceLines, id: \.self) { line in
                 Text(line)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             if let qualifier = presentation.evidenceQualifier {
                 Text(qualifier)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -343,7 +345,7 @@ private struct ProgressionReceiptCard: View {
                     Text(presentation.acceptActionTitle)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("progression-receipt-apply-\(presentation.id.uuidString)")
 
                 if presentation.canApplyDifferentValue {
@@ -370,7 +372,7 @@ private struct ProgressionReceiptCard: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameActionDeep)
                 .accessibilityIdentifier("progression-receipt-decline-\(presentation.id.uuidString)")
             }
         }
@@ -402,7 +404,7 @@ private struct ProgressionReceiptCard: View {
                     Text("Confirm")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("progression-receipt-confirm-different-\(presentation.id.uuidString)")
             }

@@ -14,15 +14,17 @@ struct PlanWorkoutEditorView: View {
 
     var body: some View {
         Form {
-            Section("Workout") {
+            Section {
                 TextField("Name", text: $workout.name)
                 Stepper("Day \(workout.dayOffset + 1)", value: $workout.dayOffset, in: 0...6)
                 Toggle("Optional session", isOn: $workout.isOptional)
+            } header: {
+                TrameDomainSectionRule(title: "Workout", color: Color.trameStrength)
             }
 
-            Section("Exercises") {
+            Section {
                 if workout.exercises.isEmpty {
-                    ContentUnavailableView("No exercises", systemImage: AppIcon.workout, description: Text("Add an exercise to prescribe this workout."))
+                    ContentUnavailableView("No exercises", systemImage: AppIcon.exercise, description: Text("Add an exercise to prescribe this workout."))
                 } else {
                     ForEach($workout.exercises) { $exercise in
                         Button {
@@ -31,11 +33,11 @@ struct PlanWorkoutEditorView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(exercise.displayName)
-                                    .font(AppFont.subheadlineSemibold)
-                                    .foregroundStyle(Color.gymText)
+                                    .font(AppFont.sectionTitle)
+                                    .foregroundStyle(Color.trameText)
                                 Text(exercise.summary)
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .font(AppFont.metadata)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                         }
                         .buttonStyle(.plain)
@@ -63,24 +65,26 @@ struct PlanWorkoutEditorView: View {
                 Button("Add Exercise", systemImage: AppIcon.plus) {
                     isShowingExercisePicker = true
                 }
+            } header: {
+                TrameDomainSectionRule(title: "Exercises", color: Color.trameStrength)
             }
 
-            Section("Execution Blocks") {
+            Section {
                 if workout.executionBlocks.isEmpty {
                     Text("No shared execution blocks.")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                 } else {
                     ForEach(workout.executionBlocks) { block in
                         HStack {
                             Image(systemName: AppIcon.relationship)
-                                .foregroundStyle(Color.gymPrimary)
+                                .foregroundStyle(Color.trameActionDeep)
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(block.name.isEmpty ? block.kind.title : block.name)
                                     .font(AppFont.bodyMedium)
                                 Text(blockSummary(block))
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .font(AppFont.metadata)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                             Spacer()
                             Button("Edit") { executionBlockToEdit = block }
@@ -95,10 +99,12 @@ struct PlanWorkoutEditorView: View {
                 }
                 .disabled(workout.exercises.filter { $0.executionBlockID == nil }.isEmpty)
                 .accessibilityIdentifier("add-plan-execution-block")
+            } header: {
+                TrameDomainSectionRule(title: "Execution Blocks", color: Color.trameCompetition)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(workout.name.isEmpty ? "Workout" : workout.name)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -224,16 +230,16 @@ struct PlanExercisePickerView: View {
             } label: {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(exercise.name)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(exercise.subtitle)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
         }
         .searchable(text: $searchText, prompt: "Search exercises")
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Add Exercise")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

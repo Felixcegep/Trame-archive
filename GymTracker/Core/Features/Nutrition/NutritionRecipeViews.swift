@@ -126,7 +126,7 @@ private struct FoodPickerContent: View {
                         Text("Try another name, or create a new food.")
                     } actions: {
                         Button("Create food") { isCreatingFood = true }
-                            .buttonStyle(.gymPrimary)
+                            .buttonStyle(.tramePrimaryAction)
                             .accessibilityIdentifier("food-picker-create-empty")
                     }
                 } else {
@@ -321,10 +321,9 @@ struct MealTemplateDetailView: View {
 
             Section {
                 Button { isLogging = true } label: {
-                    Label("Add to today", systemImage: "calendar.badge.plus")
-                        .frame(maxWidth: .infinity)
+                    Text("Add to today")
                 }
-                .buttonStyle(.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("recipe-add-to-today")
             }
             .listRowBackground(Color.clear)

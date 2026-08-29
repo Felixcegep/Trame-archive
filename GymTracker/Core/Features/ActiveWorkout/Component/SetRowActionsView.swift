@@ -17,8 +17,10 @@ struct SetRowActionsView: View {
                 finishCompletedSetEditing()
             }
             .buttonStyle(.borderedProminent)
+            .tint(Color.trameAction)
+            .foregroundStyle(Color.trameActionInk)
             .font(AppFont.footnoteMedium)
-            .frame(minHeight: 44)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
             .accessibilityLabel("Finish editing")
             .accessibilityHint("Saves the edited values.")
             .accessibilityIdentifier("finish-editing-set-\(exerciseEntry.exercise.name)-\(index)")

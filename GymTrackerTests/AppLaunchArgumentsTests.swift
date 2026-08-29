@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import XCTest
 @testable import GymTracker
 
@@ -55,5 +56,28 @@ final class AppLaunchArgumentsTests: XCTestCase {
             ),
             arguments
         )
+    }
+
+    func testDynamicTypeOverrideReadsTheNamedAccessibilitySize() {
+        XCTAssertEqual(
+            UITestDynamicType.override(
+                arguments: ["-ui-testing", UITestDynamicType.argument, "accessibility5"]
+            ),
+            .accessibility5
+        )
+    }
+
+    /// A capture scene that names a size this build does not know must render
+    /// at the ordinary size rather than at an arbitrary neighbouring step.
+    func testDynamicTypeOverrideIgnoresAnUnknownOrMissingSize() {
+        XCTAssertNil(
+            UITestDynamicType.override(
+                arguments: ["-ui-testing", UITestDynamicType.argument, "enormous"]
+            )
+        )
+        XCTAssertNil(
+            UITestDynamicType.override(arguments: ["-ui-testing", UITestDynamicType.argument])
+        )
+        XCTAssertNil(UITestDynamicType.override(arguments: ["-ui-testing"]))
     }
 }

@@ -24,12 +24,11 @@ struct ActiveWorkoutCommandBar: View {
         case startNextSet
         /// This page is finished and there is work further along.
         case nextExercise
-        /// Every set is logged.
-        case finish(isEnabled: Bool)
         /// The workout has no exercises yet. This is the session's first and
         /// only meaningful action, so it belongs in the fixed primary slot.
         case addExercise
-        /// Nothing to offer — an empty workout, or a page with no sets.
+        /// Nothing to offer — a page with no sets, or the terminal review page,
+        /// whose one action (Finish) is a session exit and lives in the header.
         ///
         /// Named `idle` rather than `none` so it can never be mistaken for
         /// `Optional.none` at a call site that switches over it.
@@ -37,6 +36,15 @@ struct ActiveWorkoutCommandBar: View {
     }
 
     let primaryAction: PrimaryAction
+    /// The values the log action is about to record, already formatted for
+    /// display — "50 kg × 8", "1:30", "12 reps".
+    ///
+    /// A prefilled set is completed by one tap on the primary button, and a
+    /// button that says only "Log set" asks the lifter to look up at the row
+    /// to find out what that tap will write. Naming the values makes the tap
+    /// verifiable where it is made. `nil` when the set has no values to state
+    /// yet, which keeps the generic title.
+    var logSetValues: String?
     let restEndDate: Date?
     let isRestPaused: Bool
     let pausedRemaining: TimeInterval
@@ -68,7 +76,7 @@ struct ActiveWorkoutCommandBar: View {
         }
         .padding(.horizontal, Spacing.screenInset)
         .padding(.top, Spacing.s)
-        .padding(.bottom, Spacing.s)
+        .padding(.bottom, Spacing.m)
         .background(Color.trameSurface)
         .overlay(alignment: .top) {
             Rectangle()
@@ -84,8 +92,8 @@ struct ActiveWorkoutCommandBar: View {
         switch primaryAction {
         case .logSet(let isEnabled):
             primaryButton(
-                title: "Log",
-                systemImage: nil,
+                title: logSetTitle,
+                systemImage: AppIcon.chevronRight,
                 identifier: "log-set",
                 isEnabled: isEnabled,
                 hint: String(localized: "Marks the current set complete and starts rest.")
@@ -93,7 +101,7 @@ struct ActiveWorkoutCommandBar: View {
 
         case .startNextSet:
             primaryButton(
-                title: "Start next set",
+                title: Text("Start next set"),
                 systemImage: AppIcon.play,
                 identifier: "start-next-set-bar",
                 isEnabled: true,
@@ -102,27 +110,16 @@ struct ActiveWorkoutCommandBar: View {
 
         case .nextExercise:
             primaryButton(
-                title: "Next exercise",
+                title: Text("Next exercise"),
                 systemImage: AppIcon.chevronRight,
                 identifier: "advance-exercise",
                 isEnabled: true,
                 hint: nil
             )
 
-        case .finish(let isEnabled):
-            primaryButton(
-                title: "Finish workout",
-                systemImage: AppIcon.checkmarkCircle,
-                identifier: "finish-workout",
-                isEnabled: isEnabled,
-                hint: isEnabled
-                    ? nil
-                    : String(localized: "Complete at least one set before finishing.")
-            )
-
         case .addExercise:
             primaryButton(
-                title: "Add exercise",
+                title: Text("Add exercise"),
                 systemImage: AppIcon.plus,
                 identifier: "add-first-exercise",
                 isEnabled: true,
@@ -143,25 +140,43 @@ struct ActiveWorkoutCommandBar: View {
             // have to look at.
             Color.clear
                 .frame(maxWidth: .infinity)
-                .frame(height: 54)
+                .frame(height: ComponentSize.todayActionHeight)
                 .accessibilityHidden(true)
         }
     }
 
+    /// The values when they are known, the action when they are not.
+    private var logSetTitle: Text {
+        guard let logSetValues, !logSetValues.isEmpty else {
+            return Text("Log set")
+        }
+        return Text(String(localized: "Log \(logSetValues)"))
+    }
+
     private func primaryButton(
-        title: LocalizedStringKey,
+        title: Text,
         systemImage: String?,
         identifier: String,
         isEnabled: Bool,
         hint: String?
     ) -> some View {
         Button(action: onPrimary) {
-            if let systemImage {
-                Label(title, systemImage: systemImage)
-            } else {
-                Text(title)
-                    .tracking(0.7)
-                    .textCase(.uppercase)
+            HStack(spacing: Spacing.m) {
+                // A value-bearing title is longer than the action it replaces
+                // and shares the row with two arrow buttons. The slot's height
+                // is what keeps the bar readable without looking at it, so a
+                // long title costs type size rather than a second line.
+                title
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Spacer(minLength: Spacing.s)
+
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(AppFont.subheadlineSemibold)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .buttonStyle(.tramePrimaryAction)
@@ -200,13 +215,18 @@ struct ActiveWorkoutRestPill: View {
                         .font(AppFont.titleSmallSemibold)
                 }
             }
-            .foregroundStyle(Color.gymAccent)
+            .foregroundStyle(Color.trameText)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Color.trameAttention)
+                    .frame(width: 4)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
             }
             .contentShape(Rectangle())
         }

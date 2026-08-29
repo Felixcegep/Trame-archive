@@ -66,6 +66,7 @@ struct WorkoutMobilityRoutineLink {
 
 enum WorkoutMobilityLinkMutationError: Error, Equatable {
     case archivedRoutine
+    case emptyRoutine
 }
 
 @MainActor
@@ -155,6 +156,9 @@ enum WorkoutMobilityLinkService {
     private static func validate(_ routine: MobilityRoutine?) throws {
         if routine?.isArchived == true {
             throw WorkoutMobilityLinkMutationError.archivedRoutine
+        }
+        if routine?.orderedItems.isEmpty == true {
+            throw WorkoutMobilityLinkMutationError.emptyRoutine
         }
     }
 

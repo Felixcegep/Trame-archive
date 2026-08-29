@@ -31,7 +31,7 @@ struct SetRowSecondaryContent: View {
                notes.hasPrefix("Complex:") {
                 Text(notes)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .padding(.leading, 45)
                     .accessibilityLabel(notes)
             }
@@ -44,7 +44,7 @@ struct SetRowSecondaryContent: View {
                !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text("Tempo \(tempo)")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .padding(.leading, 45)
                     .accessibilityLabel("Prescribed tempo \(tempo)")
             }
@@ -64,7 +64,7 @@ struct SetRowSecondaryContent: View {
             if let completionValidationMessage {
                 Text(completionValidationMessage)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameAttention)
                     .padding(.leading, 45)
                     .accessibilityLabel(completionValidationMessage)
             }
@@ -86,7 +86,7 @@ struct SetRowSecondaryContent: View {
                 systemImage: exerciseSet.isSelectedDailyMaximum ? AppIcon.checkmarkCircle : AppIcon.circle
             )
             .font(AppFont.caption)
-            .foregroundStyle(exerciseSet.isSelectedDailyMaximum ? Color.gymSecondary : Color.gymPrimary)
+            .foregroundStyle(exerciseSet.isSelectedDailyMaximum ? Color.trameCompleted : Color.trameStrength)
             .frame(minHeight: 44)
         }
         .buttonStyle(.borderless)
@@ -110,41 +110,61 @@ struct SetRowSecondaryContent: View {
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
         .buttonStyle(.bordered)
-        .foregroundStyle(Color.gymPrimary)
+        .foregroundStyle(Color.trameStrength)
         .accessibilityLabel("Use last time values for set \(index + 1)")
         .accessibilityIdentifier("copy-previous-set-\(exerciseEntry.exercise.name)-\(index)")
     }
 
+    /// The recorded value and its plain-language meaning used to be one flat
+    /// grey sentence, so "RIR 1" — the part a lifter scans a finished set for —
+    /// carried no more weight than the sentence explaining it.
     @ViewBuilder
     private var effortButton: some View {
-        if let rpe = exerciseSet.rpe {
-            let formattedRPE = Formatters.formatFloat(Float(rpe))
+        if let effort = recordedEffort {
             Button {
                 isShowingSetDetails = true
             } label: {
-                Text("RPE \(formattedRPE) · \(RPEScale.meaning(for: rpe))")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    Text(verbatim: effort.value)
+                        .font(AppFont.captionSemiboldMonospaced)
+                        .foregroundStyle(Color.trameText)
+                    Text(verbatim: effort.meaning)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.trameSubdued)
+                }
             }
             .buttonStyle(.borderless)
             .padding(.leading, 45)
-            .accessibilityLabel("RPE \(formattedRPE), \(RPEScale.meaning(for: rpe))")
+            .accessibilityLabel("\(effort.value), \(effort.meaning)")
             .accessibilityHint("Edit set details")
-            .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercise.name)-\(index)")
-        } else if let rir = exerciseSet.rir {
-            Button {
-                isShowingSetDetails = true
-            } label: {
-                Text("RIR \(rir) · \(RIRScale.meaning(for: rir))")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
-            .buttonStyle(.borderless)
-            .padding(.leading, 45)
-            .accessibilityLabel("RIR \(rir), \(RIRScale.meaning(for: rir))")
-            .accessibilityHint("Edit set details")
-            .accessibilityIdentifier("rir-badge-\(exerciseEntry.exercise.name)-\(index)")
+            .accessibilityIdentifier("\(effort.identifierPrefix)-badge-\(exerciseEntry.exercise.name)-\(index)")
         }
+    }
+
+    private struct RecordedEffort {
+        let value: String
+        let meaning: String
+        let identifierPrefix: String
+    }
+
+    /// RPE wins when both are present: it is the value the sheet was last
+    /// recording, and the set row shows one effort, not two.
+    private var recordedEffort: RecordedEffort? {
+        if let rpe = exerciseSet.rpe {
+            return RecordedEffort(
+                value: "RPE \(Formatters.formatFloat(Float(rpe)))",
+                meaning: RPEScale.meaning(for: rpe),
+                identifierPrefix: "rpe"
+            )
+        }
+        if let rir = exerciseSet.rir {
+            return RecordedEffort(
+                value: "RIR \(rir)",
+                meaning: RIRScale.meaning(for: rir),
+                identifierPrefix: "rir"
+            )
+        }
+        return nil
     }
 
     private var isDailyMaximum: Bool {

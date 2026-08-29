@@ -65,7 +65,6 @@ struct ProgressHubView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
         .foregroundStyle(Color.trameText)
@@ -73,12 +72,14 @@ struct ProgressHubView: View {
         .tint(Color.trameStrength)
         .navigationTitle("Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.trameCanvas, for: .navigationBar, .tabBar)
-        .toolbarBackground(.visible, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.trameCanvas, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .accessibilityIdentifier("progress-screen")
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                progressLensMenu
+            if completedWorkouts.isEmpty == false {
+                ToolbarItem(placement: .topBarLeading) {
+                    progressLensMenu
+                }
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -226,8 +227,8 @@ struct ProgressHubView: View {
 
             quietProgressLink(
                 route: .workoutHistory,
-                title: "History",
-                count: "\(completedWorkouts.count)",
+                title: "Sessions",
+                count: completedWorkouts.isEmpty ? nil : "\(completedWorkouts.count)",
                 rail: Color.trameStrength
             )
 

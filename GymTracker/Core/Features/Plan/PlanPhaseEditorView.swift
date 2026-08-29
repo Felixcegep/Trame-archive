@@ -7,12 +7,15 @@ struct PlanPhaseEditorView: View {
         Form {
             Section {
                 Text("Phases organize the plan weeks. A deload reduces the prescribed sets and suggested load only when that planned workout starts; completed workouts stay unchanged.")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
+                    .padding(.vertical, Spacing.xs)
+        } header: {
+            TrameDomainSectionRule(title: "Plan phases", color: Color.trameStrength)
+        }
 
             ForEach($blocks) { $block in
-                Section(block.weekSummary) {
+                Section {
                     HStack {
                         TextField("Phase name", text: $block.name)
                         Button(role: .destructive) {
@@ -44,6 +47,11 @@ struct PlanPhaseEditorView: View {
                         )
                         .accessibilityIdentifier("plan-deload-intensity-reduction")
                     }
+                } header: {
+                    TrameDomainSectionRule(
+                        title: LocalizedStringKey(block.weekSummary),
+                        color: block.phaseType == .deload ? Color.trameAttention : Color.trameStrength
+                    )
                 }
             }
             .onMove { source, destination in
@@ -54,7 +62,7 @@ struct PlanPhaseEditorView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Plan Phases")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

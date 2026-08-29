@@ -6,6 +6,7 @@ import SwiftUI
 /// secondary actions below the one-handed controls.
 struct WorkoutExecutionBlockEyesUpView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.modelContext) private var modelContext
     @Bindable var block: WorkoutExecutionBlock
     let workout: Workout
@@ -45,95 +46,114 @@ struct WorkoutExecutionBlockEyesUpView: View {
 
     private func surface(at date: Date) -> some View {
         let presentation = WorkoutExecutionBlockPresentation.make(block: block, workout: workout, at: date)
-        return GymCard(variant: presentation.phase == .running || presentation.phase == .paused ? .current : .standard) {
+        let isLive = presentation.phase == .running || presentation.phase == .paused
+        return TrameColorField(
+            fill: isLive ? Color.trameCurrent : Color.trameSurface,
+            ink: Color.trameText,
+            border: isLive ? Color.trameActionOutline : Color.trameSeparator
+        ) {
+            // Glance is the clock, Read is the component being performed, and
+            // Inspect — configuration, score, removal — stays in the rail's
+            // menu. The block's own identity is not repeated here: the stage
+            // page names the block above this field.
             VStack(alignment: .leading, spacing: Spacing.m) {
-                header(presentation)
-                if presentation.timerText != nil {
-                    timer(presentation)
-                }
+                clock(presentation)
                 movementSequence(presentation)
                 progressSummary(presentation)
                 controls(presentation)
             }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("execution-block-eyes-up-\(block.id.uuidString)")
     }
 
-    private func header(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
-        HStack(alignment: .top, spacing: Spacing.m) {
-            Image(systemName: AppIcon.relationship)
-                .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
-                .accessibilityHidden(true)
+    /// The clock owns the field. The phase is a rule-marked line above it and
+    /// takes full ink only while the block is running, so a settled state never
+    /// competes with the number that is moving.
+    private func clock(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.s) {
+                Rectangle()
+                    .fill(phaseTint(presentation.phase))
+                    .frame(width: 18, height: 3)
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(block.name ?? presentation.formatTitle)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
-                Text(presentation.formatTitle)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                Text(phaseTitle(presentation.phase))
+                    .font(AppFont.micro)
+                    .tracking(0.55)
+                    .textCase(.uppercase)
+                    .foregroundStyle(
+                        presentation.phase == .running ? Color.trameText : Color.trameSubdued
+                    )
+
+                Spacer(minLength: Spacing.s)
+
+                if let intervalText = presentation.intervalText {
+                    Text(intervalText)
+                        .font(AppFont.captionSemiboldMonospaced)
+                        .foregroundStyle(Color.trameSubdued)
+                }
             }
 
-            Spacer(minLength: 0)
-            GymStatusBadge(
-                title: phaseTitle(presentation.phase),
-                systemImage: phaseIcon(presentation.phase),
-                tint: phaseTint(presentation.phase)
-            )
-        }
-    }
-
-    private func timer(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
-        VStack(spacing: Spacing.xs) {
-                Text(presentation.timerText ?? String(localized: "—"))
-                .font(AppFont.displayLarge)
-                .foregroundStyle(presentation.phase == .capped ? Color.gymDestructive : Color.gymText)
-                .monospacedDigit()
-                .frame(maxWidth: .infinity)
-                .accessibilityLabel(presentation.timerAccessibilityText ?? String(localized: "Time unavailable"))
-
-            if let intervalText = presentation.intervalText {
-                Text(intervalText)
-                    .font(AppFont.captionSemiboldMonospaced)
-                    .foregroundStyle(Color.gymSubduedText)
+            if let timerText = presentation.timerText {
+                Text(timerText)
+                    .font(AppFont.timer)
+                    .foregroundStyle(
+                        presentation.phase == .capped ? Color.trameDestructiveText : Color.trameText
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .accessibilityLabel(
+                        presentation.timerAccessibilityText ?? String(localized: "Time unavailable")
+                    )
             }
         }
-        .padding(.vertical, Spacing.s)
         .accessibilityElement(children: .combine)
     }
 
+    /// The component the lifter is inside gets the stage's focus treatment — a
+    /// Strength rail and full ink at title weight — rather than a chevron that
+    /// reads the same as the rows it is meant to be distinguished from. The
+    /// remaining components stay on the same leading edge as one subdued list.
     private func movementSequence(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(String(localized: "ORDERED SEQUENCE"))
-                .font(AppFont.caption2Bold)
-                .foregroundStyle(Color.gymSubduedText)
-
+        VStack(alignment: .leading, spacing: Spacing.s) {
             if presentation.movementSequence.isEmpty {
                 Text(String(localized: "No movements assigned"))
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .padding(.leading, Spacing.m)
             } else {
                 ForEach(Array(presentation.movementSequence.enumerated()), id: \.offset) { index, movement in
-                    let isCurrent = index == currentComponentOrder
-                    HStack(spacing: Spacing.s) {
-                        Image(systemName: isCurrent ? AppIcon.currentPointer : AppIcon.chevronRight)
-                            .foregroundStyle(isCurrent ? Color.gymPrimary : Color.gymSubduedText)
-                            .accessibilityHidden(true)
-                        Text(isCurrent
-                            ? String(format: String(localized: "Current: %@"), movement)
-                            : sequencePhrase(index: index, movement: movement))
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(isCurrent ? Color.gymText : Color.gymSubduedText)
+                    if index == currentComponentOrder {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(String(localized: "NOW"))
+                                .font(AppFont.micro)
+                                .tracking(0.55)
+                                .foregroundStyle(Color.trameStrength)
+                            Text(movement)
+                                .font(AppFont.titleSmallSemibold)
+                                .foregroundStyle(Color.trameText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.leading, Spacing.m)
+                        .overlay(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.trameStrength)
+                                .frame(width: 3)
+                                .accessibilityHidden(true)
+                        }
+                    } else {
+                        Text(movement)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, Spacing.m)
                     }
-                    .accessibilityAddTraits(isCurrent ? .isSelected : [])
                 }
             }
         }
-        .padding(Spacing.s)
-        .background(Color.gymMutedSurface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(sequenceAccessibilityLabel(presentation.movementSequence))
     }
@@ -141,7 +161,9 @@ struct WorkoutExecutionBlockEyesUpView: View {
     private func sequenceAccessibilityLabel(_ movements: [String]) -> String {
         guard !movements.isEmpty else { return String(localized: "Ordered sequence, no movements assigned") }
         let sequence = movements.enumerated().map { index, movement in
-            sequencePhrase(index: index, movement: movement)
+            index == currentComponentOrder
+                ? String(format: String(localized: "Current: %@"), movement)
+                : sequencePhrase(index: index, movement: movement)
         }.joined(separator: ". ")
         return String(format: String(localized: "Ordered sequence. %@"), sequence)
     }
@@ -153,67 +175,79 @@ struct WorkoutExecutionBlockEyesUpView: View {
         return String(format: String(localized: "Then %@"), movement)
     }
 
+    /// Round and score are context for the clock, so they read as one subdued
+    /// tabular line. The two icons they used to carry named nothing the words
+    /// did not already say.
+    @ViewBuilder
     private func progressSummary(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
-        HStack(spacing: Spacing.m) {
-            if let progressText = presentation.progressText {
-                Label(progressText, systemImage: AppIcon.number)
-            }
-            if let scoreText = presentation.scoreText {
-                Label(
-                    String(format: String(localized: "Score %@"), scoreText),
-                    systemImage: AppIcon.checkmarkCircle
+        let parts = [
+            presentation.progressText,
+            presentation.scoreText.map { String(format: String(localized: "Score %@"), $0) }
+        ].compactMap { $0 }
+
+        if !parts.isEmpty {
+            Text(parts.joined(separator: " · "))
+                .font(AppFont.captionSemiboldMonospaced)
+                .foregroundStyle(Color.trameSubdued)
+                .padding(.leading, Spacing.m)
+        }
+    }
+
+    /// One dominant command at full width, then a rail of quiet ones. The cap
+    /// action used to sit beside the primary as a bordered pill, which halved
+    /// the width of the button pressed every round and gave a block-ending
+    /// action the same visual rank as advancing through it.
+    private func controls(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            if presentation.primaryAction != .none {
+                Button(action: primaryAction) {
+                    Label(
+                        primaryTitle(presentation),
+                        systemImage: primaryIcon(presentation.primaryAction)
+                    )
+                }
+                // `.borderedProminent` tinted with `trameAction` painted
+                // cream on cream: the label was legible only as an absence.
+                // The shared style owns the inverse ink pairing.
+                .buttonStyle(.tramePrimaryAction)
+                .accessibilityHint(
+                    presentation.primaryActionHint ?? String(localized: "Starts the shared block clock")
                 )
             }
+
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 0) {
+                    secondaryRail(presentation)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    secondaryRail(presentation)
+                    Spacer(minLength: 0)
+                }
+            }
         }
-        .font(AppFont.captionSemiboldMonospaced)
-        .foregroundStyle(Color.gymSubduedText)
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
-    private func controls(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
-        if presentation.primaryAction != .none {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                HStack(spacing: Spacing.s) {
-                    Button(action: primaryAction) {
-                        Label(
-                            presentation.primaryActionTitle ?? String(localized: "Advance"),
-                            systemImage: primaryIcon(presentation.primaryAction)
-                        )
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimary)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    .accessibilityHint(
-                        presentation.primaryActionHint ?? String(localized: "Starts the shared block clock")
-                    )
-
-                    if let capTitle = presentation.capActionTitle {
-                        Button(action: cap) {
-                            Label(capTitle, systemImage: AppIcon.stop)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(Color.gymSubduedText)
-                        .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    }
-                }
-
-                HStack(spacing: Spacing.m) {
-                    if let pauseTitle = presentation.pauseActionTitle, presentation.canPause {
-                        Button(pauseTitle, action: toggleClockPause)
-                            .font(AppFont.captionBold)
-                            .foregroundStyle(Color.gymPrimary)
-                            .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    }
-                    secondaryActions
-                }
-            }
-        } else {
-            HStack(spacing: Spacing.m) {
-                secondaryActions
-            }
+    private func secondaryRail(_ presentation: WorkoutExecutionBlockPresentation) -> some View {
+        if let pauseTitle = presentation.pauseActionTitle, presentation.canPause {
+            railButton(
+                pauseTitle,
+                systemImage: block.elapsedStartedAt == nil ? AppIcon.play : AppIcon.pause,
+                action: toggleClockPause
+            )
         }
+
+        if let capTitle = presentation.capActionTitle {
+            railButton(
+                capTitle,
+                systemImage: AppIcon.stop,
+                tint: Color.trameDestructiveText,
+                action: cap
+            )
+        }
+
+        secondaryActions
     }
 
     private var secondaryActions: some View {
@@ -230,11 +264,34 @@ struct WorkoutExecutionBlockEyesUpView: View {
             Divider()
             Button(String(localized: "Remove block"), role: .destructive, action: onRemove)
         } label: {
-            Label(String(localized: "More"), systemImage: AppIcon.ellipsis)
+            railLabel(String(localized: "More"), systemImage: AppIcon.ellipsis)
         }
-        .font(AppFont.captionBold)
-        .foregroundStyle(Color.gymPrimary)
-        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .buttonStyle(.plain)
+    }
+
+    private func railButton(
+        _ title: String,
+        systemImage: String,
+        tint: Color = .trameSubdued,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            railLabel(title, systemImage: systemImage, tint: tint)
+        }
+        .buttonStyle(.gymPress)
+    }
+
+    private func railLabel(
+        _ title: String,
+        systemImage: String,
+        tint: Color = .trameSubdued
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(AppFont.metadata)
+            .foregroundStyle(tint)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(.horizontal, Spacing.s)
+            .contentShape(Rectangle())
     }
 
     private func primaryAction() {
@@ -320,6 +377,14 @@ struct WorkoutExecutionBlockEyesUpView: View {
         }
     }
 
+    /// The dominant control never renders as a bare icon. An empty or
+    /// whitespace-only title from the presentation falls back to the verb.
+    private func primaryTitle(_ presentation: WorkoutExecutionBlockPresentation) -> String {
+        let title = presentation.primaryActionTitle?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return title.isEmpty ? String(localized: "Advance") : title
+    }
+
     private func primaryIcon(_ action: WorkoutExecutionBlockPrimaryAction) -> String {
         switch action {
         case .start: AppIcon.play
@@ -341,24 +406,17 @@ struct WorkoutExecutionBlockEyesUpView: View {
         }
     }
 
-    private func phaseIcon(_ phase: WorkoutExecutionBlockExecutionPhase) -> String {
-        switch phase {
-        case .ready: AppIcon.circle
-        case .running: AppIcon.play
-        case .paused: AppIcon.pause
-        case .completed: AppIcon.checkmarkCircle
-        case .capped: AppIcon.timer
-        case .partial, .stopped: AppIcon.stop
-        case .skipped: AppIcon.skip
-        }
-    }
-
+    /// The colour of the phase rule only. The phase word beside it carries the
+    /// same state, so the mark never has to be read as colour alone — and a
+    /// block nobody has started paints no domain hue at all.
     private func phaseTint(_ phase: WorkoutExecutionBlockExecutionPhase) -> Color {
         switch phase {
-        case .completed: .gymSecondary
-        case .capped, .stopped: .gymDestructive
-        case .paused: .gymAccent
-        default: .gymPrimary
+        case .ready: .trameSeparator
+        case .running: .trameStrength
+        case .paused: .trameAttention
+        case .completed: .trameCompleted
+        case .capped, .stopped: .trameDestructiveText
+        case .partial, .skipped: .trameSubdued
         }
     }
 }

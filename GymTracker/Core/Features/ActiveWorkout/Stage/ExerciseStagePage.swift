@@ -6,6 +6,7 @@ private struct StageMetric: Identifiable {
     let value: String
     let unit: String
     let isPrimary: Bool
+    let field: SetInputFocus.Field
 }
 
 /// One page of the Active Workout pager: the exercise (or group of exercises)
@@ -70,7 +71,7 @@ struct ExerciseStagePage: View {
                 }
                 .padding(.horizontal, Spacing.screenInset)
                 .padding(.top, Spacing.l)
-                .padding(.bottom, Spacing.xxxl)
+                .padding(.bottom, executionBlock == nil ? Spacing.xxxl : Spacing.xxxl + ComponentSize.todayActionHeight)
             }
             .scrollIndicators(.hidden)
             // With the panel raised the page must not drift: the row being
@@ -146,7 +147,7 @@ struct ExerciseStagePage: View {
     @ViewBuilder
     private var groupBanner: some View {
         if let executionBlock {
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
                 // The block names the page, at the same weight an exercise
                 // names its own. This was a caption above a card inside a page
                 // that contained only that card — three nested containers for
@@ -155,15 +156,34 @@ struct ExerciseStagePage: View {
                 // *is* the page, so it gets the page's title slot and the
                 // lifter's eye lands in the same place whatever kind of page
                 // they swiped to.
-                Text(executionBlock.kind.title)
-                    .font(AppFont.stageTitle)
-                    .foregroundStyle(Color.trameText)
-                    .fixedSize(horizontal: false, vertical: true)
+                //
+                // The lifter's own name for the block is that title when they
+                // gave it one, with the format as its eyebrow. Before this the
+                // page said "Circuit" and the field below it said "Power
+                // circuit" and "Circuit" again: three headings for one block.
+                if let name = executionBlock.name {
+                    Text(executionBlock.kind.title)
+                        .font(AppFont.micro)
+                        .tracking(0.55)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.trameStrength)
+
+                    Text(name)
+                        .font(AppFont.stageTitle)
+                        .foregroundStyle(Color.trameText)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(executionBlock.kind.title)
+                        .font(AppFont.stageTitle)
+                        .foregroundStyle(Color.trameText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Text(executionBlock.kind.summary)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, Spacing.xs)
 
                 WorkoutExecutionBlockCard(
                     block: executionBlock,
@@ -333,21 +353,16 @@ struct ExerciseStagePage: View {
                     Group {
                         if dynamicTypeSize.isAccessibilitySize {
                             VStack(alignment: .leading, spacing: Spacing.m) {
-                                stageMetricBlocks(metrics)
+                                stageMetricBlocks(metrics, entry: entry, set: set)
                             }
                         } else {
                             HStack(alignment: .firstTextBaseline, spacing: Spacing.xxl) {
-                                stageMetricBlocks(metrics)
+                                stageMetricBlocks(metrics, entry: entry, set: set)
                             }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(
-                    "Set \(set.orderIndex + 1) of \(entry.orderedSets.count). "
-                        + metrics.map { "\($0.value) \($0.unit)" }.joined(separator: ", ")
-                )
                 .accessibilityIdentifier("current-set-summary-\(entry.exercise.name)")
 
                 if set.resolvedSetMethod != .standard {
@@ -417,24 +432,49 @@ struct ExerciseStagePage: View {
     }
 
     @ViewBuilder
-    private func stageMetricBlocks(_ metrics: [StageMetric]) -> some View {
+    private func stageMetricBlocks(
+        _ metrics: [StageMetric],
+        entry: ExerciseEntry,
+        set: ExerciseSet
+    ) -> some View {
         ForEach(metrics) { metric in
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                Text(metric.value)
-                    .font(AppFont.metricHero)
-                    .foregroundStyle(Color.trameText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
+            Button {
+                coordinator.focus = SetInputFocus(
+                    exerciseID: entry.persistentModelID,
+                    setID: set.persistentModelID,
+                    field: metric.field
+                )
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    Text(metric.value)
+                        .font(AppFont.metricHero)
+                        .foregroundStyle(Color.trameText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
 
-                if !metric.unit.isEmpty {
-                    Text(metric.unit)
-                        .font(AppFont.micro)
-                        .tracking(0.6)
-                        .foregroundStyle(metric.isPrimary ? Color.trameStrength : Color.trameSubdued)
-                        .textCase(.uppercase)
+                    if !metric.unit.isEmpty {
+                        Text(metric.unit)
+                            .font(AppFont.micro)
+                            .tracking(0.6)
+                            .foregroundStyle(metric.isPrimary ? Color.trameStrength : Color.trameSubdued)
+                            .textCase(.uppercase)
+                    }
                 }
+                .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.gymPress)
+            .accessibilityLabel(stageMetricAccessibilityLabel(metric, setIndex: set.orderIndex))
+            .accessibilityHint("Opens the keypad for this value")
+            .accessibilityIdentifier("current-set-\(metric.id)-\(entry.exercise.name)")
         }
+    }
+
+    private func stageMetricAccessibilityLabel(_ metric: StageMetric, setIndex: Int) -> String {
+        let unit = metric.unit.isEmpty ? "" : " \(metric.unit)"
+        return String(
+            localized: "Set \(setIndex + 1) \(metric.id), \(metric.value)\(unit)"
+        )
     }
 
     private func stageMetrics(for entry: ExerciseEntry, set: ExerciseSet) -> [StageMetric] {
@@ -445,8 +485,9 @@ struct ExerciseStagePage: View {
             metrics.append(StageMetric(
                 id: "weight",
                 value: set.weight > 0 ? Formatters.formatFloat(set.weight) : "—",
-                unit: set.weight > 0 ? set.weightType.rawValue : "",
-                isPrimary: true
+                unit: set.weight > 0 ? weightUnit(for: entry, set: set) : "",
+                isPrimary: true,
+                field: .weight
             ))
         }
         if tracking.usesReps {
@@ -457,7 +498,8 @@ struct ExerciseStagePage: View {
                     && entry.loggingSemanticsSnapshot.repCountingStyle == .perSide
                     ? String(localized: "reps / side")
                     : set.repetitions > 0 ? String(localized: "reps") : "",
-                isPrimary: metrics.isEmpty
+                isPrimary: metrics.isEmpty,
+                field: .repetitions
             ))
         }
         if tracking.usesDuration {
@@ -467,7 +509,8 @@ struct ExerciseStagePage: View {
                     ? Formatters.formatFloat(Float(set.duration ?? 0))
                     : "—",
                 unit: (set.duration ?? 0) > 0 ? String(localized: "sec") : "",
-                isPrimary: metrics.isEmpty
+                isPrimary: metrics.isEmpty,
+                field: .duration
             ))
         }
         if tracking.usesDistance {
@@ -475,7 +518,8 @@ struct ExerciseStagePage: View {
                 id: "distance",
                 value: (set.distance ?? 0) > 0 ? Formatters.formatFloat(set.distance ?? 0) : "—",
                 unit: (set.distance ?? 0) > 0 ? set.distanceType.rawValue : "",
-                isPrimary: metrics.isEmpty
+                isPrimary: metrics.isEmpty,
+                field: .distance
             ))
         }
         if tracking.usesCalories {
@@ -485,10 +529,32 @@ struct ExerciseStagePage: View {
                     ? Formatters.formatFloat(Float(set.calories ?? 0))
                     : "—",
                 unit: (set.calories ?? 0) > 0 ? String(localized: "cal") : "",
-                isPrimary: metrics.isEmpty
+                isPrimary: metrics.isEmpty,
+                field: .calories
             ))
         }
         return metrics
+    }
+
+    /// The weight unit, qualified by what the number actually is.
+    ///
+    /// Assistance is load taken *off* the lifter, so a bare "20 kg" in the
+    /// largest type on the page reads as work performed when it means the
+    /// opposite; added load is not the exercise's total either. The set-entry
+    /// panel already names the field for what it holds, and this is the copy of
+    /// the number a lifter reads between sets.
+    private func weightUnit(for entry: ExerciseEntry, set: ExerciseSet) -> String {
+        let unit = set.weightType.rawValue
+        switch entry.trackingTypeSnapshot {
+        case .assistedBodyweight:
+            return String(localized: "\(unit) assist")
+        case .weightedBodyweight:
+            return String(localized: "\(unit) added")
+        default:
+            return entry.loggingSemanticsSnapshot.weightEntryStyle == .perLoadUnit
+                ? String(localized: "\(unit) each")
+                : unit
+        }
     }
 
     /// The prescription as one subdued line.
@@ -569,7 +635,7 @@ struct ExerciseStagePage: View {
             .foregroundStyle(Color.trameSubdued)
             .accessibilityIdentifier("previous-performance-\(entry.exercise.name)")
         } else {
-            Label("No previous session logged for this exercise", systemImage: AppIcon.history)
+            Label("No previous session", systemImage: AppIcon.history)
                 .font(AppFont.caption)
                 .foregroundStyle(Color.trameSubdued)
         }
@@ -640,10 +706,8 @@ struct ExerciseStagePage: View {
     /// destructive changes stay progressively disclosed in the menu.
     private func actionRail(for entry: ExerciseEntry) -> some View {
         HStack(spacing: Spacing.s) {
-            if entry.orderedSets.filter(\.done).isEmpty {
-                railButton("Swap", systemImage: AppIcon.relationship, identifier: "swap-exercise-\(entry.exercise.name)") {
-                    onSwapRequested(entry)
-                }
+            railButton("Swap", systemImage: AppIcon.relationship, identifier: "swap-exercise-\(entry.exercise.name)") {
+                onSwapRequested(entry)
             }
 
             railButton(

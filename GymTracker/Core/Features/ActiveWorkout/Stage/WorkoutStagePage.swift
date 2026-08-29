@@ -109,6 +109,15 @@ enum WorkoutStagePlan {
         return .exercise(entry.persistentModelID)
     }
 
+    /// Off-screen pager pages must not steal the visible stage. A focused set
+    /// is accepted only when it lives on the page already on screen.
+    static func acceptsFocus(
+        on focusedPage: WorkoutStagePage,
+        whileShowing visiblePage: WorkoutStagePage
+    ) -> Bool {
+        focusedPage == visiblePage
+    }
+
     /// The page holding the workout's next incomplete set, or `.finish` when
     /// every set is done.
     static func currentPage(in workout: Workout) -> WorkoutStagePage {

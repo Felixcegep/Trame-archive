@@ -11,19 +11,21 @@ struct PlanPrescriptionPreviewView: View {
             Section {
                 Label {
                     Text("This preview shows the prescriptions currently stored in the plan. A workout snapshot freezes these values when you start a session.")
-                        .font(AppFont.subheadline)
+                        .font(AppFont.body)
                 } icon: {
                     Image(systemName: AppIcon.info)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameActionDeep)
                 }
                 .accessibilityIdentifier("program-preview-summary")
             }
 
-            Section("Schedule") {
+            Section {
                 LabeledContent("Schedule", value: scheduleSummary)
                 LabeledContent("Weeks", value: "\(plan.durationWeeks)")
                 LabeledContent("Workouts", value: "\(workoutCount)")
                 LabeledContent("Exercises", value: "\(exerciseCount)")
+            } header: {
+                TrameDomainSectionRule(title: "Schedule", color: Color.trameStrength)
             }
 
             ForEach(plan.orderedWeeks) { week in
@@ -39,19 +41,19 @@ struct PlanPrescriptionPreviewView: View {
                                     .font(AppFont.subheadlineSemibold)
                                 Text(phaseTitle(for: week))
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                             Spacer()
                             Text("\(week.orderedPlannedWorkouts.count) sessions")
                                 .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Prescription Preview")
     }
 
@@ -101,40 +103,40 @@ private struct PlanPrescriptionPreviewWorkout: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack {
                 Text(workout.name)
-                    .font(AppFont.subheadlineSemibold)
+                    .font(AppFont.sectionTitle)
                 Spacer()
                 Text("Day \(workout.dayOffset + 1)")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             ForEach(workout.orderedPlannedExercises) { exercise in
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     HStack(spacing: Spacing.xs) {
                         Text(exercise.exercise.name)
-                            .font(AppFont.captionBold)
+                                .font(AppFont.bodyMedium)
                         if exercise.supersetGroupID != nil {
                             Label("Superset", systemImage: AppIcon.relationship)
-                                .font(AppFont.caption2Bold)
-                                .foregroundStyle(Color.gymPrimary)
+                                .font(AppFont.micro)
+                                .foregroundStyle(Color.trameActionDeep)
                         }
                         Spacer()
                         if exercise.isOptional {
                             Text("Optional")
-                                .font(AppFont.caption2Bold)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .font(AppFont.micro)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                     }
 
                     if exercise.orderedPlannedSets.isEmpty {
                         Text(fallbackSummary(for: exercise))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                     } else {
                         ForEach(exercise.orderedPlannedSets, id: \.orderIndex) { plannedSet in
                             Label(setSummary(for: plannedSet), systemImage: plannedSet.setType.icon)
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .font(AppFont.metadata)
+                                .foregroundStyle(Color.trameSubdued)
                                 .accessibilityIdentifier("program-preview-set-\(workout.id)-\(exercise.id)-\(plannedSet.orderIndex)")
                         }
                     }

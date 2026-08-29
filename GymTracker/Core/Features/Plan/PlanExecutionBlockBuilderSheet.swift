@@ -92,12 +92,12 @@ struct PlanExecutionBlockBuilderSheet: View {
                             .keyboardType(.numberPad)
                     }
                 } header: {
-                    Text("Format")
+                    TrameDomainSectionRule(title: "Format", color: Color.trameCompetition)
                 } footer: {
                     Text(kind.summary)
                 }
 
-                Section("Advanced options") {
+                Section {
                     Toggle("Use one shared load", isOn: $isSharedLoad)
                     TextField("Rest after each round (seconds, optional)", text: $restSeconds)
                         .keyboardType(.numberPad)
@@ -125,12 +125,14 @@ struct PlanExecutionBlockBuilderSheet: View {
                             Text(score.title).tag(score)
                         }
                     }
+                } header: {
+                    TrameDomainSectionRule(title: "Advanced options", color: Color.trameAttention)
                 }
 
-                Section("Exercises") {
+                Section {
                     Text(kind.exerciseSelectionHint)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                     ForEach(availableExercises) { exercise in
                         Button {
                             if selectedExerciseIDs.contains(exercise.id) {
@@ -143,19 +145,25 @@ struct PlanExecutionBlockBuilderSheet: View {
                                 Text(exercise.displayName)
                                 Spacer()
                                 Image(systemName: selectedExerciseIDs.contains(exercise.id) ? AppIcon.checkmarkCircle : AppIcon.circle)
-                                    .foregroundStyle(Color.gymPrimary)
+                                    .foregroundStyle(Color.trameActionDeep)
                             }
                         }
                         .buttonStyle(.plain)
                     }
+                } header: {
+                    TrameDomainSectionRule(title: "Exercises", color: Color.trameStrength)
                 }
 
                 if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(Color.gymDestructive) }
+                    Section {
+                        Text(errorMessage).foregroundStyle(Color.trameDestructiveText)
+                    } header: {
+                        TrameDomainSectionRule(title: "Needs attention", color: Color.trameAttention)
+                    }
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .navigationTitle("Execution Block")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

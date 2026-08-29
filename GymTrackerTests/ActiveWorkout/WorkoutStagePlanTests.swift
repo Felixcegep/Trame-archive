@@ -108,6 +108,15 @@ final class WorkoutStagePlanTests: XCTestCase {
         XCTAssertEqual(WorkoutStagePlan.progress(of: page, in: fixture.workout), .complete)
     }
 
+    func testFocusFromADifferentPageIsRejected() throws {
+        let fixture = try makeFixture()
+        let visible = WorkoutStagePage.exercise(fixture.standalone.persistentModelID)
+        let stray = WorkoutStagePage.superset(fixture.supersetID)
+
+        XCTAssertTrue(WorkoutStagePlan.acceptsFocus(on: visible, whileShowing: visible))
+        XCTAssertFalse(WorkoutStagePlan.acceptsFocus(on: stray, whileShowing: visible))
+    }
+
     private struct Fixture {
         let context: ModelContext
         let workout: Workout

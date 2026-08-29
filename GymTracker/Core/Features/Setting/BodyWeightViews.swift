@@ -83,7 +83,10 @@ struct BodyWeightHistoryView: View {
 
     private func change(from previous: BodyWeightEntry, to latest: BodyWeightEntry) -> String {
         let delta = latest.kilograms - previous.kilograms
-        let displayUnit: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
+        // The unit the latest measurement was recorded in, not the current
+        // preference: the value above it is drawn in `latest.unit`, and a
+        // delta in a different unit makes the pair unreadable.
+        let displayUnit = latest.unit
         let displayDelta = UnitConversion.weight(delta, from: .kg, to: displayUnit)
         let prefix = displayDelta > 0 ? "+" : ""
         return "\(prefix)\(Formatters.formatFloat(displayDelta)) \(displayUnit.rawValue)"

@@ -199,29 +199,29 @@ struct MobilityAssessmentObservationRow: View {
             if showsTitle {
                 Text(observation.title)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                 Text(observation.side.displayName)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 Spacer(minLength: Spacing.s)
                 Text(observation.valueText)
                     .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
 
             Text(observation.conditionsText)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             // Provenance travels with the value. A hand-entered observation is
             // labelled as entered and carries the confidence it was frozen with,
             // so it is never read as something the phone measured.
             Text(observation.provenanceText)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             if let comparison = observation.comparison {
                 comparisonView(comparison)
@@ -243,11 +243,11 @@ struct MobilityAssessmentObservationRow: View {
                 // colour, no better/worse framing.
                 Text(differenceText)
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
             Text(comparison.text)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -279,12 +279,12 @@ struct MobilityAssessmentScopeNote: View {
         Label {
             Text("These are observations you record under conditions you choose. They are not a diagnosis, an injury-risk assessment, or a score.")
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: AppIcon.info)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .combine)

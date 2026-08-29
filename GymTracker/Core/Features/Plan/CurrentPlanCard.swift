@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-/// Train's hero card: the plan you are following, and the controls for it.
+/// Train's open following block: the plan being followed and its controls.
 ///
 /// Pausing or stopping used to require knowing the path Train → My Plans → the
 /// plan → scroll. Those live here instead, in an in-content `Menu` rather than
@@ -38,10 +38,13 @@ struct CurrentPlanCard: View {
 
     @ViewBuilder
     var body: some View {
-        if summary.kind != .none {
+        switch summary.kind {
+        case .none:
+            noPlanState
+        case .ambiguous:
             VStack(alignment: .leading, spacing: Spacing.md) {
-                TrameSectionRule(title: "Active Plan")
-                card
+                TrameDomainSectionRule(title: "Active Plan", color: Color.trameAttention)
+                ambiguousCard
             }
             .confirmationDialog(
                 "Stop following this plan?",
@@ -62,18 +65,27 @@ struct CurrentPlanCard: View {
             } message: {
                 Text(actionError ?? "Please try again.")
             }
-        }
-    }
-
-    @ViewBuilder
-    private var card: some View {
-        switch summary.kind {
-        case .none:
-            emptyCard
-        case .ambiguous:
-            ambiguousCard
         default:
             followingCard
+                .confirmationDialog(
+                    "Stop following this plan?",
+                    isPresented: $isConfirmingStop,
+                    titleVisibility: .visible
+                ) {
+                    Button("Stop Following", role: .destructive, action: stopFollowing)
+                        .accessibilityIdentifier("confirm-stop-following-plan")
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Your completed workouts stay in history. You can start the plan again later.")
+                }
+                .alert("Couldn’t update plan", isPresented: Binding(
+                    get: { actionError != nil },
+                    set: { if !$0 { actionError = nil } }
+                )) {
+                    Button("OK", role: .cancel) { actionError = nil }
+                } message: {
+                    Text(actionError ?? "Please try again.")
+                }
         }
     }
 }
@@ -81,50 +93,72 @@ struct CurrentPlanCard: View {
 // MARK: - States
 
 private extension CurrentPlanCard {
-    var emptyCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    var noPlanState: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameDomainSectionRule(title: "FOLLOWING", color: Color.trameStrength)
+
             Button(action: onChoosePlan) {
-                HStack(spacing: Spacing.m) {
-                    TrameCategoryTile(
-                        systemImage: AppIcon.plan,
-                        fill: Color.trameCompetition,
-                        size: ComponentSize.iconChip
-                    )
-                    Text("Choose a plan")
-                        .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.trameText)
-                    Spacer()
+                HStack(alignment: .center, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("No plan followed")
+                            .font(AppFont.sectionTitle)
+                            .foregroundStyle(Color.trameText)
+
+                        Text("Browse ready-made plans or build your own.")
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: Spacing.s)
+
                     Image(systemName: AppIcon.chevronRight)
                         .font(AppFont.micro)
                         .foregroundStyle(Color.trameSubdued)
+                        .accessibilityHidden(true)
                 }
-                .padding(.vertical, Spacing.md)
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("choose-a-plan")
-            .accessibilityHint("Opens plans.")
+            .buttonStyle(.gymPress)
+            .accessibilityLabel("No plan followed. Browse plans")
+            .accessibilityHint("Opens ready-made and custom training plans.")
+            .accessibilityIdentifier("choose-plan-empty-state")
         }
-        .accessibilityIdentifier("current-plan-empty")
     }
 
     var ambiguousCard: some View {
         Button(action: onChoosePlan) {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Label(summary.title, systemImage: AppIcon.warning)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.trameDestructiveText)
-                Text(summary.detail)
-                    .font(AppFont.subheadline)
+            HStack(spacing: Spacing.m) {
+                Rectangle()
+                    .fill(Color.trameAttention)
+                    .frame(width: 6, height: 48)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("NEEDS ATTENTION")
+                        .font(AppFont.eyebrow)
+                        .tracking(0.8)
+                        .foregroundStyle(Color.trameText)
+
+                    Text(summary.title)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
                     .foregroundStyle(Color.trameSubdued)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(Spacing.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.trameSeparator, lineWidth: 1)
+            .padding(.vertical, Spacing.s)
+            .frame(minHeight: 60)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
             }
             .contentShape(Rectangle())
         }
@@ -134,162 +168,187 @@ private extension CurrentPlanCard {
 
     var followingCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                if let target = summary.target { onOpenPlan(target) }
-            } label: {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                        Text(summary.title)
-                            .font(AppFont.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(summary.isPaused ? Color.trameSubdued : Color.trameCompetition)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(2)
+            TrameDomainSectionRule(title: "FOLLOWING", color: Color.trameStrength)
+                .padding(.bottom, Spacing.m)
 
-                        Spacer()
-
-                        if summary.isPaused {
-                            Label("Paused", systemImage: AppIcon.pause)
-                                .font(AppFont.micro)
-                                .foregroundStyle(Color.trameSubdued)
-                        }
-
-                        Image(systemName: AppIcon.chevronRight)
-                            .font(AppFont.micro)
-                            .foregroundStyle(Color.trameSubdued)
-                    }
-
-                    if let next = summary.nextWorkoutName {
-                        Text(next)
-                            .font(AppFont.titleSmallSemibold)
-                            .foregroundStyle(Color.trameText)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    HStack(spacing: Spacing.s) {
-                        if let position = summary.positionText {
-                            Text(position)
-                                .font(AppFont.metadata)
-                                .foregroundStyle(Color.trameSubdued)
-                        }
-
-                        Spacer(minLength: Spacing.s)
-
-                        if let completed = summary.completedWorkouts,
-                           let total = summary.totalWorkouts {
-                            Text("\(completed)/\(total)")
-                                .font(AppFont.metadata)
-                                .monospacedDigit()
-                                .foregroundStyle(Color.trameSubdued)
-                        }
-                    }
-
-                    if let fraction = summary.progressFraction,
-                       let completed = summary.completedWorkouts,
-                       let total = summary.totalWorkouts {
-                        ProgressView(value: fraction)
-                            .tint(Color.trameStrength)
-                            .accessibilityLabel("\(completed) of \(total) plan workouts completed")
-                            .accessibilityIdentifier("current-plan-progress")
-                    }
-                }
-                .padding(Spacing.l)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.gymPress)
-            .accessibilityIdentifier("current-plan-card")
-            .accessibilityHint("Opens the plan.")
+            planField
 
             if primaryTrainingActionIsAvailable {
                 Divider()
                     .overlay(Color.trameSeparator)
-                    .padding(.horizontal, Spacing.l)
 
                 primaryTrainingAction
-            }
-
-            if programPathRoute != nil {
-                Divider()
-                    .overlay(Color.trameSeparator)
-                    .padding(.horizontal, Spacing.l)
-
-                HStack(spacing: Spacing.s) {
-                    if let route = programPathRoute {
-                        programPathLink(route)
-                    }
-                    if let run = openFixedRun {
-                        weeklyReviewLink(for: run)
-                    }
-                }
-                .padding(.horizontal, Spacing.l)
-                .padding(.vertical, Spacing.s)
+                    .padding(.vertical, Spacing.l)
             }
 
             Divider()
                 .overlay(Color.trameSeparator)
-                .padding(.horizontal, Spacing.l)
 
-            actions
+            planTools
+                .padding(.vertical, Spacing.s)
         }
-        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.trameSeparator, lineWidth: 1)
-        }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(summary.isPaused ? Color.trameSeparator : Color.trameStrength)
-                .frame(height: Spacing.xxs)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        // No shadow: fill plus border already separates this from the
-        // background, and a third device is noise. See `HomePrimaryWorkoutCard`.
     }
 
-    /// Where the run currently is, as its own destination. The card's main tap
-    /// still opens the plan: the path answers "how far along am I", which is a
-    /// different question from "what is this plan".
-    func programPathLink(_ route: ProgramPathRoute) -> some View {
+    var planField: some View {
         Button {
-            onOpenProgramPath(route)
-        } label: {
-            VStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcon.routine)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.trameStrength)
-                Text(ProgramPathPresentation.entryTitle)
-                    .font(AppFont.eyebrow)
-                    .foregroundStyle(Color.trameText)
+            if let target = summary.target {
+                onOpenPlan(target)
             }
-            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                HStack(spacing: Spacing.xs) {
+                    Text(summary.isPaused ? "PAUSED" : "ACTIVE PLAN")
+                        .font(AppFont.eyebrow)
+                        .tracking(1)
+                        .foregroundStyle(summary.isPaused ? Color.trameSubdued : Color.trameStrength)
+
+                    Spacer()
+
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+
+                Text(summary.title)
+                    .font(AppFont.stageTitle)
+                    .foregroundStyle(Color.trameText)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+
+                if let next = summary.nextWorkoutName {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("NEXT")
+                            .font(AppFont.micro)
+                            .tracking(1)
+                            .foregroundStyle(Color.trameSubdued)
+
+                        Text(next)
+                            .font(AppFont.metricLarge)
+                            .foregroundStyle(Color.trameText)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+
+                planProgress
+            }
+            .padding(.leading, Spacing.l)
+            .padding(.vertical, Spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(summary.isPaused ? Color.trameSeparator : Color.trameStrength)
+                    .frame(width: 6)
+                    .accessibilityHidden(true)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
-        .accessibilityIdentifier("current-plan-program-path")
-        .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
+        .accessibilityIdentifier("current-plan-card")
+        .accessibilityHint("Opens the plan.")
     }
 
-    /// Fixed-plan only, matching Weekly Review v1's product boundary.
-    func weeklyReviewLink(for run: PlanRun) -> some View {
-        Button {
-            onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
-        } label: {
-            VStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcon.chart)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.trameStrength)
-                Text(WeeklyProgramReviewPresentation.entryTitle)
-                    .font(AppFont.eyebrow)
-                    .foregroundStyle(Color.trameText)
+    var planProgress: some View {
+        VStack(spacing: Spacing.s) {
+            HStack {
+                if let position = summary.positionText {
+                    Text(compactPosition(position))
+                        .font(AppFont.eyebrow)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+
+                Spacer()
+
+                if let completed = summary.completedWorkouts,
+                   let total = summary.totalWorkouts {
+                    Text("\(completed) / \(total)")
+                        .font(AppFont.metricCompact)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.trameText)
+                }
             }
-            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
-            .contentShape(Rectangle())
+
+            if let fraction = summary.progressFraction {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.trameSeparator)
+
+                        Rectangle()
+                            .fill(Color.trameStrength)
+                            .frame(width: max(0, proxy.size.width * CGFloat(fraction)))
+                    }
+                }
+                .frame(height: 5)
+                .accessibilityHidden(true)
+            }
         }
-        .buttonStyle(.gymPress)
-        .accessibilityIdentifier("current-plan-weekly-review")
-        .accessibilityHint(Text(WeeklyProgramReviewPresentation.entryDetail))
+    }
+
+    var planTools: some View {
+        HStack(spacing: Spacing.xl) {
+            if let route = programPathRoute {
+                Button("Path") {
+                    onOpenProgramPath(route)
+                }
+                .buttonStyle(.plain)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameText)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityIdentifier("current-plan-program-path")
+            }
+
+            if let run = openFixedRun {
+                Button("Review") {
+                    onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
+                }
+                .buttonStyle(.plain)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameText)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityIdentifier("current-plan-weekly-review")
+            }
+
+            Spacer()
+
+            planMenu
+        }
+    }
+
+    var planMenu: some View {
+        Menu {
+            if summary.isPaused {
+                Button("Resume", action: resume)
+            } else {
+                Button("Pause", action: pause)
+            }
+
+            Button("Change plan", action: onChoosePlan)
+
+            Divider()
+
+            Button("Stop following", role: .destructive) {
+                isConfirmingStop = true
+            }
+        } label: {
+            Image(systemName: AppIcon.ellipsis)
+                .font(AppFont.bodyMedium)
+                .foregroundStyle(Color.trameText)
+                .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("current-plan-menu")
+        .accessibilityLabel("Plan options")
+    }
+
+    func compactPosition(_ position: String) -> String {
+        if position.lowercased().hasPrefix("week ") {
+            let number = position.dropFirst(5)
+            return "W\(number)"
+        } else if position.lowercased().hasPrefix("cycle ") {
+            let number = position.dropFirst(6)
+            return "C\(number)"
+        }
+        return position
     }
 
     /// `nil` when no single run is open, which is also when the card is showing
@@ -304,31 +363,6 @@ private extension CurrentPlanCard {
         return nil
     }
 
-    var actions: some View {
-        HStack(spacing: Spacing.s) {
-            if !summary.isPaused {
-                Button(action: pause) {
-                    Label("Pause", systemImage: AppIcon.pause)
-                }
-                .accessibilityIdentifier("current-plan-pause")
-            }
-
-            Spacer(minLength: Spacing.s)
-
-            Menu {
-                Button("Change plan", action: onChoosePlan)
-                Button("Stop following", role: .destructive) { isConfirmingStop = true }
-            } label: {
-                Label("More", systemImage: AppIcon.ellipsis)
-            }
-            .accessibilityIdentifier("current-plan-menu")
-            .accessibilityLabel("Plan options")
-        }
-        .font(AppFont.subheadlineSemibold)
-        .padding(.horizontal, Spacing.l)
-        .padding(.vertical, Spacing.m)
-    }
-
     var primaryTrainingActionIsAvailable: Bool {
         summary.isPaused
             || (openFixedRun.flatMap { PlanCoordinator.nextProgress(in: $0) } != nil)
@@ -338,28 +372,33 @@ private extension CurrentPlanCard {
     @ViewBuilder
     var primaryTrainingAction: some View {
         if summary.isPaused {
-            Button("Resume plan", action: resume)
-                .buttonStyle(.tramePrimaryAction)
-                .padding(Spacing.l)
-                .accessibilityIdentifier("current-plan-resume")
+            Button(action: resume) {
+                Text("Resume")
+                    .font(AppFont.titleSmallSemibold)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
+            }
+            .buttonStyle(.tramePrimaryAction)
+            .accessibilityIdentifier("current-plan-resume")
         } else if let run = openFixedRun, let next = PlanCoordinator.nextProgress(in: run) {
             Button {
                 onStartPlannedWorkout(run, next)
             } label: {
-                Label("Start next workout", systemImage: AppIcon.play)
+                Text("Start")
+                    .font(AppFont.titleSmallSemibold)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
             }
             .buttonStyle(.tramePrimaryAction)
-            .padding(Spacing.l)
             .accessibilityLabel("Start \(next.plannedWorkoutName)")
             .accessibilityIdentifier("current-plan-start-next")
         } else if let run = openRepeatingRun, run.status == .active {
             Button {
                 onStartRepeatingWorkout(run)
             } label: {
-                Label("Start next workout", systemImage: AppIcon.play)
+                Text("Start")
+                    .font(AppFont.titleSmallSemibold)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
             }
             .buttonStyle(.tramePrimaryAction)
-            .padding(Spacing.l)
             .accessibilityLabel(summary.nextWorkoutName.map { "Start \($0)" } ?? "Start next rotation workout")
             .accessibilityIdentifier("current-plan-start-next")
         }

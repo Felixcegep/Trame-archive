@@ -110,20 +110,41 @@ extension Muscle {
 }
 
 extension Muscle {
-    nonisolated private static let displayNames: [Muscle: String] = {
-        Dictionary(uniqueKeysWithValues: allCases.map { muscle in
-            let name = muscle.rawValue.reduce("") { result, character in
-                if character.isUppercase {
-                    return result + " " + String(character)
-                }
-                return result + String(character)
-            }
-            .capitalized
-            return (muscle, NSLocalizedString(name, comment: ""))
-        })
-    }()
+    nonisolated private static let anatomicalDisplayNames: [Muscle: String] = [
+        .upperChest: "Pectoralis Major - Clavicular",
+        .middleChest: "Pectoralis Major - Sternal",
+        .lowerChest: "Pectoralis Major - Costal",
+        .frontDeltoid: "Anterior Deltoid",
+        .lateralDeltoid: "Lateral Deltoid",
+        .rearDeltoid: "Posterior Deltoid",
+        .bicep: "Biceps Brachii",
+        .brachialis: "Brachialis",
+        .brachioradialis: "Brachioradialis",
+        .tricepLongHead: "Triceps - Long Head",
+        .tricepLateralHead: "Triceps - Lateral Head",
+        .tricepMedialHead: "Triceps - Medial Head",
+        .latissimusDorsi: "Latissimus Dorsi",
+        .trapezius: "Trapezius",
+        .rhomboids: "Rhomboids",
+        .teresMajor: "Teres Major",
+        .forearms: "Forearms",
+        .rectusAbdominis: "Rectus Abdominis",
+        .obliques: "Obliques",
+        .transverseAbdominis: "Transverse Abdominis",
+        .gluteMaximus: "Gluteus Maximus",
+        .gluteMedius: "Gluteus Medius",
+        .gluteMinimus: "Gluteus Minimus",
+        .quadriceps: "Quadriceps",
+        .hamstrings: "Hamstrings",
+        .adductors: "Adductors",
+        .abductors: "Abductors",
+        .calves: "Calves (Gastrocnemius & Soleus)",
+        .tibialisAnterior: "Tibialis Anterior",
+        .erectorSpinae: "Erector Spinae",
+        .neck: "Neck"
+    ]
 
     nonisolated var displayName: String {
-        Self.displayNames[self] ?? rawValue
+        Self.anatomicalDisplayNames[self] ?? rawValue
     }
 }
