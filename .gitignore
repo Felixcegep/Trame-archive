@@ -5,6 +5,9 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 
+# Connect IQ compiled watch output
+GarminPingPong/bin/
+
 # macOS
 .DS_Store
 
