@@ -74,7 +74,6 @@ struct ExerciseBrowserView: View {
                     title: "Hidden Exercises",
                     subtitle: "Restore anything you've hidden",
                     icon: AppIcon.archive,
-                    color: Color.trameRecovery
                 )
             }
             .buttonStyle(.plain)
@@ -100,7 +99,6 @@ struct ExerciseBrowserView: View {
                         title: row.name,
                         subtitle: row.subtitle,
                         icon: "dumbbell.fill",
-                        color: Color.trameStrength
                     )
                 }
                 .accessibilityIdentifier("exercise-row-\(row.name)")

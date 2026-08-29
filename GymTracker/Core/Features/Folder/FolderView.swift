@@ -225,7 +225,6 @@ struct FolderView: View {
                     LibraryItemRow(
                         title: "Plans",
                         icon: AppIcon.plan,
-                        color: Color.trameStrength,
                         count: planCount
                     )
                 }
@@ -236,7 +235,6 @@ struct FolderView: View {
                     LibraryItemRow(
                         title: "Workouts",
                         icon: AppIcon.routine,
-                        color: Color.trameStrength,
                         count: workoutTemplates.count
                     )
                 }
@@ -247,7 +245,6 @@ struct FolderView: View {
                     LibraryItemRow(
                         title: "Exercises",
                         icon: AppIcon.exercise,
-                        color: Color.trameStrength,
                         count: exerciseTemplates.count
                     )
                 }
@@ -266,7 +263,6 @@ struct FolderView: View {
                     LibraryItemRow(
                         title: "Routines",
                         icon: AppIcon.mobility,
-                        color: Color.trameMobility,
                         count: mobilityRoutines.count
                     )
                 }
@@ -278,7 +274,6 @@ struct FolderView: View {
                         LibraryItemRow(
                             title: "Plans",
                             icon: AppIcon.plan,
-                            color: Color.trameMobility,
                             count: mobilityPlanCount
                         )
                     }
@@ -291,7 +286,6 @@ struct FolderView: View {
                         LibraryItemRow(
                             title: "Assessments",
                             icon: AppIcon.mobilityAssessment,
-                            color: Color.trameMobility,
                             count: mobilityAssessmentCount
                         )
                     }
@@ -364,7 +358,6 @@ struct FolderView: View {
                                     title: collection.name,
                                     type: "FOLDER",
                                     icon: "rectangle.stack",
-                                    color: Color.trameCompetition
                                 )
                             }
                         }
@@ -378,7 +371,6 @@ struct FolderView: View {
                                     title: template.name,
                                     type: "WORKOUT",
                                     icon: AppIcon.routine,
-                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -392,7 +384,6 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.plan,
-                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -406,7 +397,6 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.routine,
-                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -420,7 +410,6 @@ struct FolderView: View {
                                     title: exercise.name,
                                     type: "EXERCISE",
                                     icon: AppIcon.exercise,
-                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -434,7 +423,6 @@ struct FolderView: View {
                                     title: routine.name,
                                     type: "ROUTINE",
                                     icon: AppIcon.mobility,
-                                    color: Color.trameMobility
                                 )
                             }
                         }
@@ -448,7 +436,6 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.plan,
-                                    color: Color.trameMobility
                                 )
                             }
                         }

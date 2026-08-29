@@ -95,7 +95,6 @@ struct WorkoutsBrowserView: View {
                             title: collection.name,
                             subtitle: workoutCountText(collection.workoutTemplates.count),
                             icon: "rectangle.stack",
-                            color: Color.trameCompetition,
                             badge: "Folder"
                         )
                     }
@@ -121,7 +120,6 @@ struct WorkoutsBrowserView: View {
                             title: template.name,
                             subtitle: "\(template.exercises.count) exercises",
                             icon: AppIcon.routine,
-                            color: Color.trameStrength,
                             badge: template.isBuiltIn ? "Starter" : nil,
                             showsChevron: false
                         )

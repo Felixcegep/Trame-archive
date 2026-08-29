@@ -58,29 +58,17 @@ struct BuiltInBadge: View {
     }
 }
 
-/// Train's open-list identity mark.
-///
-/// A slim opaque rail carries the training domain while the SF Symbol stays
-/// neutral and readable. This deliberately avoids turning every destination
-/// into another colored rounded-square object: color behaves like wayfinding,
-/// and the row's typography/data remain the thing being scanned.
+/// Train's open-list identity mark: an ink SF Symbol, not a colored rail.
+/// Domain color lives once on `TrameDomainSectionRule`, not on every row.
 private struct LibraryWayfindingMark: View {
     let systemImage: String
-    let color: Color
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            RoundedRectangle(cornerRadius: Spacing.xxs, style: .continuous)
-                .fill(color)
-                .frame(width: Spacing.xs, height: 30)
-
-            Image(systemName: systemImage)
-                .font(AppFont.bodyMedium)
-                .foregroundStyle(Color.trameText)
-                .frame(width: 26, height: 30)
-        }
-        .frame(width: 40, alignment: .leading)
-        .accessibilityHidden(true)
+        Image(systemName: systemImage)
+            .font(AppFont.bodyMedium)
+            .foregroundStyle(Color.trameText)
+            .frame(width: 26, height: 30)
+            .accessibilityHidden(true)
     }
 }
 
@@ -88,14 +76,13 @@ struct LibraryItemRow: View {
     let title: String
     var subtitle: String? = nil
     let icon: String
-    let color: Color
     var count: Int?
     var badge: String? = nil
     var showsChevron = true
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            LibraryWayfindingMark(systemImage: icon, color: color)
+            LibraryWayfindingMark(systemImage: icon)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 HStack(spacing: Spacing.xs) {
@@ -247,11 +234,10 @@ struct RecentLibraryRow: View {
     let title: String
     let type: LocalizedStringKey
     let icon: String
-    let color: Color
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            LibraryWayfindingMark(systemImage: icon, color: color)
+            LibraryWayfindingMark(systemImage: icon)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)

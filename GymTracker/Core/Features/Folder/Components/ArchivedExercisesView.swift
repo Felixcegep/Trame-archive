@@ -35,7 +35,6 @@ struct ArchivedExercisesView: View {
                             title: exercise.name,
                             subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
                             icon: "dumbbell.fill",
-                            color: Color.trameRecovery,
                             showsChevron: false
                         )
                         Button("Restore") {
