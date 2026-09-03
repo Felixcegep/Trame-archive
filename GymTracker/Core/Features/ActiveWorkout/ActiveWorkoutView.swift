@@ -26,6 +26,12 @@ struct ActiveWorkoutView: View {
     let modelContext: ModelContext
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     let onDiscardRequested: () -> Void
+    /// Linked warm-up / cooldown stays inside this shell. Standalone mobility
+    /// still uses its own cover in `RootView`.
+    let linkedMobilitySession: MobilitySession?
+    let linkedWorkoutName: String?
+    let linkedWorkoutStartTime: Date?
+    let onFinishLinkedMobility: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -61,13 +67,21 @@ struct ActiveWorkoutView: View {
         navigationPath: Binding<[ActiveWorkoutRoute]>,
         modelContext: ModelContext,
         activeLoggingMetrics: ActiveLoggingMetricsRecorder,
-        onDiscardRequested: @escaping () -> Void
+        onDiscardRequested: @escaping () -> Void,
+        linkedMobilitySession: MobilitySession? = nil,
+        linkedWorkoutName: String? = nil,
+        linkedWorkoutStartTime: Date? = nil,
+        onFinishLinkedMobility: @escaping () -> Void = {}
     ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
         self.modelContext = modelContext
         self.activeLoggingMetrics = activeLoggingMetrics
         self.onDiscardRequested = onDiscardRequested
+        self.linkedMobilitySession = linkedMobilitySession
+        self.linkedWorkoutName = linkedWorkoutName
+        self.linkedWorkoutStartTime = linkedWorkoutStartTime
+        self.onFinishLinkedMobility = onFinishLinkedMobility
         _viewModel = State(initialValue: ActiveWorkoutViewModel(
             workoutVM: workoutVM,
             modelContext: modelContext,
@@ -81,7 +95,14 @@ struct ActiveWorkoutView: View {
 
     var body: some View {
         Group {
-            if let workout = viewModel.activeWorkout {
+            if let mobility = linkedMobilitySession {
+                MobilitySessionView(
+                    session: mobility,
+                    linkedWorkoutName: linkedWorkoutName,
+                    linkedWorkoutStartTime: linkedWorkoutStartTime,
+                    onFinished: onFinishLinkedMobility
+                )
+            } else if let workout = viewModel.activeWorkout {
                 stage(for: workout)
             } else {
                 ContentUnavailableView(
@@ -425,7 +446,11 @@ struct ActiveWorkoutView: View {
             StageFinishPage(
                 workout: workout,
                 blockers: finishBlockers(for: workout),
-                onJumpToPage: { selection = $0 }
+                onJumpToPage: { selection = $0 },
+                onAdjustDuration: { duration in
+                    _ = workout.updateElapsedDuration(duration)
+                    viewModel.persistChanges()
+                }
             )
         } else {
             ExerciseStagePage(

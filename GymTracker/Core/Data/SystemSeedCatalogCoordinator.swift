@@ -28,7 +28,8 @@ enum SystemSeedCatalogCoordinator {
     // 22: align bundled recipe ingredient names with the food catalog, add whey
     // protein powder, and repair incomplete v1 seeded recipes that skipped
     // unmatched ingredients.
-    static let contentVersion = 22
+    // 23: add Chest-Supported Row Machine to the strength catalogue.
+    static let contentVersion = 23
 
     private static let retiredBundledProgramKeys: Set<String> = [
         "powerlifting-volume-intensity",

@@ -86,6 +86,8 @@ struct PlateKeypad: View {
     /// The chosen bar, so the header can offer the other six.
     @Binding var selectedBarID: String
     let onKey: (PlateKey) -> Void
+    /// Switches kg/lbs on this keypad. `nil` hides the control (previews).
+    var onSelectUnitSystem: ((UnitSystem) -> Void)? = nil
 
     private var barSelection: Binding<String> {
         Binding(get: { selectedBarID }, set: { selectedBarID = $0 })
@@ -94,15 +96,17 @@ struct PlateKeypad: View {
     @State private var lastPressedKey: PlateKey?
 
     private let columns = Array(
-        repeating: GridItem(.flexible(), spacing: Spacing.s),
-        count: 3
+        repeating: GridItem(.flexible(), spacing: Spacing.xs),
+        count: 4
     )
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        // The panel above already shows the total. This instrument is the
+        // plates, the bar, and Complete set — a second "BAR LOAD" figure and a
+        // full-width exact-entry row were pushing the confirm action off the
+        // screen on gym-floor phones.
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             header
-                // A container identifier here would replace the identities of
-                // the exact-entry and plate keys in the accessibility tree.
                 .accessibilityIdentifier("plate-keypad")
             stack
             plateGrid
@@ -110,24 +114,11 @@ struct PlateKeypad: View {
             HStack(spacing: Spacing.xs) {
                 utilityKey(.bareBar, title: String(localized: "Bare bar"), icon: AppIcon.minus)
                 utilityKey(.removeLast, title: String(localized: "Remove"), icon: AppIcon.backspace)
+                utilityKey(.digits, title: String(localized: "Exact"), icon: AppIcon.keyboard)
             }
-
-            Button {
-                lastPressedKey = .digits
-                onKey(.digits)
-            } label: {
-                Label("Enter an exact weight", systemImage: AppIcon.keyboard)
-                    .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.trameText)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.gymPress)
-            .accessibilityIdentifier("plate-keypad-digits")
         }
         .padding(.horizontal, Spacing.s)
-        .padding(.vertical, Spacing.s)
+        .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.trameCanvas)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -137,31 +128,7 @@ struct PlateKeypad: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("BAR LOAD")
-                    .font(AppFont.caption2Bold)
-                    .tracking(0.6)
-                    .foregroundStyle(Color.trameSubdued)
-
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                    Text(Formatters.formatFloat(target))
-                        .font(AppFont.displayMedium)
-                        .monospacedDigit()
-                        .foregroundStyle(Color.trameText)
-                    Text(unitLabel)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.trameSubdued)
-                }
-            }
-
-            Spacer(minLength: Spacing.s)
-
-            // The bar is part of every total on this keypad, so choosing it
-            // belongs here rather than two taps away in the calculator sheet.
-            // A 15 kg women's bar and a 20 kg men's bar put the same discs at
-            // different weights, and picking the wrong one is wrong by five
-            // kilos on every set of the session.
+        HStack(alignment: .center, spacing: Spacing.s) {
             Menu {
                 Picker("Bar", selection: barSelection) {
                     ForEach(BarKind.allCases) { bar in
@@ -173,6 +140,7 @@ struct PlateKeypad: View {
                 HStack(spacing: Spacing.xxs) {
                     Text("\(Formatters.formatFloat(barWeight)) \(unitLabel) bar")
                         .monospacedDigit()
+                        .lineLimit(1)
                     Image(systemName: AppIcon.chevronDown)
                         .font(AppFont.caption2Bold)
                 }
@@ -188,6 +156,21 @@ struct PlateKeypad: View {
             }
             .accessibilityLabel(Text("Bar type, \(Formatters.formatFloat(barWeight)) \(unitLabel)"))
             .accessibilityIdentifier("plate-keypad-bar")
+
+            Spacer(minLength: Spacing.s)
+
+            if let onSelectUnitSystem {
+                Picker("Weight unit", selection: Binding(
+                    get: { unitSystem },
+                    set: { onSelectUnitSystem($0) }
+                )) {
+                    Text("kg").tag(UnitSystem.metric)
+                    Text("lbs").tag(UnitSystem.imperial)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 140)
+                .accessibilityIdentifier("plate-keypad-unit")
+            }
         }
     }
 
@@ -234,7 +217,7 @@ struct PlateKeypad: View {
 
                 Spacer(minLength: 0)
             }
-            .frame(height: 48)
+            .frame(height: 36)
 
             if hasRemainder {
                 // Silence here would be the failure: the stack would show a
@@ -339,7 +322,24 @@ struct PlateKeypad: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
-        .accessibilityIdentifier(key == .bareBar ? "plate-key-bare-bar" : "plate-key-remove")
+        .accessibilityLabel(Text(utilityAccessibilityLabel(key, title: title)))
+        .accessibilityIdentifier(utilityIdentifier(key))
+    }
+
+    private func utilityIdentifier(_ key: PlateKey) -> String {
+        switch key {
+        case .bareBar: "plate-key-bare-bar"
+        case .removeLast: "plate-key-remove"
+        case .digits: "plate-keypad-digits"
+        default: "plate-key"
+        }
+    }
+
+    private func utilityAccessibilityLabel(_ key: PlateKey, title: String) -> String {
+        switch key {
+        case .digits: String(localized: "Enter an exact weight")
+        default: title
+        }
     }
 }
 

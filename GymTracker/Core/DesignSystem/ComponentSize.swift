@@ -7,6 +7,10 @@ enum ComponentSize {
     /// Workout screen, and every point above 44 is taken from the set list the
     /// lifter is trying to read while typing.
     static let keypadKeyHeight: CGFloat = minimumTouchTarget
+    /// Height budget for the Active Workout entry instrument so Complete set
+    /// stays on screen. The barbell pad is authored to fit this without
+    /// scrolling, so the confirm action is never below the fold.
+    static let setEntryInstrumentMaxHeight: CGFloat = 248
     static let iconChip: CGFloat = 36
     /// A sparkline-sized overview chart. It shows a direction without taking
     /// the vertical weight of a detail-screen analysis chart.

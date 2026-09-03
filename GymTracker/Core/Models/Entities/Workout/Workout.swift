@@ -16,6 +16,7 @@ nonisolated enum WorkoutMutationOperation: String, Codable, Equatable, Sendable 
     case removeWorkoutEntry
     case updateWorkoutName
     case updateWorkoutNotes
+    case updateWorkoutStartTime
     case normalizeWorkoutOrder
     case addExerciseSet
     case removeExerciseSet
@@ -442,6 +443,29 @@ class Workout {
             operation: .updateWorkoutNotes
         ) { return rejection }
         self.notes = newNotes
+        return .applied
+    }
+
+    /// Elapsed gym time, from start until `endTime` or `date`.
+    func elapsedDuration(at date: Date = .now) -> TimeInterval {
+        let end = endTime ?? date
+        return max(0, end.timeIntervalSince(startTime))
+    }
+
+    /// Corrects how long this active session lasted by moving `startTime`.
+    /// Completed history cannot be rewritten here; `endTime` is still stamped
+    /// by save.
+    @discardableResult
+    func updateElapsedDuration(_ duration: TimeInterval, at now: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .updateWorkoutStartTime
+        ) { return rejection }
+        let clamped = min(
+            Constants.Session.maximumDuration,
+            max(Constants.Session.minimumDuration, duration)
+        )
+        startTime = now.addingTimeInterval(-clamped)
         return .applied
     }
 

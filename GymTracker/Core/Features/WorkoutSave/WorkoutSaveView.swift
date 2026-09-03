@@ -22,6 +22,9 @@ struct WorkoutSaveView: View {
     @State private var hasDismissedBodyWeightPrompt = false
     @State private var isAddingBodyWeight = false
     @State private var isShowingDiscardConfirmation = false
+    @State private var isEditingDuration = false
+    @State private var sessionDuration: TimeInterval = Constants.Session.minimumDuration
+    @State private var didCaptureSessionDuration = false
     @State private var saveErrorMessage: String?
     /// Separate counters so success and failure can never fire together, and
     /// so neither can fire from anything except a completed attempt.
@@ -97,6 +100,22 @@ struct WorkoutSaveView: View {
         }
         .sheet(isPresented: $isAddingBodyWeight) {
             BodyWeightEditorSheet(entry: nil, source: .checkIn)
+        }
+        .sheet(isPresented: $isEditingDuration) {
+            SessionDurationEditor(
+                duration: sessionDuration,
+                onSave: { duration in
+                    sessionDuration = duration
+                    if let workout = workoutVM.activeWorkout {
+                        _ = workout.updateElapsedDuration(duration)
+                    }
+                    isEditingDuration = false
+                },
+                onCancel: { isEditingDuration = false }
+            )
+        }
+        .onAppear {
+            captureSessionDurationIfNeeded()
         }
         // Saving is the most significant thing that happens in this app and it
         // used to end in a silent dismissal — visually identical to discarding
@@ -365,10 +384,14 @@ struct WorkoutSaveView: View {
         )
     }
 
-    private func workoutDuration(for workout: Workout) -> String {
-        let duration = Date.now.timeIntervalSince(workout.startTime)
-        let minutes = max(1, Int(duration) / 60)
-        return String(localized: "\(minutes) min")
+    private func workoutDuration() -> String {
+        Formatters.sessionDuration(sessionDuration)
+    }
+
+    private func captureSessionDurationIfNeeded() {
+        guard !didCaptureSessionDuration, let workout = workoutVM.activeWorkout else { return }
+        sessionDuration = max(Constants.Session.minimumDuration, workout.elapsedDuration())
+        didCaptureSessionDuration = true
     }
 
     private func summaryCard(
@@ -376,7 +399,29 @@ struct WorkoutSaveView: View {
         review: SaveReviewProjection
     ) -> some View {
         HStack(spacing: 0) {
-            summaryMetric(value: workoutDuration(for: workout), label: "Duration")
+            Button {
+                isEditingDuration = true
+            } label: {
+                VStack(spacing: Spacing.xs) {
+                    HStack(spacing: Spacing.xxs) {
+                        Text(workoutDuration())
+                            .font(AppFont.metricLarge)
+                        Image(systemName: AppIcon.edit)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                    Text("Duration")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                Text("Time at the gym, \(workoutDuration())")
+            )
+            .accessibilityHint(Text("Changes how long this session lasted."))
+            .accessibilityIdentifier("review-duration")
             Divider().frame(height: 38)
             summaryMetric(value: "\(review.exercises.count)", label: "Exercises")
             Divider().frame(height: 38)
@@ -550,6 +595,7 @@ struct WorkoutSaveView: View {
             saveErrorMessage = String(localized: "This workout is no longer open, so there was nothing to save. Return home to start a new session.")
             return
         }
+        _ = workout.updateElapsedDuration(sessionDuration)
         let workoutID = workout.id
         let wasPartial = workout.incompleteSetCount > 0
         guard workoutVM.saveWorkout(using: modelContext) else {

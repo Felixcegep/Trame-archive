@@ -206,24 +206,22 @@ struct RootView: View {
         }) {
             NavigationStack(path: $activeSessionRouter.activeWorkoutPath) {
                 Group {
-                    if let mobilitySession = integratedMobilitySession {
-                        let linkedWorkout = linkedWorkout(for: mobilitySession)
-                        MobilitySessionView(
-                            session: mobilitySession,
-                            linkedWorkoutName: linkedWorkout?.displayTitle,
-                            linkedWorkoutStartTime: linkedWorkout?.startTime
-                        ) {
-                            finishIntegratedMobilityStage(mobilitySession)
+                    let mobilitySession = integratedMobilitySession
+                    ActiveWorkoutView(
+                        workoutVM: workoutVM,
+                        navigationPath: $activeSessionRouter.activeWorkoutPath,
+                        modelContext: modelContext,
+                        activeLoggingMetrics: activeLoggingMetrics,
+                        onDiscardRequested: requestDiscardActiveWorkout,
+                        linkedMobilitySession: mobilitySession,
+                        linkedWorkoutName: mobilitySession.flatMap { linkedWorkout(for: $0)?.displayTitle },
+                        linkedWorkoutStartTime: mobilitySession.flatMap { linkedWorkout(for: $0)?.startTime },
+                        onFinishLinkedMobility: {
+                            if let session = mobilitySession {
+                                finishIntegratedMobilityStage(session)
+                            }
                         }
-                    } else {
-                        ActiveWorkoutView(
-                            workoutVM: workoutVM,
-                            navigationPath: $activeSessionRouter.activeWorkoutPath,
-                            modelContext: modelContext,
-                            activeLoggingMetrics: activeLoggingMetrics,
-                            onDiscardRequested: requestDiscardActiveWorkout
-                        )
-                    }
+                    )
                 }
                 .navigationDestination(for: ActiveWorkoutRoute.self) { route in
                     switch route {
@@ -1332,9 +1330,9 @@ struct RootView: View {
         }
     }
 
-    /// Linked mobility is a stage of the root-owned training presentation.
-    /// Standalone routines and Mobility Program sessions keep their existing
-    /// independent presentation because they have no workout to continue.
+    /// Linked mobility is a stage of Active Workout itself. The training cover
+    /// always hosts `ActiveWorkoutView`; that view renders the linked session
+    /// when one is active. Standalone routines keep their independent cover.
     private var integratedMobilitySession: MobilitySession? {
         guard activeSessionRouter.isShowingActiveWorkout,
               let session = activeSessionRouter.activeMobilitySession,

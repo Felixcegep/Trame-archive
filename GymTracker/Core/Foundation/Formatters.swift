@@ -26,6 +26,16 @@ struct Formatters {
         )
     }
 
+    static func sessionDuration(_ duration: TimeInterval) -> String {
+        let minutes = max(0, Int(duration) / 60)
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if hours > 0 {
+            return String(localized: "\(hours)h \(remainder)m")
+        }
+        return String(localized: "\(max(1, minutes)) min")
+    }
+
     static func formatGroupedMetric(_ value: Float) -> String {
         value.formatted(
             .number

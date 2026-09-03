@@ -230,6 +230,31 @@ final class WorkoutOrderingAndMutationTests: XCTestCase {
         XCTAssertEqual(Set(first.orderedSets.map(\.orderIndex)), Set([0, 1]))
     }
 
+    func testElapsedDurationCorrectionMovesStartTimeAndRejectsCompletedWorkouts() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let workout = Workout(name: "Session")
+        workout.startTime = now.addingTimeInterval(-20 * 60)
+
+        XCTAssertEqual(workout.elapsedDuration(at: now), 20 * 60, accuracy: 0.001)
+        XCTAssertEqual(workout.updateElapsedDuration(90 * 60, at: now), .applied)
+        XCTAssertEqual(workout.elapsedDuration(at: now), 90 * 60, accuracy: 0.001)
+
+        XCTAssertEqual(workout.updateElapsedDuration(10, at: now), .applied)
+        XCTAssertEqual(workout.elapsedDuration(at: now), Constants.Session.minimumDuration, accuracy: 0.001)
+
+        XCTAssertEqual(workout.updateElapsedDuration(20 * 3_600, at: now), .applied)
+        XCTAssertEqual(workout.elapsedDuration(at: now), Constants.Session.maximumDuration, accuracy: 0.001)
+
+        workout.status = .completed
+        workout.endTime = now
+        let startBefore = workout.startTime
+        XCTAssertEqual(
+            workout.updateElapsedDuration(45 * 60, at: now),
+            .rejected(.completedWorkoutMutation(.updateWorkoutStartTime))
+        )
+        XCTAssertEqual(workout.startTime, startBefore)
+    }
+
 
     private func makeExercise() -> Exercise {
         Exercise(name: "Bench Press", primaryMuscles: [.upperChest])

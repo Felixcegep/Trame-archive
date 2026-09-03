@@ -16,6 +16,9 @@ struct StageFinishPage: View {
     /// lifter. Empty when it can.
     let blockers: [String]
     let onJumpToPage: (WorkoutStagePage) -> Void
+    let onAdjustDuration: (TimeInterval) -> Void
+
+    @State private var isEditingDuration = false
 
     var body: some View {
         ScrollView {
@@ -56,6 +59,16 @@ struct StageFinishPage: View {
             .padding(.bottom, Spacing.xxxl)
         }
         .scrollIndicators(.hidden)
+        .sheet(isPresented: $isEditingDuration) {
+            SessionDurationEditor(
+                duration: max(Constants.Session.minimumDuration, workout.elapsedDuration()),
+                onSave: { duration in
+                    onAdjustDuration(duration)
+                    isEditingDuration = false
+                },
+                onCancel: { isEditingDuration = false }
+            )
+        }
     }
 
     private var emptyWorkoutState: some View {
@@ -78,11 +91,30 @@ struct StageFinishPage: View {
 
     private var summaryCard: some View {
         HStack(spacing: 0) {
-            summaryMetric(
-                value: Text(workout.startTime, style: .timer),
-                label: "TIME",
-                accessibilityLabel: "Elapsed time"
-            )
+            Button {
+                isEditingDuration = true
+            } label: {
+                VStack(spacing: Spacing.xxs) {
+                    HStack(spacing: Spacing.xxs) {
+                        Text(workout.startTime, style: .timer)
+                            .font(AppFont.metricLarge)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.trameText)
+                        Image(systemName: AppIcon.edit)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                    Text("TIME")
+                        .font(AppFont.caption2Bold)
+                        .tracking(0.55)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Time at the gym"))
+            .accessibilityHint(Text("Changes how long this session has lasted."))
+            .accessibilityIdentifier("finish-duration")
 
             Divider().frame(height: 48).overlay(Color.trameSeparator)
 

@@ -122,6 +122,45 @@ final class WorkoutProgressionTests: XCTestCase {
         )
     }
 
+    func testLoadRecommendationHoldsTodaysWorkingLoadWhenHistoryIsFarAway() {
+        let resolved = LoadRecommendationRealism.resolved(
+            proposed: 22.5,
+            decision: .increase,
+            prior: 20,
+            unit: .kg,
+            working: (60, .kg)
+        )
+
+        XCTAssertEqual(resolved.decision, .hold)
+        XCTAssertEqual(resolved.load, 60, accuracy: 0.001)
+    }
+
+    func testLoadRecommendationKeepsHistoricalJumpWhenWorkingLoadIsClose() {
+        let resolved = LoadRecommendationRealism.resolved(
+            proposed: 105,
+            decision: .increase,
+            prior: 100,
+            unit: .lbs,
+            working: (100, .lbs)
+        )
+
+        XCTAssertEqual(resolved.decision, .increase)
+        XCTAssertEqual(resolved.load, 105, accuracy: 0.001)
+    }
+
+    func testLoadRecommendationLeavesHistoryAloneWhenNoWorkingLoadExists() {
+        let resolved = LoadRecommendationRealism.resolved(
+            proposed: 105,
+            decision: .increase,
+            prior: 100,
+            unit: .lbs,
+            working: nil
+        )
+
+        XCTAssertEqual(resolved.decision, .increase)
+        XCTAssertEqual(resolved.load, 105, accuracy: 0.001)
+    }
+
     private func previousSet(order: Int, reps: Float, weight: Float) -> PreviousSetPerformance {
         PreviousSetPerformance(
             orderIndex: order,

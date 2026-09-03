@@ -118,6 +118,31 @@ final class CompletedWorkoutPreparationTests: XCTestCase {
         XCTAssertTrue(entry.sets.contains { $0 === retainedPartial })
     }
 
+    func testPreparationKeepsCorrectedSessionDuration() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let exercise = Exercise(name: "Timed Lift", primaryMuscles: [.upperChest])
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        entry.sets = [
+            ExerciseSet(repetitions: 5, weight: 60, done: true, orderIndex: 0, usedMetric: .metric)
+        ]
+        let workout = Workout(name: "Timed")
+        workout.startTime = now.addingTimeInterval(-12 * 60)
+        workout.exercises = [entry]
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        XCTAssertEqual(workout.updateElapsedDuration(75 * 60, at: now), .applied)
+        let result = CompletedWorkoutPreparationService.prepare(workout, at: now, using: context)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(workout.endTime, now)
+        XCTAssertEqual(workout.elapsedDuration(at: now), 75 * 60, accuracy: 0.001)
+        XCTAssertEqual(Formatters.sessionDuration(75 * 60), "1h 15m")
+        XCTAssertEqual(Formatters.sessionDuration(9 * 60), "9 min")
+    }
+
     func testViewModelPublishesSummaryOnlyAfterSuccessfulSave() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Saved Lift", primaryMuscles: [.upperChest])

@@ -51,6 +51,18 @@ final class SeedDataStabilityTests: XCTestCase {
         }
     }
 
+    func testChestSupportedRowMachineIsInTheSeedCatalog() {
+        let matches = ExerciseSeedData.templates().filter { $0.name == "Chest-Supported Row Machine" }
+        XCTAssertEqual(matches.count, 1)
+        XCTAssertEqual(matches.first?.equipmentType, .machine)
+        XCTAssertEqual(matches.first?.resistanceType, .machine)
+        XCTAssertEqual(matches.first?.variationFamilyID, "row")
+        XCTAssertTrue(
+            ExerciseSeedData.templates().contains { $0.name == "Chest-Supported Row" },
+            "The dumbbell Chest-Supported Row must remain a separate catalogue entry."
+        )
+    }
+
     func testLegExtensionIsSeededOnceWithMachineQuadricepsMetadata() throws {
         let matches = ExerciseSeedData.templates().filter { $0.name == "Leg Extension" }
         let legExtension = try XCTUnwrap(matches.first)

@@ -70,4 +70,12 @@ final class PlateMathTests: XCTestCase {
         XCTAssertEqual(largeMixed.map(\.weight), [25, 20, 15, 10, 5])
         XCTAssertEqual(largeMixed.map(\.count), [2, 2, 2, 2, 1])
     }
+
+    func testDefaultPlateCatalogIncludesFiftyFivePoundAndTwentyFiveKilogramPlates() {
+        XCTAssertEqual(Constants.Barbell.imperialPlates.first, 55)
+        XCTAssertTrue(Constants.Barbell.imperialPlates.contains(55))
+        XCTAssertEqual(Constants.Barbell.metricPlates.first, 25)
+        XCTAssertTrue(Constants.Barbell.metricPlates.contains(25))
+        XCTAssertEqual(EquipmentPresets.standardImperialPlatePairsLbs.first, 55.0)
+    }
 }

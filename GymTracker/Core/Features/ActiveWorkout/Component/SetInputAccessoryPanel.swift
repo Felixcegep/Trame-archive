@@ -137,9 +137,13 @@ struct SetInputAccessoryPanel: View {
                         valueRow(exercise: exercise, set: set)
                     }
 
-                    referenceLandmarks(exercise: exercise, set: set)
+                    if !isPlateKeypadShowing(exercise) {
+                        referenceLandmarks(exercise: exercise, set: set)
+                    }
 
-                    quickValueRow(exercise: exercise, set: set)
+                    if !isPlateKeypadShowing(exercise) {
+                        quickValueRow(exercise: exercise, set: set)
+                    }
 
                     componentReadiness(set: set)
 
@@ -148,7 +152,7 @@ struct SetInputAccessoryPanel: View {
                     // Contextual commands belong to the normal panel state.
                     // Once the first exact digit is typed, the value, keypad,
                     // reference, and value-only action are the entire task.
-                    if coordinator.entryText == nil {
+                    if coordinator.entryText == nil, !isPlateKeypadShowing(exercise) {
                         chipRow(exercise: exercise, set: set)
                     }
 
@@ -164,14 +168,12 @@ struct SetInputAccessoryPanel: View {
                     // cannot help them. Swapping in place keeps the panel the
                     // same height and, more importantly, keeps the fix where
                     // they are already looking.
+                    Group {
                     if isResolvingComponents(set) {
                         complexComponentResolver(set: set)
                     } else if focusedField == .weight,
                               exercise.trackingTypeSnapshot == .assistedBodyweight,
                               !isTypingExactValue {
-                        // Assistance runs backwards from every other number in
-                        // the app. See `AssistKeypad` for why it gets a control
-                        // that states its direction instead of a digit pad.
                         AssistKeypad(
                             value: Double(set.weight),
                             unitLabel: set.weightType.rawValue,
@@ -187,12 +189,8 @@ struct SetInputAccessoryPanel: View {
                     } else if focusedField == .weight,
                               usesPerSidePlates(exercise),
                               !isTypingExactValue {
-                        // Loading a bar is the one weight entry nobody does by
-                        // computing a total. See `PlateKeypad`.
                         plateKeypad(exercise: exercise, set: set)
                     } else if focusedField == .duration, !isTypingExactValue {
-                        // Timed work gets its own keyboard. See `DurationKeypad`
-                        // for why a digit pad is the wrong instrument here.
                         DurationKeypad(
                             presets: DurationKeypad.presets(including: prescribedDuration(of: set))
                         ) { key in
@@ -206,8 +204,11 @@ struct SetInputAccessoryPanel: View {
                             handle(key, field: focusedField, set: set)
                         }
                     }
+                    }
+                    .frame(maxWidth: .infinity)
 
                     footer(exercise: exercise, set: set)
+                        .layoutPriority(1)
                 }
             }
         }
@@ -545,27 +546,36 @@ struct SetInputAccessoryPanel: View {
                 .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: Spacing.s) {
-                stepperButton(
-                    systemImage: AppIcon.minus,
-                    step: -selectedStep,
-                    longPressStep: longPressStep.map { -$0 },
-                    field: field,
-                    set: set,
-                    controlSize: ComponentSize.minimumTouchTarget
-                )
-
+            if isWeight, isPlateKeypadShowing(exercise) {
                 valueButton(field: field, isActive: isActive, exercise: exercise, set: set)
                     .frame(maxWidth: .infinity)
+            } else {
+                HStack(spacing: Spacing.s) {
+                    stepperButton(
+                        systemImage: AppIcon.minus,
+                        step: -selectedStep,
+                        longPressStep: longPressStep.map { -$0 },
+                        field: field,
+                        set: set,
+                        controlSize: ComponentSize.minimumTouchTarget
+                    )
 
-                stepperButton(
-                    systemImage: AppIcon.plus,
-                    step: selectedStep,
-                    longPressStep: longPressStep,
-                    field: field,
-                    set: set,
-                    controlSize: ComponentSize.minimumTouchTarget
-                )
+                    valueButton(field: field, isActive: isActive, exercise: exercise, set: set)
+                        .frame(maxWidth: .infinity)
+
+                    stepperButton(
+                        systemImage: AppIcon.plus,
+                        step: selectedStep,
+                        longPressStep: longPressStep,
+                        field: field,
+                        set: set,
+                        controlSize: ComponentSize.minimumTouchTarget
+                    )
+                }
+            }
+
+            if isWeight, isActive, !isPlateKeypadShowing(exercise) {
+                weightUnitPicker(on: set)
             }
 
             // Only while weight is the field being typed into. It is a
@@ -574,7 +584,7 @@ struct SetInputAccessoryPanel: View {
             // a set row of the list to keep on screen the rest of the time. The
             // chosen step still applies to the ± buttons when the field is not
             // focused; this hides the control, not the behaviour.
-            if isWeight, isActive {
+            if isWeight, isActive, !isPlateKeypadShowing(exercise) {
                 if abs(fine - coarse) > 0.001 {
                     weightStepMenu(fine: fine, equipment: coarse, selectedStep: selectedStep, set: set)
                 } else {
@@ -685,26 +695,11 @@ struct SetInputAccessoryPanel: View {
             .accessibilityIdentifier("panel-value-\(fieldName(field))")
 
             if field == .weight {
-                // Folded in from what used to be a standalone KG/LB chip —
-                // the unit lives with the value it describes.
-                Button {
-                    toggleWeightType(on: set)
-                } label: {
-                    Text(unitLabel(field: field, exercise: exercise, set: set))
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.trameText)
-                        .underline()
-                        .lineLimit(1)
-                        // Shrinks with the value beside it. "225.97" and "lbs"
-                        // share one pill, and a fixed-size unit would push the
-                        // number out rather than give way to it.
-                        .minimumScaleFactor(0.6)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.gymPress)
-                .accessibilityLabel("Unit, \(set.weightType == .kg ? "kilograms" : "pounds")")
-                .accessibilityHint("Switches to \(set.weightType == .kg ? "pounds" : "kilograms")")
-                .accessibilityIdentifier("panel-weight-unit-toggle")
+                Text(unitLabel(field: field, exercise: exercise, set: set))
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.trameSubdued)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             } else {
                 // Distance spells out its unit ("kilometers", "miles"),
                 // unlike the two-letter "kg"/"sec"/"cal" this pill was sized
@@ -1017,6 +1012,24 @@ struct SetInputAccessoryPanel: View {
             && exercise.loggingSemanticsSnapshot.weightEntryStyle != .perLoadUnit
     }
 
+    private func isPlateKeypadShowing(_ exercise: ExerciseEntry) -> Bool {
+        focusedField == .weight
+            && usesPerSidePlates(exercise)
+            && !isTypingExactValue
+    }
+
+    private func weightUnitPicker(on set: ExerciseSet) -> some View {
+        Picker("Weight unit", selection: Binding(
+            get: { set.weightType == .kg ? UnitSystem.metric : UnitSystem.imperial },
+            set: { applyWeightUnit($0, to: set) }
+        )) {
+            Text("kg").tag(UnitSystem.metric)
+            Text("lbs").tag(UnitSystem.imperial)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("panel-weight-unit-toggle")
+    }
+
     // MARK: - Plate keypad
 
     private func plateEquipment(for exercise: ExerciseEntry, set: ExerciseSet) -> PlateEquipment {
@@ -1070,8 +1083,27 @@ struct SetInputAccessoryPanel: View {
             unitSystem: set.weightType == .kg ? .metric : .imperial,
             unitLabel: set.weightType.rawValue,
             selectedBarID: $selectedBarID,
-            onKey: { handlePlate($0, exercise: exercise, set: set) }
+            onKey: { handlePlate($0, exercise: exercise, set: set) },
+            onSelectUnitSystem: { applyWeightUnit($0, to: set) }
         )
+    }
+
+    private func applyWeightUnit(_ system: UnitSystem, to set: ExerciseSet) {
+        let targetType: WeightType = system == .metric ? .kg : .lbs
+        guard set.weightType != targetType else { return }
+
+        let converted = UnitConversion.weight(set.weight, from: set.weightType, to: targetType)
+        let increment = Constants.Progression.increment(for: targetType)
+        let rounded = (converted / increment).rounded() * increment
+
+        set.weight = rounded
+        set.weightType = targetType
+        set.usedMetric = system
+        plateComposition = nil
+        plateCompositionSetID = nil
+        coordinator.endEntry(ifEditing: .weight)
+        UserDefaults.standard.setUnitSystem(system)
+        viewModel.persistChanges()
     }
 
     /// Writes a composition and the total it produces, together, so the number
@@ -1504,16 +1536,6 @@ struct SetInputAccessoryPanel: View {
         // typing looks like it did nothing at all.
         coordinator.endEntry(ifEditing: field)
         coordinator.clearBlockedAttempt()
-        viewModel.persistChanges()
-    }
-
-    private func toggleWeightType(on set: ExerciseSet) {
-        let target: WeightType = set.weightType == .kg ? .lbs : .kg
-        set.weight = UnitConversion.weight(set.weight, from: set.weightType, to: target)
-        set.weightType = target
-        // The number itself changed under the conversion, so typed text is now
-        // describing a value in the previous unit.
-        coordinator.endEntry(ifEditing: .weight)
         viewModel.persistChanges()
     }
 

@@ -270,6 +270,10 @@ final class HistoricalIntegrityMatrixDigestTests: XCTestCase {
             .rejected(.completedWorkoutMutation(.updateWorkoutNotes))
         )
         XCTAssertEqual(
+            workout.updateElapsedDuration(90 * 60),
+            .rejected(.completedWorkoutMutation(.updateWorkoutStartTime))
+        )
+        XCTAssertEqual(
             workout.addEntry(ExerciseEntry(exercise: replacementExercise, usedMetric: .metric)),
             .rejected(.completedWorkoutMutation(.addWorkoutEntry))
         )
@@ -446,6 +450,7 @@ final class HistoricalIntegrityMatrixDigestTests: XCTestCase {
             "workout:\(workout.name ?? "")",
             "notes:\(workout.notes ?? "")",
             "status:\(workout.status.rawValue)",
+            "startTime:\(workout.startTime.timeIntervalSince1970)",
             "endTime:\(workout.endTime?.timeIntervalSince1970 ?? 0)"
         ]
         for entry in workout.orderedExercises {

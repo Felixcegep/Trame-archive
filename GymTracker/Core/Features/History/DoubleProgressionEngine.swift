@@ -61,3 +61,52 @@ enum DoubleProgressionEngine {
         )
     }
 }
+
+/// Scores a proposed load against what is already on the bar today.
+///
+/// Double progression only knows last session. If today's working weight is
+/// already far from that history, presenting last-session + increment as the
+/// default is worse than holding the current reality.
+enum LoadRecommendationRealism {
+    static func maximumPlausibleJump(priorLoad: Float, increment: Float) -> Float {
+        max(increment * 2, abs(priorLoad) * 0.15)
+    }
+
+    static func workingLoad(on entry: ExerciseEntry) -> (weight: Float, unit: WeightType)? {
+        let sets = entry.orderedSets.filter { $0.setType != .warmup }
+        let candidate = sets.first(where: { $0.done == false }) ?? sets.last
+        guard let candidate, candidate.weight > 0 else { return nil }
+        return (candidate.weight, candidate.weightType)
+    }
+
+    /// When today's working load already disagrees with the historical jump,
+    /// hold the working load instead of recommending a value that far away.
+    static func resolved(
+        proposed: Float,
+        decision: DoubleProgressionDecision,
+        prior: Float,
+        unit: WeightType,
+        working: (weight: Float, unit: WeightType)?
+    ) -> (decision: DoubleProgressionDecision, load: Float) {
+        let increment = Constants.Progression.increment(for: unit)
+        let limit = maximumPlausibleJump(priorLoad: prior, increment: increment)
+
+        guard let working else {
+            return (decision, proposed)
+        }
+
+        let workingInUnit = UnitConversion.weight(working.weight, from: working.unit, to: unit)
+        guard workingInUnit > 0 else {
+            return (decision, proposed)
+        }
+
+        let distanceFromWorking = abs(proposed - workingInUnit)
+        let workingDriftFromPrior = abs(workingInUnit - prior)
+
+        if distanceFromWorking > limit, workingDriftFromPrior > limit {
+            return (.hold, workingInUnit)
+        }
+
+        return (decision, proposed)
+    }
+}

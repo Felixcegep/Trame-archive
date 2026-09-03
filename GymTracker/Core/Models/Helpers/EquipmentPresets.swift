@@ -61,7 +61,7 @@ enum EquipmentPresets {
     ]
 
     static let standardMetricPlatePairsKg: [Double] = [25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25]
-    static let standardImperialPlatePairsLbs: [Double] = [45.0, 35.0, 25.0, 10.0, 5.0, 2.5]
+    static let standardImperialPlatePairsLbs: [Double] = [55.0, 45.0, 35.0, 25.0, 10.0, 5.0, 2.5, 1.0]
 
     static func defaultBarWeight(for equipment: EquipmentType?, isMetric: Bool = true) -> Double {
         guard let equipment = equipment else { return 0 }

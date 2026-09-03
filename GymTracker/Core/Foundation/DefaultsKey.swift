@@ -108,4 +108,8 @@ extension UserDefaults {
         }
         return UnitSystem(rawValue: stringValue) ?? .metric
     }
+
+    func setUnitSystem(_ system: UnitSystem) {
+        set(system.rawValue, forKey: DefaultsKey.useMetric)
+    }
 }

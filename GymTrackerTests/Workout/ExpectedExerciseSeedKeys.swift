@@ -53,6 +53,7 @@ exercise.cable-lateral-raise
 exercise.cable-rear-delt-fly
 exercise.cable-y--raise
 exercise.chest--supported-row
+exercise.chest--supported-row-machine
 exercise.chest-fly
 exercise.chin--up
 exercise.circus-dumbbell-press

@@ -85,8 +85,16 @@ struct RecommendationPresentation: WhyExplainable {
             return nil
         }
 
-        self.decision = decision
-        self.recommendedLoad = recommendedLoad
+        let resolved = LoadRecommendationRealism.resolved(
+            proposed: recommendedLoad,
+            decision: decision,
+            prior: priorLoad,
+            unit: unit,
+            working: LoadRecommendationRealism.workingLoad(on: entry)
+        )
+
+        self.decision = resolved.decision
+        self.recommendedLoad = resolved.load
         self.unit = unit
         self.priorLoad = priorLoad
         self.requiredSets = requiredSets
@@ -98,13 +106,29 @@ struct RecommendationPresentation: WhyExplainable {
     var explanation: String {
         switch decision {
         case .hold:
+            let limit = LoadRecommendationRealism.maximumPlausibleJump(
+                priorLoad: priorLoad,
+                increment: Constants.Progression.increment(for: unit)
+            )
+            if abs(recommendedLoad - priorLoad) > limit {
+                let format = String(
+                    localized: "progression.recommendation.holdWorking",
+                    defaultValue: "Keep %1$@ %2$@ — that's already on the bar, not last session's %3$@ %2$@."
+                )
+                return String(
+                    format: format,
+                    Formatters.formatFloat(recommendedLoad),
+                    unit.rawValue,
+                    Formatters.formatFloat(priorLoad)
+                )
+            }
             let format = String(
                 localized: "progression.recommendation.hold",
                 defaultValue: "Keep %1$@ %2$@ — not every set reached %3$lld reps last time."
             )
             return String(
                 format: format,
-                Formatters.formatFloat(priorLoad),
+                Formatters.formatFloat(recommendedLoad),
                 unit.rawValue,
                 Int64(repCeiling)
             )
@@ -148,7 +172,7 @@ struct RecommendationPresentation: WhyExplainable {
                 localized: "progression.why.whatChanged.hold",
                 defaultValue: "Hold at %1$@ %2$@."
             )
-            builder.add(.whatChanged, body: String(format: format, Formatters.formatFloat(priorLoad), unit.rawValue))
+            builder.add(.whatChanged, body: String(format: format, Formatters.formatFloat(recommendedLoad), unit.rawValue))
         case .increase:
             let format = String(
                 localized: "progression.why.whatChanged.increase",
