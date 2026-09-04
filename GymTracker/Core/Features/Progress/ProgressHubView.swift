@@ -759,10 +759,14 @@ struct MobilityHistoryView: View {
         switch (session.context, workoutName) {
         case (.warmup, .some(let name)):
             return String(localized: "Before \(name) · \(date)")
+        case (.duringWorkout, .some(let name)):
+            return String(localized: "During \(name) · \(date)")
         case (.cooldown, .some(let name)):
             return String(localized: "After \(name) · \(date)")
         case (.warmup, .none):
             return String(localized: "Before workout · \(date)")
+        case (.duringWorkout, .none):
+            return String(localized: "During workout · \(date)")
         case (.cooldown, .none):
             return String(localized: "After workout · \(date)")
         case (.standalone, _):

@@ -582,6 +582,44 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 10))
     }
 
+    func testMidWorkoutMobilityInsertStartsInsideActiveWorkoutCover() {
+        let app = launchFixture("active-in-progress")
+
+        tapButton("active-workout-menu", in: app)
+        tapButton("add-active-mobility-menu", in: app)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["active-workout-mobility-insert-picker"]
+                .waitForExistence(timeout: 10)
+        )
+
+        let firstRoutine = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "active-workout-mobility-insert-routine-")
+        ).firstMatch
+        XCTAssertTrue(firstRoutine.waitForExistence(timeout: 10))
+        firstRoutine.tap()
+
+        let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
+        XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["DURING"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
+        XCTAssertFalse(app.staticTexts["WARM-UP"].exists)
+        XCTAssertFalse(app.staticTexts["COOLDOWN"].exists)
+
+        tapButton("linked-mobility-menu", in: app)
+        tapButton("stop-mobility-session", in: app)
+        tapButton("Stop Session", in: app)
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.descendants(matching: .any)["active-workout-mobility-stage"].exists)
+    }
+
+    func testMidWorkoutMobilityFixturePresentsLinkedStage() {
+        let app = launchFixture("mid-workout-mobility")
+        let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
+        XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["DURING"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
+    }
+
     func testPushFocusFiltersActiveExercisePicker() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]

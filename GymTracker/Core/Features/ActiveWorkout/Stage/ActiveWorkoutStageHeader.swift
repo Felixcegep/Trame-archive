@@ -11,6 +11,7 @@ struct ActiveWorkoutStageHeader: View {
     let onDiscard: () -> Void
     let onAddExercise: () -> Void
     let onAddBlock: () -> Void
+    let onAddMobility: (() -> Void)?
     /// Whether the session can be committed right now. The control stays on
     /// screen while it cannot, because a finish that disappears reads as a
     /// missing feature rather than as unfinished work.
@@ -96,6 +97,15 @@ struct ActiveWorkoutStageHeader: View {
                         Label("Add execution block", systemImage: AppIcon.relationship)
                     }
                     .accessibilityIdentifier("add-execution-block")
+
+                    if let onAddMobility {
+                        Button {
+                            onAddMobility()
+                        } label: {
+                            Label("Add mobility", systemImage: AppIcon.mobility)
+                        }
+                        .accessibilityIdentifier("add-active-mobility-menu")
+                    }
 
                     Section {
                         // Losing the session is the rarest action on this

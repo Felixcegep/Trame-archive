@@ -39,6 +39,19 @@ final class WorkoutMobilityContinuationPolicyTests: XCTestCase {
         )
     }
 
+    func testDuringWorkoutDoesNotResumeAsWarmupContinuation() {
+        let workoutID = UUID()
+
+        XCTAssertFalse(
+            WorkoutMobilityContinuationPolicy.shouldResumeWorkout(
+                sessionContext: .duringWorkout,
+                sessionWorkoutID: workoutID,
+                pendingWarmupWorkoutID: workoutID,
+                activeWorkoutID: workoutID
+            )
+        )
+    }
+
     func testWarmupForDifferentWorkoutDoesNotResumeActiveWorkout() {
         XCTAssertFalse(
             WorkoutMobilityContinuationPolicy.shouldResumeWorkout(

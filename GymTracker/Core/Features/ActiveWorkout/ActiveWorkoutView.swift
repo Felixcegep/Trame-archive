@@ -18,6 +18,7 @@ import SwiftData
 /// the command bar instead of three conditional ones.
 struct ActiveWorkoutView: View {
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
+    @Query(filter: #Predicate<MobilityRoutine> { !$0.isArchived }) private var mobilityRoutines: [MobilityRoutine]
     @Query(filter: #Predicate<PlanProgressionRecommendationRecord> { !$0.isResolved })
     private var unresolvedProgramRecommendations: [PlanProgressionRecommendationRecord]
 
@@ -26,12 +27,18 @@ struct ActiveWorkoutView: View {
     let modelContext: ModelContext
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     let onDiscardRequested: () -> Void
-    /// Linked warm-up / cooldown stays inside this shell. Standalone mobility
-    /// still uses its own cover in `RootView`.
+    /// Linked warm-up / mid-session / cooldown stays inside this shell.
+    /// Standalone mobility still uses its own cover in `RootView`.
     let linkedMobilitySession: MobilitySession?
     let linkedWorkoutName: String?
     let linkedWorkoutStartTime: Date?
     let onFinishLinkedMobility: () -> Void
+    /// Starts a mid-session mobility routine. Returns `false` when the
+    /// one-active gate refuses so this view can offer Resume vs Cancel.
+    let onInsertMobility: (MobilityRoutine) -> Bool
+    /// Rebinds presentation to the persisted active mobility session after a
+    /// refused insert (Resume existing).
+    let onResumeExistingMobility: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -50,6 +57,8 @@ struct ActiveWorkoutView: View {
 
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingExercisePicker = false
+    @State private var isShowingMobilityInsertPicker = false
+    @State private var isShowingMobilityInsertConflict = false
     @State private var editingCompletedSetID: PersistentIdentifier?
     @State private var exerciseToSwap: ExerciseEntry?
     @State private var isShowingExecutionBlockBuilder = false
@@ -71,7 +80,9 @@ struct ActiveWorkoutView: View {
         linkedMobilitySession: MobilitySession? = nil,
         linkedWorkoutName: String? = nil,
         linkedWorkoutStartTime: Date? = nil,
-        onFinishLinkedMobility: @escaping () -> Void = {}
+        onFinishLinkedMobility: @escaping () -> Void = {},
+        onInsertMobility: @escaping (MobilityRoutine) -> Bool = { _ in false },
+        onResumeExistingMobility: @escaping () -> Void = {}
     ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
@@ -82,6 +93,8 @@ struct ActiveWorkoutView: View {
         self.linkedWorkoutName = linkedWorkoutName
         self.linkedWorkoutStartTime = linkedWorkoutStartTime
         self.onFinishLinkedMobility = onFinishLinkedMobility
+        self.onInsertMobility = onInsertMobility
+        self.onResumeExistingMobility = onResumeExistingMobility
         _viewModel = State(initialValue: ActiveWorkoutViewModel(
             workoutVM: workoutVM,
             modelContext: modelContext,
@@ -154,6 +167,27 @@ struct ActiveWorkoutView: View {
                     onSelect: addExerciseFromPicker
                 )
             }
+        }
+        .sheet(isPresented: $isShowingMobilityInsertPicker) {
+            ActiveWorkoutMobilityInsertPicker(
+                routines: mobilityRoutines,
+                onStart: startInsertedMobility
+            )
+        }
+        .confirmationDialog(
+            "A mobility session is already active",
+            isPresented: $isShowingMobilityInsertConflict,
+            titleVisibility: .visible
+        ) {
+            Button("Resume existing") {
+                isShowingMobilityInsertPicker = false
+                onResumeExistingMobility()
+            }
+            .accessibilityIdentifier("resume-existing-mobility-insert")
+            Button("Cancel insert", role: .cancel) {}
+                .accessibilityIdentifier("cancel-mobility-insert-conflict")
+        } message: {
+            Text("Only one mobility session can run at a time. Resume the open session or cancel this insert.")
         }
         .sheet(item: $exerciseToSwap) { exerciseEntry in
             NavigationStack {
@@ -243,6 +277,9 @@ struct ActiveWorkoutView: View {
                 onDiscard: { isShowingDiscardConfirmation = true },
                 onAddExercise: { isShowingExercisePicker = true },
                 onAddBlock: { isShowingExecutionBlockBuilder = true },
+                onAddMobility: FeatureFlags.current.isEnabled(.mobility)
+                    ? { isShowingMobilityInsertPicker = true }
+                    : nil,
                 isFinishEnabled: canFinish(workout),
                 onFinish: finishWorkout
             )
@@ -852,6 +889,16 @@ struct ActiveWorkoutView: View {
         if let added = viewModel.activeWorkout?.orderedExercises.last {
             selection = WorkoutStagePlan.page(containing: added)
         }
+    }
+
+    @discardableResult
+    private func startInsertedMobility(_ routine: MobilityRoutine) -> Bool {
+        let started = onInsertMobility(routine)
+        if started == false,
+           MobilitySessionService.activeSession(using: modelContext) != nil {
+            isShowingMobilityInsertConflict = true
+        }
+        return started
     }
 
     private func removeExecutionBlock(_ block: WorkoutExecutionBlock, from workout: Workout) {

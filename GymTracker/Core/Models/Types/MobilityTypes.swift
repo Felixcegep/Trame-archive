@@ -55,13 +55,26 @@ nonisolated enum MobilityResultStatus: String, Codable, CaseIterable, Hashable, 
 enum MobilitySessionContext: String, Codable, CaseIterable, Hashable {
     case standalone
     case warmup
+    /// A routine started from Active Workout mid-session. Distinct from
+    /// template-linked warm-up/cooldown so history never mislabels it.
+    case duringWorkout
     case cooldown
 
     var displayName: String {
         switch self {
-        case .standalone: "Standalone"
-        case .warmup: "Warm-up"
-        case .cooldown: "Cooldown"
+        case .standalone: String(localized: "Standalone")
+        case .warmup: String(localized: "Warm-up")
+        case .duringWorkout: String(localized: "During workout")
+        case .cooldown: String(localized: "Cooldown")
+        }
+    }
+
+    /// Contexts that run as stages inside the Active Workout cover when they
+    /// carry a matching `workoutID`.
+    var isWorkoutLinkedStageCandidate: Bool {
+        switch self {
+        case .warmup, .duringWorkout, .cooldown: true
+        case .standalone: false
         }
     }
 }

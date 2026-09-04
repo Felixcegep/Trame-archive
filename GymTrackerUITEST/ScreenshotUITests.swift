@@ -1270,6 +1270,26 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         XCTAssertFalse(linked.buttons["start-linked-cooldown"].exists)
         saveScreenshot("active-workout/08r_Cooldown_Stage")
+        linked.terminate()
+
+        let midPicker = launchFixture("active-in-progress")
+        tapButton("active-workout-menu", in: midPicker)
+        tapButton("add-active-mobility-menu", in: midPicker)
+        XCTAssertTrue(
+            midPicker.descendants(matching: .any)["active-workout-mobility-insert-picker"]
+                .waitForExistence(timeout: 10)
+        )
+        saveScreenshot("active-workout/08x_Mid_Workout_Mobility_Picker")
+        midPicker.terminate()
+
+        let midStage = launchFixture("mid-workout-mobility")
+        XCTAssertTrue(
+            midStage.descendants(matching: .any)["active-workout-mobility-stage"]
+                .waitForExistence(timeout: 10)
+        )
+        XCTAssertTrue(midStage.staticTexts["DURING"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08y_Mid_Workout_Mobility_Stage")
+        midStage.terminate()
 
         let history = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: history)

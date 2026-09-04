@@ -137,7 +137,7 @@ struct MobilitySessionView: View {
     }
 
     private var isLinkedWorkoutStage: Bool {
-        session.workoutID != nil && (session.context == .warmup || session.context == .cooldown)
+        session.workoutID != nil && session.context.isWorkoutLinkedStageCandidate
     }
 
     /// The shared training-cover hierarchy for linked warm-up and cooldown.
@@ -236,7 +236,7 @@ struct MobilitySessionView: View {
 
     private var mobilityStagePosition: some View {
         HStack(spacing: Spacing.s) {
-            Text(session.context == .warmup ? "WARM-UP" : "COOLDOWN")
+            Text(linkedStageLabel)
                 .font(AppFont.micro)
                 .tracking(0.8)
                 .foregroundStyle(Color.trameMobilityText)
@@ -246,6 +246,15 @@ struct MobilitySessionView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("active-workout-mobility-stage")
+    }
+
+    private var linkedStageLabel: LocalizedStringKey {
+        switch session.context {
+        case .warmup: "WARM-UP"
+        case .duringWorkout: "DURING"
+        case .cooldown: "COOLDOWN"
+        case .standalone: "MOBILITY"
+        }
     }
 
     private var mobilityProgressRail: some View {
@@ -414,13 +423,14 @@ struct MobilitySessionView: View {
         guard session.workoutID != nil else { return "MOBILITY SESSION" }
         switch session.context {
         case .warmup: return "WORKOUT · MOBILITY WARM-UP"
+        case .duringWorkout: return "WORKOUT · MOBILITY DURING SESSION"
         case .cooldown: return "WORKOUT · POST-WORKOUT MOBILITY"
         case .standalone: return "MOBILITY SESSION"
         }
     }
 
     private var stageAccessibilityIdentifier: String {
-        session.workoutID != nil && (session.context == .warmup || session.context == .cooldown)
+        session.workoutID != nil && session.context.isWorkoutLinkedStageCandidate
             ? "active-workout-mobility-stage"
             : "standalone-mobility-stage"
     }

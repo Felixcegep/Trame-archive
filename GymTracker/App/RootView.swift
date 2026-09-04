@@ -194,6 +194,9 @@ struct RootView: View {
         .fullScreenCover(isPresented: $activeSessionRouter.isShowingActiveWorkout, onDismiss: {
             activeSessionRouter.activeWorkoutPath.removeAll()
             if activeSessionRouter.shouldDiscardActiveWorkout {
+                if let workoutID = workoutVM.activeWorkout?.id {
+                    clearLinkedMobilitySessions(for: workoutID)
+                }
                 workoutVM.discardActiveWorkout(using: modelContext)
                 activeSessionRouter.shouldDiscardActiveWorkout = false
                 postWorkoutCoordinator.clearPendingAfterDiscard()
@@ -220,7 +223,9 @@ struct RootView: View {
                             if let session = mobilitySession {
                                 finishIntegratedMobilityStage(session)
                             }
-                        }
+                        },
+                        onInsertMobility: startMidWorkoutMobility,
+                        onResumeExistingMobility: resumeExistingMobilityForInsert
                     )
                 }
                 .navigationDestination(for: ActiveWorkoutRoute.self) { route in
@@ -819,6 +824,9 @@ struct RootView: View {
         activeSessionRouter.pendingWorkoutStart = nil
         pendingCompetitionDayWorkout = nil
         activeLoggingMetrics.workoutDiscarded()
+        if let workoutID = workoutVM.activeWorkout?.id {
+            clearLinkedMobilitySessions(for: workoutID)
+        }
         workoutVM.discardActiveWorkout(using: modelContext)
         if workoutVM.hasActiveWorkout {
             activeSessionRouter.isShowingActiveWorkout = true
@@ -1320,7 +1328,36 @@ struct RootView: View {
     }
 
     private func startMobility(_ routine: MobilityRoutine, _ context: MobilitySessionContext, _ workoutID: UUID?) {
-        activeSessionRouter.startMobility(routine, context, workoutID, using: modelContext)
+        _ = activeSessionRouter.startMobility(routine, context, workoutID, using: modelContext)
+    }
+
+    /// Starts a mid-workout mobility routine inside the Active Workout cover.
+    /// Returns `false` when another mobility session is already active so the
+    /// caller can offer Resume existing vs Cancel insert.
+    @discardableResult
+    private func startMidWorkoutMobility(_ routine: MobilityRoutine) -> Bool {
+        guard featureFlags.isEnabled(.mobility) else { return false }
+        guard let workout = workoutVM.activeWorkout else { return false }
+        let started = activeSessionRouter.startMobility(
+            routine,
+            .duringWorkout,
+            workout.id,
+            using: modelContext
+        )
+        if started {
+            activeSessionRouter.isShowingActiveWorkout = true
+        }
+        return started
+    }
+
+    /// Rebinds the persisted one-active mobility session after a refused
+    /// mid-workout insert. Linked stages stay inside the training cover.
+    private func resumeExistingMobilityForInsert() {
+        guard let session = MobilitySessionService.activeSession(using: modelContext) else { return }
+        activeSessionRouter.activeMobilitySession = session
+        if isLinkedMobilityStage(session) {
+            activeSessionRouter.isShowingActiveWorkout = true
+        }
     }
 
     private func resumeMobility(_ session: MobilitySession) {
@@ -1354,20 +1391,12 @@ struct RootView: View {
     }
 
     private func isLinkedMobilityStage(_ session: MobilitySession) -> Bool {
-        guard let workoutID = session.workoutID else { return false }
-
-        switch session.context {
-        case .warmup:
-            // A warm-up belongs in the training shell only while its draft is
-            // still the root-owned Active Workout.
-            return workoutVM.activeWorkout?.id == workoutID
-        case .cooldown:
-            // Strength is committed before cooldown starts, so there is no
-            // active draft to compare. Its performed workout must still exist.
-            return linkedWorkout(for: session) != nil
-        case .standalone:
-            return false
-        }
+        WorkoutMobilityStagePolicy.isLinkedStage(
+            context: session.context,
+            sessionWorkoutID: session.workoutID,
+            activeWorkoutID: workoutVM.activeWorkout?.id,
+            performedWorkoutExists: linkedWorkout(for: session) != nil
+        )
     }
 
     private func linkedWorkout(for session: MobilitySession) -> Workout? {
@@ -1375,6 +1404,25 @@ struct RootView: View {
               let workout = ProgressionReceiptPolicy.workout(id: workoutID, using: modelContext)
         else { return nil }
         return workout
+    }
+
+    /// Stops and clears any linked mobility stage for this workout so discard
+    /// cannot leave an orphan session that later opens as standalone.
+    private func clearLinkedMobilitySessions(for workoutID: UUID) {
+        if let session = activeSessionRouter.activeMobilitySession,
+           session.workoutID == workoutID,
+           session.context.isWorkoutLinkedStageCandidate {
+            if session.status == .active {
+                _ = MobilitySessionService.stop(session, using: modelContext)
+            }
+            activeSessionRouter.activeMobilitySession = nil
+        }
+
+        if let persisted = MobilitySessionService.activeSession(using: modelContext),
+           persisted.workoutID == workoutID,
+           persisted.context.isWorkoutLinkedStageCandidate {
+            _ = MobilitySessionService.stop(persisted, using: modelContext)
+        }
     }
 
     private func finishIntegratedMobilityStage(_ session: MobilitySession) {
@@ -1388,14 +1436,19 @@ struct RootView: View {
         activeSessionRouter.activeMobilitySession = nil
         MobilityProgramRunCoordinator.reconcileTerminalSessions(using: modelContext)
 
-        if session.context == .warmup {
+        switch session.context {
+        case .warmup:
             postWorkoutCoordinator.clearWarmupWorkoutID()
+            // Warm-up finished: keep the Active Workout cover open on strength.
             return
+        case .duringWorkout:
+            // Mid-session finished: return to the same strength draft.
+            return
+        case .cooldown, .standalone:
+            // Strength was already saved before the cooldown stage began.
+            // Closing the shared shell now allows pending progression routing.
+            activeSessionRouter.isShowingActiveWorkout = false
         }
-
-        // Strength was already saved before the cooldown stage began. Closing
-        // the shared shell now allows the pending progression receipt to route.
-        activeSessionRouter.isShowingActiveWorkout = false
     }
 
     /// Starts a linked cooldown before the training cover dismisses. The saved

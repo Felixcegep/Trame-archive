@@ -62,6 +62,7 @@ enum UITestFixture: String {
     case nutritionToday = "nutrition-today"
     case trainingCalendar = "training-calendar"
     case linkedMobilityWorkout = "linked-mobility-workout"
+    case midWorkoutMobility = "mid-workout-mobility"
 
     static var launchFixture: UITestFixture? {
         let arguments = AppLaunchArguments.current
@@ -284,6 +285,8 @@ enum UITestFixture: String {
             try context.save()
         case .linkedMobilityWorkout:
             try makeLinkedMobilityWorkoutFixture(using: context)
+        case .midWorkoutMobility:
+            try makeMidWorkoutMobilityFixture(using: context)
         case .trainingCalendar:
             try makeTrainingCalendarFixture(using: context)
         }
@@ -1707,6 +1710,30 @@ enum UITestFixture: String {
             entry.recommendationPriorWorkoutDate = Date.now.addingTimeInterval(-86_400)
         }
         return entry
+    }
+
+    /// Active strength draft plus an in-progress mid-session mobility stage so
+    /// the unified Active Workout cover can capture `duringWorkout` chrome
+    /// without driving the Add → start path in the screenshot lane.
+    private static func makeMidWorkoutMobilityFixture(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Bench Press", using: context)
+        try makeActiveWorkout(exercises: [entry], using: context)
+        let workouts = try context.fetch(FetchDescriptor<Workout>())
+        guard let workout = workouts.first(where: { $0.endTime == nil }) else {
+            throw FixtureError.invalidPlan
+        }
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+            .filter { $0.isArchived == false && $0.orderedItems.isEmpty == false }
+            .sorted { $0.name < $1.name }
+        guard let routine = routines.first else { throw FixtureError.invalidPlan }
+        guard MobilitySessionService.start(
+            routine: routine,
+            context: .duringWorkout,
+            workoutID: workout.id,
+            using: context
+        ) != nil else {
+            throw FixtureError.invalidPlan
+        }
     }
 
     /// A template carrying both mobility links, so the two `RootView`-owned

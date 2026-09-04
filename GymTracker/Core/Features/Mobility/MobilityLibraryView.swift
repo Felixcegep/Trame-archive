@@ -116,7 +116,12 @@ struct MobilityLibraryView: View {
                 // say "Standalone".
                 if activeWorkoutID != nil {
                     Picker("Session context", selection: $sessionContext) {
-                        ForEach(MobilitySessionContext.allCases, id: \.self) { context in
+                        // Mid-session insert is owned by Active Workout Add —
+                        // Train never invents a duringWorkout context here.
+                        ForEach(
+                            MobilitySessionContext.allCases.filter { $0 != .duringWorkout },
+                            id: \.self
+                        ) { context in
                             Text(context.displayName).tag(context)
                         }
                     }

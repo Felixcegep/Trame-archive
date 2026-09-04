@@ -213,6 +213,33 @@ enum WorkoutMobilityContinuationPolicy {
     }
 }
 
+/// Pure classification for whether a mobility session belongs inside the
+/// Active Workout cover as a linked stage. Presentation ownership stays in
+/// `RootView`; this only answers the domain question.
+enum WorkoutMobilityStagePolicy {
+    static func isLinkedStage(
+        context: MobilitySessionContext,
+        sessionWorkoutID: UUID?,
+        activeWorkoutID: UUID?,
+        performedWorkoutExists: Bool
+    ) -> Bool {
+        guard let sessionWorkoutID else { return false }
+
+        switch context {
+        case .warmup, .duringWorkout:
+            // Warm-up and mid-session mobility belong in the training shell only
+            // while their draft is still the root-owned Active Workout.
+            return activeWorkoutID == sessionWorkoutID
+        case .cooldown:
+            // Strength is committed before cooldown starts, so there is no
+            // active draft to compare. Its performed workout must still exist.
+            return performedWorkoutExists
+        case .standalone:
+            return false
+        }
+    }
+}
+
 // MARK: - Progression receipts
 
 /// Decides whether a just-saved workout owes the lifter a progression receipt.

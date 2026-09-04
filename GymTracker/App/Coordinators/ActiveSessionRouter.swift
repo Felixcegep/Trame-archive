@@ -28,19 +28,24 @@ final class ActiveSessionRouter {
         activeWorkoutPath.removeAll()
     }
 
+    /// Starts a mobility session and takes presentation ownership.
+    /// Returns `false` when start is refused (another active session, empty
+    /// routine, etc.) so the caller can offer Resume existing vs Cancel.
+    @discardableResult
     func startMobility(
         _ routine: MobilityRoutine,
         _ context: MobilitySessionContext,
         _ workoutID: UUID?,
         using modelContext: ModelContext
-    ) {
+    ) -> Bool {
         guard let session = MobilitySessionService.start(
             routine: routine,
             context: context,
             workoutID: workoutID,
             using: modelContext
-        ) else { return }
+        ) else { return false }
         activeMobilitySession = session
+        return true
     }
 
     func resumeMobility(_ session: MobilitySession, using modelContext: ModelContext) {
