@@ -18,6 +18,7 @@ import SwiftData
 /// the command bar instead of three conditional ones.
 struct ActiveWorkoutView: View {
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
+    @Query(filter: #Predicate<MobilityDefinition> { !$0.isArchived }) private var mobilityDefinitions: [MobilityDefinition]
     @Query(filter: #Predicate<MobilityRoutine> { !$0.isArchived }) private var mobilityRoutines: [MobilityRoutine]
     @Query(filter: #Predicate<PlanProgressionRecommendationRecord> { !$0.isResolved })
     private var unresolvedProgramRecommendations: [PlanProgressionRecommendationRecord]
@@ -33,9 +34,11 @@ struct ActiveWorkoutView: View {
     let linkedWorkoutName: String?
     let linkedWorkoutStartTime: Date?
     let onFinishLinkedMobility: () -> Void
-    /// Starts a mid-session mobility routine. Returns `false` when the
+    /// Starts a mid-session mobility movement. Returns `false` when the
     /// one-active gate refuses so this view can offer Resume vs Cancel.
-    let onInsertMobility: (MobilityRoutine) -> Bool
+    let onInsertMobilityMovement: (MobilityDefinition) -> Bool
+    /// Starts a mid-session mobility routine (secondary path).
+    let onInsertMobilityRoutine: (MobilityRoutine) -> Bool
     /// Rebinds presentation to the persisted active mobility session after a
     /// refused insert (Resume existing).
     let onResumeExistingMobility: () -> Void
@@ -81,7 +84,8 @@ struct ActiveWorkoutView: View {
         linkedWorkoutName: String? = nil,
         linkedWorkoutStartTime: Date? = nil,
         onFinishLinkedMobility: @escaping () -> Void = {},
-        onInsertMobility: @escaping (MobilityRoutine) -> Bool = { _ in false },
+        onInsertMobilityMovement: @escaping (MobilityDefinition) -> Bool = { _ in false },
+        onInsertMobilityRoutine: @escaping (MobilityRoutine) -> Bool = { _ in false },
         onResumeExistingMobility: @escaping () -> Void = {}
     ) {
         self.workoutVM = workoutVM
@@ -93,7 +97,8 @@ struct ActiveWorkoutView: View {
         self.linkedWorkoutName = linkedWorkoutName
         self.linkedWorkoutStartTime = linkedWorkoutStartTime
         self.onFinishLinkedMobility = onFinishLinkedMobility
-        self.onInsertMobility = onInsertMobility
+        self.onInsertMobilityMovement = onInsertMobilityMovement
+        self.onInsertMobilityRoutine = onInsertMobilityRoutine
         self.onResumeExistingMobility = onResumeExistingMobility
         _viewModel = State(initialValue: ActiveWorkoutViewModel(
             workoutVM: workoutVM,
@@ -170,8 +175,10 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $isShowingMobilityInsertPicker) {
             ActiveWorkoutMobilityInsertPicker(
+                definitions: mobilityDefinitions,
                 routines: mobilityRoutines,
-                onStart: startInsertedMobility
+                onStartMovement: startInsertedMobilityMovement,
+                onStartRoutine: startInsertedMobilityRoutine
             )
         }
         .confirmationDialog(
@@ -892,8 +899,18 @@ struct ActiveWorkoutView: View {
     }
 
     @discardableResult
-    private func startInsertedMobility(_ routine: MobilityRoutine) -> Bool {
-        let started = onInsertMobility(routine)
+    private func startInsertedMobilityMovement(_ definition: MobilityDefinition) -> Bool {
+        let started = onInsertMobilityMovement(definition)
+        if started == false,
+           MobilitySessionService.activeSession(using: modelContext) != nil {
+            isShowingMobilityInsertConflict = true
+        }
+        return started
+    }
+
+    @discardableResult
+    private func startInsertedMobilityRoutine(_ routine: MobilityRoutine) -> Bool {
+        let started = onInsertMobilityRoutine(routine)
         if started == false,
            MobilitySessionService.activeSession(using: modelContext) != nil {
             isShowingMobilityInsertConflict = true

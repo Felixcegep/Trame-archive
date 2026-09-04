@@ -220,7 +220,7 @@ struct MobilitySessionView: View {
             Button(role: .destructive) {
                 isShowingStopConfirmation = true
             } label: {
-                Text("Stop mobility stage")
+                Text(session.entries.count <= 1 ? "Stop mobility" : "Stop mobility stage")
                     .accessibilityIdentifier("stop-mobility-session")
             }
         } label: {
@@ -251,7 +251,9 @@ struct MobilitySessionView: View {
     private var linkedStageLabel: LocalizedStringKey {
         switch session.context {
         case .warmup: "WARM-UP"
-        case .duringWorkout: "DURING"
+        case .duringWorkout:
+            // One-movement inserts read as a beat, not a multi-step stage.
+            session.entries.count <= 1 ? "MOVEMENT" : "DURING"
         case .cooldown: "COOLDOWN"
         case .standalone: "MOBILITY"
         }
@@ -423,7 +425,10 @@ struct MobilitySessionView: View {
         guard session.workoutID != nil else { return "MOBILITY SESSION" }
         switch session.context {
         case .warmup: return "WORKOUT · MOBILITY WARM-UP"
-        case .duringWorkout: return "WORKOUT · MOBILITY DURING SESSION"
+        case .duringWorkout:
+            return session.entries.count <= 1
+                ? "WORKOUT · MOBILITY MOVEMENT"
+                : "WORKOUT · MOBILITY DURING SESSION"
         case .cooldown: return "WORKOUT · POST-WORKOUT MOBILITY"
         case .standalone: return "MOBILITY SESSION"
         }

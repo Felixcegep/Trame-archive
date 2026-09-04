@@ -224,7 +224,8 @@ struct RootView: View {
                                 finishIntegratedMobilityStage(session)
                             }
                         },
-                        onInsertMobility: startMidWorkoutMobility,
+                        onInsertMobilityMovement: startMidWorkoutMobilityMovement,
+                        onInsertMobilityRoutine: startMidWorkoutMobilityRoutine,
                         onResumeExistingMobility: resumeExistingMobilityForInsert
                     )
                 }
@@ -1331,11 +1332,28 @@ struct RootView: View {
         _ = activeSessionRouter.startMobility(routine, context, workoutID, using: modelContext)
     }
 
-    /// Starts a mid-workout mobility routine inside the Active Workout cover.
+    /// Starts a mid-workout mobility movement inside the Active Workout cover.
     /// Returns `false` when another mobility session is already active so the
     /// caller can offer Resume existing vs Cancel insert.
     @discardableResult
-    private func startMidWorkoutMobility(_ routine: MobilityRoutine) -> Bool {
+    private func startMidWorkoutMobilityMovement(_ definition: MobilityDefinition) -> Bool {
+        guard featureFlags.isEnabled(.mobility) else { return false }
+        guard let workout = workoutVM.activeWorkout else { return false }
+        let started = activeSessionRouter.startMobility(
+            definition,
+            .duringWorkout,
+            workout.id,
+            using: modelContext
+        )
+        if started {
+            activeSessionRouter.isShowingActiveWorkout = true
+        }
+        return started
+    }
+
+    /// Starts a mid-workout mobility routine inside the Active Workout cover.
+    @discardableResult
+    private func startMidWorkoutMobilityRoutine(_ routine: MobilityRoutine) -> Bool {
         guard featureFlags.isEnabled(.mobility) else { return false }
         guard let workout = workoutVM.activeWorkout else { return false }
         let started = activeSessionRouter.startMobility(

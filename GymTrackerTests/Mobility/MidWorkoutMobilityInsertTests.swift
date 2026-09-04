@@ -32,10 +32,45 @@ final class MidWorkoutMobilityInsertTests: XCTestCase {
         )
     }
 
+    func testStartDefinitionCreatesOneEntryDuringWorkoutSession() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let definition = MobilityDefinition(
+            name: "Couch stretch",
+            trackingType: .duration,
+            defaultDurationSeconds: 45
+        )
+        context.insert(definition)
+        let workout = Workout(name: "Lower")
+        context.insert(workout)
+        try context.save()
+
+        let session = try XCTUnwrap(
+            MobilitySessionService.start(
+                definition: definition,
+                context: .duringWorkout,
+                workoutID: workout.id,
+                using: context
+            )
+        )
+
+        XCTAssertEqual(session.context, .duringWorkout)
+        XCTAssertEqual(session.workoutID, workout.id)
+        XCTAssertEqual(session.nameSnapshot, "Couch stretch")
+        XCTAssertNil(session.sourceRoutineID)
+        XCTAssertNil(session.sourceRoutineName)
+        XCTAssertEqual(session.entries.count, 1)
+        XCTAssertEqual(session.orderedEntries.first?.definitionNameSnapshot, "Couch stretch")
+
+        // Temporary prescription must not remain in the library.
+        let leftoverRoutines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        XCTAssertTrue(leftoverRoutines.isEmpty)
+    }
+
     func testOneActiveGateRefusesSecondMidSessionInsert() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let first = makeRunnableRoutine(named: "First", in: context)
-        let second = makeRunnableRoutine(named: "Second", in: context)
+        let secondDefinition = MobilityDefinition(name: "Second movement")
+        context.insert(secondDefinition)
         let workout = Workout(name: "Legs")
         context.insert(workout)
         try context.save()
@@ -50,25 +85,29 @@ final class MidWorkoutMobilityInsertTests: XCTestCase {
         )
         XCTAssertNil(
             MobilitySessionService.start(
-                routine: second,
+                definition: secondDefinition,
                 context: .duringWorkout,
                 workoutID: workout.id,
                 using: context
             )
         )
-        XCTAssertEqual(MobilitySessionService.activeSession(using: context)?.sourceRoutineName, "First")
+        XCTAssertEqual(
+            MobilitySessionService.activeSession(using: context)?.sourceRoutineName,
+            "First"
+        )
     }
 
     func testStoppingMidSessionClearsActiveGateWithoutDeletingEvidence() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
-        let routine = makeRunnableRoutine(named: "Flow", in: context)
+        let definition = MobilityDefinition(name: "World's greatest stretch")
+        context.insert(definition)
         let workout = Workout(name: "Upper")
         context.insert(workout)
         try context.save()
 
         let session = try XCTUnwrap(
             MobilitySessionService.start(
-                routine: routine,
+                definition: definition,
                 context: .duringWorkout,
                 workoutID: workout.id,
                 using: context
@@ -79,6 +118,7 @@ final class MidWorkoutMobilityInsertTests: XCTestCase {
         XCTAssertNil(MobilitySessionService.activeSession(using: context))
         XCTAssertEqual(session.context, .duringWorkout)
         XCTAssertEqual(session.workoutID, workout.id)
+        XCTAssertEqual(session.entries.count, 1)
     }
 
     func testContinuationPolicyDoesNotTreatDuringWorkoutAsWarmupResume() {
@@ -95,7 +135,7 @@ final class MidWorkoutMobilityInsertTests: XCTestCase {
 
     private func makeRunnableRoutine(named name: String, in context: ModelContext) -> MobilityRoutine {
         let definition = MobilityDefinition(name: "\(name) movement")
-        let routine = MobilityRoutine(name: name, purpose: .development)
+        let routine = MobilityRoutine(name: name)
         routine.items = [
             MobilityRoutineItem(
                 definition: definition,

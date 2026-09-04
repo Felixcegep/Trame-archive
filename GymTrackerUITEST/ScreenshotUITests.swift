@@ -1287,7 +1287,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             midStage.descendants(matching: .any)["active-workout-mobility-stage"]
                 .waitForExistence(timeout: 10)
         )
-        XCTAssertTrue(midStage.staticTexts["DURING"].waitForExistence(timeout: 5))
+        XCTAssertTrue(midStage.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08y_Mid_Workout_Mobility_Stage")
         midStage.terminate()
 

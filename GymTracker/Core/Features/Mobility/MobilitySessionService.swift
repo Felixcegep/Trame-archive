@@ -177,6 +177,63 @@ enum MobilitySessionService {
         }
     }
 
+    /// Starts a one-movement mid-session (or standalone) mobility session from a
+    /// catalogue definition. Builds a temporary archived prescription, reuses
+    /// the routine start path for snapshotting, then deletes the temporary
+    /// routine so the library stays clean and history is not tied to it.
+    @discardableResult
+    static func start(
+        definition: MobilityDefinition,
+        side: MobilitySide = .none,
+        context: MobilitySessionContext = .standalone,
+        workoutID: UUID? = nil,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilitySession? {
+        guard definition.isArchived == false else { return nil }
+        guard activeSession(using: modelContext) == nil else { return nil }
+
+        let ephemeralRoutine = MobilityRoutine(
+            name: definition.name,
+            isArchived: false
+        )
+        let item = MobilityRoutineItem(
+            definition: definition,
+            orderIndex: 0,
+            targetDurationSeconds: definition.defaultDurationSeconds,
+            targetRepetitions: definition.defaultRepetitions,
+            side: side
+        )
+        ephemeralRoutine.items = [item]
+        modelContext.insert(ephemeralRoutine)
+
+        guard let session = start(
+            routine: ephemeralRoutine,
+            context: context,
+            workoutID: workoutID,
+            now: now,
+            using: modelContext
+        ) else {
+            // `start(routine:)` already rolled back a save failure; still drop
+            // any ephemeral row that remained after a validation refusal.
+            modelContext.delete(ephemeralRoutine)
+            try? modelContext.save()
+            return nil
+        }
+
+        // Performed truth is already snapshotted on the session entries.
+        session.sourceRoutineID = nil
+        session.sourceRoutineName = nil
+        modelContext.delete(ephemeralRoutine)
+        do {
+            try modelContext.save()
+            return session
+        } catch {
+            modelContext.rollback()
+            return nil
+        }
+    }
+
     static func activeSession(using modelContext: ModelContext) -> MobilitySession? {
         let activeStatus = MobilitySessionStatus.active.rawValue
         var descriptor = FetchDescriptor<MobilitySession>(

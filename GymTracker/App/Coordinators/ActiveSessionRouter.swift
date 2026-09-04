@@ -48,6 +48,24 @@ final class ActiveSessionRouter {
         return true
     }
 
+    /// Starts a one-movement mobility session and takes presentation ownership.
+    @discardableResult
+    func startMobility(
+        _ definition: MobilityDefinition,
+        _ context: MobilitySessionContext,
+        _ workoutID: UUID?,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard let session = MobilitySessionService.start(
+            definition: definition,
+            context: context,
+            workoutID: workoutID,
+            using: modelContext
+        ) else { return false }
+        activeMobilitySession = session
+        return true
+    }
+
     func resumeMobility(_ session: MobilitySession, using modelContext: ModelContext) {
         let restored: MobilitySession?
         switch MobilitySessionService.restoreActiveSession(using: modelContext) {

@@ -1722,12 +1722,14 @@ enum UITestFixture: String {
         guard let workout = workouts.first(where: { $0.endTime == nil }) else {
             throw FixtureError.invalidPlan
         }
-        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
-            .filter { $0.isArchived == false && $0.orderedItems.isEmpty == false }
+        // Prefer a single catalogue movement so the stage chrome reads MOVEMENT,
+        // matching the primary Add-mobility path (not a multi-item routine).
+        let definitions = try context.fetch(FetchDescriptor<MobilityDefinition>())
+            .filter { $0.isArchived == false }
             .sorted { $0.name < $1.name }
-        guard let routine = routines.first else { throw FixtureError.invalidPlan }
+        guard let definition = definitions.first else { throw FixtureError.invalidPlan }
         guard MobilitySessionService.start(
-            routine: routine,
+            definition: definition,
             context: .duringWorkout,
             workoutID: workout.id,
             using: context

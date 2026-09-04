@@ -91,13 +91,6 @@ struct ActiveWorkoutStageHeader: View {
                     }
                     .accessibilityIdentifier("add-active-exercise-menu")
 
-                    Button {
-                        onAddBlock()
-                    } label: {
-                        Label("Add execution block", systemImage: AppIcon.relationship)
-                    }
-                    .accessibilityIdentifier("add-execution-block")
-
                     if let onAddMobility {
                         Button {
                             onAddMobility()
@@ -106,6 +99,13 @@ struct ActiveWorkoutStageHeader: View {
                         }
                         .accessibilityIdentifier("add-active-mobility-menu")
                     }
+
+                    Button {
+                        onAddBlock()
+                    } label: {
+                        Label("Add execution block", systemImage: AppIcon.relationship)
+                    }
+                    .accessibilityIdentifier("add-execution-block")
 
                     Section {
                         // Losing the session is the rarest action on this

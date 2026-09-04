@@ -592,15 +592,15 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
                 .waitForExistence(timeout: 10)
         )
 
-        let firstRoutine = app.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "active-workout-mobility-insert-routine-")
+        let firstMovement = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "active-workout-mobility-insert-movement-")
         ).firstMatch
-        XCTAssertTrue(firstRoutine.waitForExistence(timeout: 10))
-        firstRoutine.tap()
+        XCTAssertTrue(firstMovement.waitForExistence(timeout: 10))
+        firstMovement.tap()
 
         let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
         XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["DURING"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
         XCTAssertFalse(app.staticTexts["WARM-UP"].exists)
         XCTAssertFalse(app.staticTexts["COOLDOWN"].exists)
@@ -616,7 +616,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFixture("mid-workout-mobility")
         let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
         XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["DURING"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
     }
 
