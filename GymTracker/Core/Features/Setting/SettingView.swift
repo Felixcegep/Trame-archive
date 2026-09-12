@@ -135,7 +135,7 @@ struct SettingView: View {
             } header: {
                 Text("Data")
             } footer: {
-                Text("Your training history is saved on this iPhone and works offline. Use Data & backup to protect or move it to a new device.")
+                Text("Your training history is saved on this iPhone and works offline. Use Data & backup to protect it, or link a cloud file in Files.")
             }
 
             Section {
@@ -589,6 +589,11 @@ struct DataSettingsView: View {
     @State private var importErrorMessage: String? = nil
     @State private var isShowingImportError = false
     @State private var didHandleUITestImport = false
+    private let cloudFileSync = CloudFileSyncService.shared
+    @State private var isShowingCloudFilePicker = false
+    @State private var cloudFilePickerMode: CloudFileDocumentPicker.Mode?
+    @State private var isCreatingCloudFile = false
+    @State private var cloudFilePickerIsCreate = false
 
     var body: some View {
         Form {
@@ -623,7 +628,24 @@ struct DataSettingsView: View {
             } header: {
                 Text("Data Safety")
             } footer: {
-                Text("Your training history is saved on this iPhone and stays fully functional offline. Exporting a backup is currently the only way to move your history to another device.")
+                Text("Your training history is saved on this iPhone and stays fully functional offline. A linked cloud file can update another iPhone. Export remains a copy you keep.")
+            }
+
+            Section {
+                CloudFileSettingsSection(
+                    service: cloudFileSync,
+                    isBusy: isPreparingExport || isCreatingCloudFile,
+                    onCreate: beginCreateCloudFile,
+                    onOpen: beginOpenCloudFile,
+                    onSyncNow: { syncCloudFile(.manual) },
+                    onUnlink: unlinkCloudFile,
+                    onKeepThisIPhone: { syncCloudFile(.keepThisIPhone) },
+                    onUseCloudFile: { syncCloudFile(.useCloudFile) }
+                )
+            } header: {
+                Text("Cloud file")
+            } footer: {
+                Text(cloudFileFooter)
             }
 
             Section("Backup & Restore") {
@@ -718,7 +740,20 @@ struct DataSettingsView: View {
                 Text(importErrorMessage)
             }
         }
+        .sheet(isPresented: $isShowingCloudFilePicker) {
+            if let cloudFilePickerMode {
+                CloudFileDocumentPicker(
+                    mode: cloudFilePickerMode,
+                    onPick: handlePickedCloudFile,
+                    onCancel: {
+                        isShowingCloudFilePicker = false
+                    }
+                )
+                .ignoresSafeArea()
+            }
+        }
         .onAppear {
+            cloudFileSync.applyLaunchFixtureIfNeeded()
             guard !didHandleUITestImport else { return }
             didHandleUITestImport = true
 
@@ -741,6 +776,13 @@ struct DataSettingsView: View {
         }
     }
 
+    private var cloudFileFooter: String {
+        if cloudFileSync.isLinked {
+            return String(localized: "This iPhone stays the working copy and works offline. iCloud Drive and Google Drive both use Files.")
+        }
+        return String(localized: "Pick iCloud Drive or Google Drive in Files. This iPhone stays the working copy and works offline. The file is what other iPhones open.")
+    }
+
     private var dataSafetyMetadata: DataSafetyMetadata {
         DataSafetyService.fetchMetadata()
     }
@@ -754,6 +796,75 @@ struct DataSettingsView: View {
     private func openExportWizard() {
         exportInventory = (try? BackupExportInventory.load(from: modelContext)) ?? .empty
         isShowingExportWizard = true
+    }
+
+    private func beginCreateCloudFile() {
+        guard isCreatingCloudFile == false else { return }
+        isCreatingCloudFile = true
+        Task {
+            do {
+                let result = try await DataSafetyService.exportData(
+                    from: modelContext,
+                    restTimer: restTimer,
+                    darkMode: selectedAppearance == .dark,
+                    unitSystem: unitSystem,
+                    defaults: UserDefaults.standard
+                )
+                lastBackupExportTimestamp = result.exportDate.timeIntervalSince1970
+                cloudFilePickerIsCreate = true
+                cloudFilePickerMode = .create(result.fileURL)
+                isShowingCloudFilePicker = true
+            } catch {
+                showImportError(String(localized: "The cloud file could not be prepared. \(error.localizedDescription)"))
+            }
+            isCreatingCloudFile = false
+        }
+    }
+
+    private func beginOpenCloudFile() {
+        cloudFilePickerIsCreate = false
+        cloudFilePickerMode = .open
+        isShowingCloudFilePicker = true
+    }
+
+    private func handlePickedCloudFile(_ url: URL) {
+        isShowingCloudFilePicker = false
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessed {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        do {
+            try cloudFileSync.link(url: url)
+            syncCloudFile(cloudFilePickerIsCreate ? .keepThisIPhone : .manual)
+        } catch {
+            showImportError(error.localizedDescription)
+        }
+    }
+
+    private func unlinkCloudFile() {
+        cloudFileSync.unlink()
+    }
+
+    private func syncCloudFile(_ request: CloudFileSyncService.Request) {
+        let hasActiveWorkout = WorkoutIntentService.activeWorkout(using: modelContext) != nil
+        Task {
+            let outcome = await cloudFileSync.sync(
+                from: modelContext,
+                hasActiveWorkout: hasActiveWorkout,
+                restTimer: restTimer,
+                darkMode: selectedAppearance == .dark,
+                unitSystem: unitSystem,
+                request: request
+            )
+            if case .pulled = outcome {
+                lastBackupRestoreTimestamp = Date.now.timeIntervalSince1970
+            }
+            if case .failed(let message) = outcome {
+                showImportError(message)
+            }
+        }
     }
 
     private func prepareExport(selection: BackupExportSelection) {

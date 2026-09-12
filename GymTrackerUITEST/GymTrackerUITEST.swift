@@ -1114,6 +1114,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(
             restoreTested.label.contains("Not yet") || (restoreTested.value as? String) == "Not yet"
         )
+        XCTAssertTrue(app.descendants(matching: .any)["settings-cloud-file-create"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings-cloud-file-open"].exists)
 
         let exportButton = app.buttons["settings-export-data"]
         for _ in 0..<4 where exportButton.exists == false {

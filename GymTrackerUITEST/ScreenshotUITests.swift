@@ -411,11 +411,32 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let dataSafety = app.descendants(matching: .any)["settings-data-safety-last-export"]
         XCTAssertTrue(dataSafety.waitForExistence(timeout: 5))
         app.swipeUp()
+        let createCloudFile = app.descendants(matching: .any)["settings-cloud-file-create"]
+        for _ in 0..<4 where createCloudFile.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(createCloudFile.waitForExistence(timeout: 5))
         saveScreenshot("overview/04g_Settings_Data_Safety")
 
         tapButton("settings-export-data", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["backup-export-wizard"].waitForExistence(timeout: 5))
         saveScreenshot("overview/04h_Backup_Export_Wizard")
+    }
+
+    func testCaptureSettingsCloudFileLinkedScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-open-settings",
+            "-ui-testing-cloud-file-linked"
+        ]
+        app.launchWithGymTrackerUITestArguments()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        tapButton("settings-data", in: app)
+        let location = app.descendants(matching: .any)["settings-cloud-file-location"]
+        XCTAssertTrue(location.waitForExistence(timeout: 5))
+        saveScreenshot("overview/04i_Settings_Cloud_File")
     }
 
     /// Coach Exchange is reached through the Progress hub rather than a

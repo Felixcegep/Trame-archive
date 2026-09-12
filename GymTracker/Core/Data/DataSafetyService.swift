@@ -99,16 +99,20 @@ nonisolated struct BackupArchiveFile: Sendable {
 /// utility priority without ever touching a SwiftData graph off its actor.
 nonisolated enum BackupArchiveFileWriter {
     static func write(_ backup: BackupDTO, in directory: URL) throws -> BackupArchiveFile {
+        let data = try encode(backup)
+        let fileURL = directory.appendingPathComponent("TrameBackup.json")
+        try data.write(to: fileURL, options: .atomic)
+        return BackupArchiveFile(fileURL: fileURL, data: data)
+    }
+
+    static func encode(_ backup: BackupDTO) throws -> Data {
         // An export is a recovery artifact, not merely JSON. Refuse to publish
         // or record success for a value graph the restore path would reject.
         try backup.validate()
         let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(backup)
-        let fileURL = directory.appendingPathComponent("TrameBackup.json")
-        try data.write(to: fileURL, options: .atomic)
-        return BackupArchiveFile(fileURL: fileURL, data: data)
+        return try encoder.encode(backup)
     }
 }
 

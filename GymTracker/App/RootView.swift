@@ -585,6 +585,7 @@ struct RootView: View {
                     nextSetDescription: nextSet
                 )
             }
+            syncLinkedCloudFileIfNeeded()
         } else if newPhase == .active {
             // A lifecycle save can fail transiently (for example while disk
             // pressure changes). Pending edits are deliberately retained and
@@ -599,6 +600,26 @@ struct RootView: View {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
             }
+            syncLinkedCloudFileIfNeeded()
+        }
+    }
+
+    private func syncLinkedCloudFileIfNeeded() {
+        if AppLaunchArguments.current.contains("-ui-testing") { return }
+        guard CloudFileSyncService.shared.isLinked else { return }
+        let restTimer = UserDefaults.standard.integer(forKey: DefaultsKey.restTimer)
+        let unitSystem = UserDefaults.standard.unitSystem
+        let hasActiveWorkout = workoutVM.hasActiveWorkout
+        let isDark = effectiveAppearance == .dark
+        Task {
+            _ = await CloudFileSyncService.shared.sync(
+                from: modelContext,
+                hasActiveWorkout: hasActiveWorkout,
+                restTimer: restTimer,
+                darkMode: isDark,
+                unitSystem: unitSystem,
+                request: .automatic
+            )
         }
     }
 

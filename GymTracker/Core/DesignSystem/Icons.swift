@@ -138,4 +138,6 @@ nonisolated struct AppIcon {
     static let reminders = "bell.badge"
     static let siri = "sparkles"
     static let backup = "externaldrive"
+    /// Linked portable-backup file in Files (iCloud Drive or Google Drive).
+    static let cloudFile = "externaldrive.badge.icloud"
 }
