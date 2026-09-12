@@ -605,6 +605,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
         XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
         XCTAssertFalse(app.staticTexts["WARM-UP"].exists)
         XCTAssertFalse(app.staticTexts["COOLDOWN"].exists)
@@ -621,6 +622,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
         XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
     }
 

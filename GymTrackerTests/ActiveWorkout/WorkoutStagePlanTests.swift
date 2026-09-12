@@ -117,6 +117,111 @@ final class WorkoutStagePlanTests: XCTestCase {
         XCTAssertFalse(WorkoutStagePlan.acceptsFocus(on: stray, whileShowing: visible))
     }
 
+    func testMidWorkoutStretchInsertsAfterCurrentExercise() throws {
+        let fixture = try makeFixture()
+        let sessionID = UUID()
+        let afterBench = WorkoutStagePage.exercise(fixture.standalone.persistentModelID)
+        let stage = MidWorkoutMobilityStage(
+            sessionID: sessionID,
+            name: "Couch Stretch",
+            afterPage: afterBench,
+            placesBeforeExercises: false
+        )
+
+        let pages = WorkoutStagePlan.pages(for: fixture.workout, mobilityStage: stage)
+
+        XCTAssertEqual(
+            pages,
+            [
+                afterBench,
+                .mobility(sessionID),
+                .superset(fixture.supersetID),
+                .block(fixture.blockID),
+                .finish
+            ]
+        )
+    }
+
+    func testEmptyWorkoutPutsStretchFirst() throws {
+        let workout = Workout(name: "Empty")
+        let sessionID = UUID()
+        let stage = MidWorkoutMobilityStage(
+            sessionID: sessionID,
+            name: "Hamstring Stretch",
+            afterPage: nil,
+            placesBeforeExercises: true
+        )
+
+        XCTAssertEqual(
+            WorkoutStagePlan.pages(for: workout, mobilityStage: stage),
+            [.mobility(sessionID), .finish]
+        )
+    }
+
+    func testStretchStaysBeforeExercisesAddedLater() throws {
+        let fixture = try makeFixture()
+        let sessionID = UUID()
+        let stage = MidWorkoutMobilityStage(
+            sessionID: sessionID,
+            name: "Pigeon Stretch",
+            afterPage: nil,
+            placesBeforeExercises: true
+        )
+
+        let pages = WorkoutStagePlan.pages(for: fixture.workout, mobilityStage: stage)
+
+        XCTAssertEqual(pages.first, .mobility(sessionID))
+        XCTAssertEqual(
+            pages[1],
+            .exercise(fixture.standalone.persistentModelID)
+        )
+        XCTAssertEqual(pages.last, .finish)
+    }
+
+    func testCompletingExerciseLandsOnInsertedStretch() throws {
+        let fixture = try makeFixture()
+        fixture.standalone.orderedSets.forEach { $0.done = true }
+        let sessionID = UUID()
+        let stage = MidWorkoutMobilityStage(
+            sessionID: sessionID,
+            name: "Doorway Chest Stretch",
+            afterPage: .exercise(fixture.standalone.persistentModelID),
+            placesBeforeExercises: false
+        )
+
+        XCTAssertEqual(
+            WorkoutStagePlan.currentPage(in: fixture.workout, mobilityStage: stage),
+            .mobility(sessionID)
+        )
+    }
+
+    func testIncompleteExerciseBeforeStretchStaysCurrent() throws {
+        let fixture = try makeFixture()
+        let sessionID = UUID()
+        let stage = MidWorkoutMobilityStage(
+            sessionID: sessionID,
+            name: "Couch Stretch",
+            afterPage: .exercise(fixture.standalone.persistentModelID),
+            placesBeforeExercises: false
+        )
+
+        XCTAssertEqual(
+            WorkoutStagePlan.currentPage(in: fixture.workout, mobilityStage: stage),
+            .exercise(fixture.standalone.persistentModelID)
+        )
+    }
+
+    func testMobilityPageHasNoExerciseEntries() throws {
+        let fixture = try makeFixture()
+        XCTAssertTrue(
+            WorkoutStagePlan.entries(for: .mobility(UUID()), in: fixture.workout).isEmpty
+        )
+        XCTAssertEqual(
+            WorkoutStagePlan.progress(of: .mobility(UUID()), in: fixture.workout),
+            .started
+        )
+    }
+
     private struct Fixture {
         let context: ModelContext
         let workout: Workout

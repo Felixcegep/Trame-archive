@@ -115,7 +115,7 @@ struct StageFinishPage: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Starts a stretch inside this workout.")
+                .accessibilityHint("Adds a stretch after this exercise.")
                 .accessibilityIdentifier("add-first-mobility-empty")
             }
         }
@@ -126,7 +126,7 @@ struct StageFinishPage: View {
     private var emptyWorkoutGuidance: LocalizedStringKey {
         onAddMobility == nil
             ? "Add exercises as you go. Reorder from More."
-            : "Add exercises as you go. A stretch can start from here too."
+            : "Add exercises as you go. A stretch sits between them."
     }
 
     private var summaryCard: some View {

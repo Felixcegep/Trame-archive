@@ -1,11 +1,12 @@
 import SwiftUI
 import SwiftData
 
-/// Mid-session mobility insert picker for Active Workout.
+/// Mid-session stretch picker for Active Workout.
 ///
-/// Prefer a single **movement** when the lifter wants one stretch now; a full
-/// **routine** remains available as a secondary path. Never writes template or
-/// rotation mobility links — those stay on `WorkoutMobilityRoutinePicker`.
+/// Adds **one movement** after the current exercise so the session stays
+/// Bench → stretch → next lift. A full routine remains a secondary path.
+/// Never writes template or rotation mobility links — those stay on
+/// `WorkoutMobilityRoutinePicker`.
 struct ActiveWorkoutMobilityInsertPicker: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -16,22 +17,8 @@ struct ActiveWorkoutMobilityInsertPicker: View {
     let onStartMovement: (MobilityDefinition) -> Bool
     let onStartRoutine: (MobilityRoutine) -> Bool
 
-    private enum Catalog: String, CaseIterable, Identifiable {
-        case movements
-        case routines
-
-        var id: Self { self }
-
-        var title: String {
-            switch self {
-            case .movements: String(localized: "Movements")
-            case .routines: String(localized: "Routines")
-            }
-        }
-    }
-
-    @State private var catalog: Catalog = .movements
     @State private var searchText = ""
+    @State private var isShowingRoutines = false
 
     private static let preferredPurposes: Set<MobilityRoutinePurpose?> = [
         .development,
@@ -40,7 +27,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
 
     var body: some View {
         NavigationStack {
-            content
+            movementContent
                 .background(Color.trameCanvas)
                 .navigationTitle(String(localized: "Add stretch"))
                 .navigationBarTitleDisplayMode(.inline)
@@ -50,71 +37,78 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                             .accessibilityIdentifier("cancel-active-workout-mobility-insert")
                     }
                 }
+                .navigationDestination(isPresented: $isShowingRoutines) {
+                    routineContent
+                        .background(Color.trameCanvas)
+                        .navigationTitle(String(localized: "Full routine"))
+                        .navigationBarTitleDisplayMode(.inline)
+                }
         }
         .accessibilityIdentifier("active-workout-mobility-insert-picker")
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var movementContent: some View {
         VStack(spacing: 0) {
-            Picker("Catalog", selection: $catalog) {
-                ForEach(Catalog.allCases) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, Spacing.screenInset)
-            .padding(.vertical, Spacing.s)
-            .accessibilityIdentifier("active-workout-mobility-insert-catalog")
-
-            Text(catalog == .movements
-                 ? String(localized: "Tap a movement to run it now, then return to your exercise.")
-                 : String(localized: "Tap a routine to run it now, then return to your exercise."))
+            Text("Adds one stretch after this exercise. Finish it, then continue to the next.")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Spacing.screenInset)
+                .padding(.top, Spacing.s)
                 .padding(.bottom, Spacing.s)
                 .accessibilityIdentifier("active-workout-mobility-insert-hint")
 
-            Group {
-                switch catalog {
-                case .movements:
-                    movementContent
-                case .routines:
-                    routineContent
+            if selectableDefinitions.isEmpty {
+                ContentUnavailableView {
+                    Label("No mobility movements", systemImage: AppIcon.mobility)
+                } description: {
+                    Text("Create a movement in Mobility, then return here to add it between exercises.")
                 }
+                .accessibilityIdentifier("active-workout-mobility-insert-movements-empty")
+            } else {
+                movementList
+                    .searchable(text: $searchText, prompt: "Search stretches")
             }
-        }
-    }
 
-    @ViewBuilder
-    private var movementContent: some View {
-        if selectableDefinitions.isEmpty {
-            ContentUnavailableView {
-                Label("No mobility movements", systemImage: AppIcon.mobility)
-            } description: {
-                Text("Create a movement in Mobility, then return here to run it mid-workout.")
+            if selectableRoutines.isEmpty == false {
+                Button {
+                    isShowingRoutines = true
+                } label: {
+                    Text("Use a full routine instead")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.trameSubdued)
+                        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .center)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens a list of multi-movement routines.")
+                .accessibilityIdentifier("active-workout-mobility-insert-catalog")
             }
-            .accessibilityIdentifier("active-workout-mobility-insert-movements-empty")
-        } else {
-            movementList
-                .searchable(text: $searchText, prompt: "Search movements")
         }
     }
 
     @ViewBuilder
     private var routineContent: some View {
-        if selectableRoutines.isEmpty {
-            ContentUnavailableView {
-                Label("No mobility routines", systemImage: AppIcon.mobility)
-            } description: {
-                Text("Create a routine in Mobility, then return here to run it mid-workout.")
+        VStack(spacing: 0) {
+            Text("Runs the whole routine now, then returns to the next exercise.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.screenInset)
+                .padding(.vertical, Spacing.s)
+
+            if selectableRoutines.isEmpty {
+                ContentUnavailableView {
+                    Label("No mobility routines", systemImage: AppIcon.mobility)
+                } description: {
+                    Text("Create a routine in Mobility, then return here to run it mid-workout.")
+                }
+                .accessibilityIdentifier("active-workout-mobility-insert-routines-empty")
+            } else {
+                routineList
+                    .searchable(text: $searchText, prompt: "Search routines or movements")
             }
-            .accessibilityIdentifier("active-workout-mobility-insert-routines-empty")
-        } else {
-            routineList
-                .searchable(text: $searchText, prompt: "Search routines or movements")
         }
     }
 
@@ -126,7 +120,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                     .listRowSeparator(.hidden)
                     .accessibilityIdentifier("active-workout-mobility-insert-movement-no-results")
             } else {
-                Section(String(localized: "Movements")) {
+                Section(String(localized: "Stretches")) {
                     ForEach(visibleDefinitions) { definition in
                         movementRow(definition)
                     }
@@ -190,7 +184,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(definition.name), \(movementSummary(for: definition))")
-        .accessibilityHint("Starts this movement inside the current workout.")
+        .accessibilityHint("Adds this stretch after the current exercise.")
         .accessibilityIdentifier("active-workout-mobility-insert-movement-\(definition.id)")
     }
 
@@ -228,7 +222,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(routine.name), \(WorkoutMobilityPresentation.routineSummary(for: routine))")
-        .accessibilityHint("Starts this stretch inside the current workout.")
+        .accessibilityHint("Starts this routine inside the current workout.")
         .accessibilityIdentifier("active-workout-mobility-insert-routine-\(routine.id)")
     }
 

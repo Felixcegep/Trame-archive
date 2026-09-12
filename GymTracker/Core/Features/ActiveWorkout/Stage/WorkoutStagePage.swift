@@ -19,7 +19,8 @@ import SwiftData
 ///   would split the clock from the work it is timing.
 ///
 /// So a page is "the unit of work you are currently inside", which is sometimes
-/// one exercise and sometimes a group of them.
+/// one exercise and sometimes a group of them. A mid-session stretch is the
+/// same idea: one movement between two exercises, not a second workout.
 enum WorkoutStagePage: Hashable, Identifiable {
     /// A standalone exercise entry, addressed by its model identity.
     case exercise(PersistentIdentifier)
@@ -27,6 +28,8 @@ enum WorkoutStagePage: Hashable, Identifiable {
     case superset(UUID)
     /// Every component of one execution block, under its shared clock.
     case block(UUID)
+    /// One mid-session mobility movement, addressed by its `MobilitySession.id`.
+    case mobility(UUID)
     /// The terminal page: session summary and the hand-off to review and save.
     case finish
 
@@ -35,6 +38,7 @@ enum WorkoutStagePage: Hashable, Identifiable {
         case .exercise(let identifier): "exercise-\(identifier.hashValue)"
         case .superset(let groupID): "superset-\(groupID.uuidString)"
         case .block(let blockID): "block-\(blockID.uuidString)"
+        case .mobility(let sessionID): "mobility-\(sessionID.uuidString)"
         case .finish: "finish"
         }
     }
@@ -43,6 +47,28 @@ enum WorkoutStagePage: Hashable, Identifiable {
         if case .finish = self { return true }
         return false
     }
+
+    var isMobility: Bool {
+        if case .mobility = self { return true }
+        return false
+    }
+}
+
+/// Where a mid-session stretch sits in the Active Workout pager.
+///
+/// Evidence stays on `MobilitySession`. This only answers "after which
+/// exercise page should the stretch appear", so Bench → stretch → next
+/// exercise is a real sequence rather than a takeover.
+struct MidWorkoutMobilityStage: Equatable {
+    let sessionID: UUID
+    let name: String
+    /// The exercise (or group) page the stretch was added from. `nil` when
+    /// the stretch was added with no exercise yet, or after relaunch when
+    /// that page is unknown.
+    let afterPage: WorkoutStagePage?
+    /// True when the stretch was added with no exercises yet, so lifts
+    /// added afterwards follow it: stretch → Bench, not the reverse.
+    let placesBeforeExercises: Bool
 }
 
 /// Builds and resolves the pager's page list.
@@ -54,13 +80,17 @@ enum WorkoutStagePage: Hashable, Identifiable {
 @MainActor
 enum WorkoutStagePlan {
     /// Document order, with grouped entries collapsed to a single page at the
-    /// position of their first member, and `.finish` appended last.
+    /// position of their first member, an optional mid-session stretch spliced
+    /// after the exercise it was added from, and `.finish` appended last.
     ///
     /// A group emits its page where its *first* member sits rather than where
     /// the group is "declared", because `SupersetGrouping` only guarantees
     /// members are contiguous — there is no separate group record carrying an
     /// order of its own.
-    static func pages(for workout: Workout) -> [WorkoutStagePage] {
+    static func pages(
+        for workout: Workout,
+        mobilityStage: MidWorkoutMobilityStage? = nil
+    ) -> [WorkoutStagePage] {
         var pages: [WorkoutStagePage] = []
         var seenBlocks: Set<UUID> = []
         var seenSupersets: Set<UUID> = []
@@ -80,8 +110,37 @@ enum WorkoutStagePlan {
             }
         }
 
+        if let mobilityStage {
+            let mobilityPage = WorkoutStagePage.mobility(mobilityStage.sessionID)
+            pages.insert(mobilityPage, at: insertIndex(for: mobilityStage, in: pages, workout: workout))
+        }
+
         pages.append(.finish)
         return pages
+    }
+
+    /// After the named exercise page when that page still exists; otherwise
+    /// after the last completed work page, or after the first page when the
+    /// session is still untouched. An empty workout puts the stretch first.
+    private static func insertIndex(
+        for stage: MidWorkoutMobilityStage,
+        in pages: [WorkoutStagePage],
+        workout: Workout
+    ) -> Int {
+        if stage.placesBeforeExercises {
+            return 0
+        }
+        if let afterPage = stage.afterPage, let index = pages.firstIndex(of: afterPage) {
+            return index + 1
+        }
+        var lastComplete = -1
+        for (index, page) in pages.enumerated() {
+            if progress(of: page, in: workout) == .complete {
+                lastComplete = index
+            }
+        }
+        if lastComplete >= 0 { return lastComplete + 1 }
+        return pages.isEmpty ? 0 : 1
     }
 
     /// The entries a page is responsible for, in document order. Empty for
@@ -95,7 +154,7 @@ enum WorkoutStagePlan {
             return workout.orderedExercises.filter { $0.supersetGroupID == groupID }
         case .block(let blockID):
             return workout.orderedExercises.filter { $0.executionBlockID == blockID }
-        case .finish:
+        case .mobility, .finish:
             return []
         }
     }
@@ -118,13 +177,23 @@ enum WorkoutStagePlan {
         focusedPage == visiblePage
     }
 
-    /// The page holding the workout's next incomplete set, or `.finish` when
-    /// every set is done.
-    static func currentPage(in workout: Workout) -> WorkoutStagePage {
-        guard let next = WorkoutSetSelector.nextIncompleteSet(in: workout) else {
-            return .finish
+    /// The next unfinished page in document order. An active stretch counts as
+    /// unfinished work at the slot it was inserted into, so completing Bench
+    /// lands on the stretch instead of skipping to the next lift.
+    static func currentPage(
+        in workout: Workout,
+        mobilityStage: MidWorkoutMobilityStage? = nil
+    ) -> WorkoutStagePage {
+        let ordered = pages(for: workout, mobilityStage: mobilityStage)
+        for page in ordered where page.isFinish == false {
+            if page.isMobility { return page }
+            if entries(for: page, in: workout).contains(where: { entry in
+                entry.orderedSets.contains { !$0.done }
+            }) {
+                return page
+            }
         }
-        return page(containing: next.entry)
+        return .finish
     }
 
     /// Completion state of a page, for the segmented progress rail.
@@ -138,6 +207,7 @@ enum WorkoutStagePlan {
     }
 
     static func progress(of page: WorkoutStagePage, in workout: Workout) -> Progress {
+        if case .mobility = page { return .started }
         let sets = entries(for: page, in: workout).flatMap(\.orderedSets)
         guard !sets.isEmpty else { return .untouched }
         let completed = sets.filter(\.done).count

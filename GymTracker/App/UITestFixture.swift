@@ -1712,12 +1712,13 @@ enum UITestFixture: String {
         return entry
     }
 
-    /// Active strength draft plus an in-progress mid-session mobility stage so
-    /// the unified Active Workout cover can capture `duringWorkout` chrome
+    /// Active strength draft plus an in-progress mid-session stretch so the
+    /// unified Active Workout cover can capture Bench → stretch → next lift
     /// without driving the Add → start path in the screenshot lane.
     private static func makeMidWorkoutMobilityFixture(using context: ModelContext) throws {
-        let entry = try inProgressEntry(named: "Bench Press", using: context)
-        try makeActiveWorkout(exercises: [entry], using: context)
+        let bench = try inProgressEntry(named: "Bench Press", orderIndex: 0, using: context)
+        let squat = try inProgressEntry(named: "Squat", orderIndex: 1, using: context)
+        try makeActiveWorkout(exercises: [bench, squat], using: context)
         let workouts = try context.fetch(FetchDescriptor<Workout>())
         guard let workout = workouts.first(where: { $0.endTime == nil }) else {
             throw FixtureError.invalidPlan

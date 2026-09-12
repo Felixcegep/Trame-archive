@@ -7,6 +7,7 @@ struct ActiveWorkoutStageHeader: View {
     let workout: Workout
     let pages: [WorkoutStagePage]
     @Binding var selection: WorkoutStagePage
+    var mobilityStageName: String? = nil
     let onMinimize: () -> Void
     let onDiscard: () -> Void
     let onAddExercise: () -> Void
@@ -232,9 +233,14 @@ struct ActiveWorkoutStageHeader: View {
         at index: Int,
         progress: WorkoutStagePlan.Progress
     ) -> String {
-        let names = WorkoutStagePlan.entries(for: page, in: workout)
-            .map(\.occurrenceDisplayName)
-            .joined(separator: ", ")
+        let names: String
+        if case .mobility = page {
+            names = mobilityStageName ?? String(localized: "Stretch")
+        } else {
+            names = WorkoutStagePlan.entries(for: page, in: workout)
+                .map(\.occurrenceDisplayName)
+                .joined(separator: ", ")
+        }
         let position = String(localized: "Page \(index + 1) of \(workPages.count)")
         let state: String = switch progress {
         case .complete: String(localized: "complete")

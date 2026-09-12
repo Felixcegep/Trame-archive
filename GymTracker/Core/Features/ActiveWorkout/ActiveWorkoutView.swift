@@ -62,6 +62,10 @@ struct ActiveWorkoutView: View {
     @State private var isShowingExercisePicker = false
     @State private var isShowingMobilityInsertPicker = false
     @State private var isShowingMobilityInsertConflict = false
+    /// Captured when a stretch is added so it stays after the current
+    /// exercise (Bench → stretch → next) instead of replacing the session.
+    @State private var mobilityInsertAfterPage: WorkoutStagePage?
+    @State private var mobilityPlacesBeforeExercises = false
     @State private var editingCompletedSetID: PersistentIdentifier?
     @State private var exerciseToSwap: ExerciseEntry?
     @State private var isShowingExecutionBlockBuilder = false
@@ -106,14 +110,30 @@ struct ActiveWorkoutView: View {
             activeLoggingMetrics: activeLoggingMetrics
         ))
         _selection = State(
-            initialValue: workoutVM.activeWorkout
-                .map { WorkoutStagePlan.currentPage(in: $0) } ?? .finish
+            initialValue: Self.initialSelection(
+                workout: workoutVM.activeWorkout,
+                linkedMobilitySession: linkedMobilitySession
+            )
         )
+    }
+
+    /// Mid-session stretches resume on their own page. Warm-up / cooldown
+    /// still own the whole cover, so they are not a pager selection.
+    private static func initialSelection(
+        workout: Workout?,
+        linkedMobilitySession: MobilitySession?
+    ) -> WorkoutStagePage {
+        if let session = linkedMobilitySession,
+           session.context == .duringWorkout,
+           session.status == .active {
+            return .mobility(session.id)
+        }
+        return workout.map { WorkoutStagePlan.currentPage(in: $0) } ?? .finish
     }
 
     var body: some View {
         Group {
-            if let mobility = linkedMobilitySession {
+            if let mobility = linkedMobilitySession, mobility.context != .duringWorkout {
                 MobilitySessionView(
                     session: mobility,
                     linkedWorkoutName: linkedWorkoutName,
@@ -272,14 +292,27 @@ struct ActiveWorkoutView: View {
 
     // MARK: - Stage
 
+    private var midWorkoutMobilityStage: MidWorkoutMobilityStage? {
+        guard let session = linkedMobilitySession,
+              session.context == .duringWorkout
+        else { return nil }
+        return MidWorkoutMobilityStage(
+            sessionID: session.id,
+            name: session.nameSnapshot,
+            afterPage: mobilityInsertAfterPage,
+            placesBeforeExercises: mobilityPlacesBeforeExercises
+        )
+    }
+
     private func stage(for workout: Workout) -> some View {
-        let pages = WorkoutStagePlan.pages(for: workout)
+        let pages = WorkoutStagePlan.pages(for: workout, mobilityStage: midWorkoutMobilityStage)
 
         return VStack(spacing: 0) {
             ActiveWorkoutStageHeader(
                 workout: workout,
                 pages: pages,
                 selection: $selection,
+                mobilityStageName: midWorkoutMobilityStage?.name,
                 onMinimize: minimizeWorkout,
                 onDiscard: { isShowingDiscardConfirmation = true },
                 onAddExercise: { isShowingExercisePicker = true },
@@ -298,7 +331,9 @@ struct ActiveWorkoutView: View {
             pager(for: workout, pages: pages)
         }
         .safeAreaInset(edge: .bottom) {
-            if coordinator.focus == nil {
+            if selection.isMobility {
+                EmptyView()
+            } else if coordinator.focus == nil {
                 ActiveWorkoutCommandBar(
                     primaryAction: primaryAction(for: workout),
                     logSetValues: logSetValues(for: workout),
@@ -379,6 +414,9 @@ struct ActiveWorkoutView: View {
         .onChange(of: selection) { _, page in
             editingCompletedSetID = nil
             viewModel.trackActiveExercise(with: trackedExerciseID(for: page, in: workout))
+            if page.isMobility {
+                isRestExpanded = false
+            }
 
             // The panel is bound to a *set*, not to a page, so swiping away
             // used to leave it editing the exercise the lifter had just left:
@@ -429,11 +467,45 @@ struct ActiveWorkoutView: View {
         // would hold a tag that no longer exists and render nothing at all.
         .onChange(of: pages) { _, updatedPages in
             guard !updatedPages.contains(selection) else { return }
-            selection = WorkoutStagePlan.currentPage(in: workout)
+            // Leaving a stretch is owned by the mobility-session change:
+            // currentPage would skip back to the first incomplete lift.
+            if selection.isMobility { return }
+            selection = WorkoutStagePlan.currentPage(
+                in: workout,
+                mobilityStage: midWorkoutMobilityStage
+            )
+        }
+        .onChange(of: linkedMobilitySession?.id) { _, newID in
+            if let session = linkedMobilitySession,
+               session.context == .duringWorkout,
+               let newID {
+                selection = .mobility(newID)
+                return
+            }
+            guard selection.isMobility else { return }
+            let after = mobilityInsertAfterPage
+            let wasFirst = mobilityPlacesBeforeExercises
+            mobilityInsertAfterPage = nil
+            mobilityPlacesBeforeExercises = false
+            let remaining = WorkoutStagePlan.pages(for: workout)
+            if wasFirst, let firstWork = remaining.first(where: { !$0.isFinish }) {
+                selection = firstWork
+            } else if let after,
+                      let index = remaining.firstIndex(of: after),
+                      remaining.indices.contains(index + 1) {
+                selection = remaining[index + 1]
+            } else {
+                selection = WorkoutStagePlan.currentPage(in: workout)
+            }
         }
         .onAppear {
             viewModel.trackActiveExercise(with: trackedExerciseID(for: selection, in: workout))
             viewModel.restorePersistedRestTimer()
+            if let session = linkedMobilitySession,
+               session.context == .duringWorkout,
+               session.status == .active {
+                selection = .mobility(session.id)
+            }
         }
     }
 
@@ -498,6 +570,14 @@ struct ActiveWorkoutView: View {
                 onAddMobility: FeatureFlags.current.isEnabled(.mobility)
                     ? { isShowingMobilityInsertPicker = true }
                     : nil
+            )
+        } else if case .mobility = page, let session = linkedMobilitySession, session.context == .duringWorkout {
+            MobilitySessionView(
+                session: session,
+                linkedWorkoutName: linkedWorkoutName,
+                linkedWorkoutStartTime: linkedWorkoutStartTime,
+                embedsInWorkoutPager: true,
+                onFinished: onFinishLinkedMobility
             )
         } else {
             ExerciseStagePage(
@@ -581,6 +661,7 @@ struct ActiveWorkoutView: View {
             && viewModel.hasIncompleteSet
             && isRestExpanded
             && coordinator.focus == nil
+            && selection.isMobility == false
     }
 
     private func canGo(_ offset: Int, in pages: [WorkoutStagePage]) -> Bool {
@@ -610,7 +691,20 @@ struct ActiveWorkoutView: View {
             .contains { $0.orderedSets.contains { !$0.done } }
         guard !pageStillHasWork else { return }
 
-        let destination = WorkoutStagePlan.currentPage(in: workout)
+        let pages = WorkoutStagePlan.pages(for: workout, mobilityStage: midWorkoutMobilityStage)
+        if let index = pages.firstIndex(of: selection),
+           pages.indices.contains(index + 1),
+           pages[index + 1].isMobility {
+            withAnimation(reduceMotion ? nil : AppMotion.layout) {
+                selection = pages[index + 1]
+            }
+            return
+        }
+
+        let destination = WorkoutStagePlan.currentPage(
+            in: workout,
+            mobilityStage: midWorkoutMobilityStage
+        )
         guard destination != selection else { return }
         withAnimation(reduceMotion ? nil : AppMotion.layout) {
             selection = destination
@@ -903,22 +997,50 @@ struct ActiveWorkoutView: View {
 
     @discardableResult
     private func startInsertedMobilityMovement(_ definition: MobilityDefinition) -> Bool {
+        captureMobilityInsertAnchor()
         let started = onInsertMobilityMovement(definition)
-        if started == false,
-           MobilitySessionService.activeSession(using: modelContext) != nil {
-            isShowingMobilityInsertConflict = true
+        if started == false {
+            mobilityInsertAfterPage = nil
+            mobilityPlacesBeforeExercises = false
+            if MobilitySessionService.activeSession(using: modelContext) != nil {
+                isShowingMobilityInsertConflict = true
+            }
         }
         return started
     }
 
     @discardableResult
     private func startInsertedMobilityRoutine(_ routine: MobilityRoutine) -> Bool {
+        captureMobilityInsertAnchor()
         let started = onInsertMobilityRoutine(routine)
-        if started == false,
-           MobilitySessionService.activeSession(using: modelContext) != nil {
-            isShowingMobilityInsertConflict = true
+        if started == false {
+            mobilityInsertAfterPage = nil
+            mobilityPlacesBeforeExercises = false
+            if MobilitySessionService.activeSession(using: modelContext) != nil {
+                isShowingMobilityInsertConflict = true
+            }
         }
         return started
+    }
+
+    /// Remembers the exercise on screen so the stretch becomes the next page
+    /// rather than a takeover that hides Bench and the lift after it.
+    private func captureMobilityInsertAnchor() {
+        guard let workout = viewModel.activeWorkout else { return }
+        let workPages = WorkoutStagePlan.pages(for: workout).filter { !$0.isFinish && !$0.isMobility }
+        if workPages.isEmpty {
+            mobilityInsertAfterPage = nil
+            mobilityPlacesBeforeExercises = true
+            return
+        }
+        mobilityPlacesBeforeExercises = false
+        if selection.isFinish {
+            mobilityInsertAfterPage = workPages.last
+        } else if selection.isMobility {
+            mobilityInsertAfterPage = workPages.last
+        } else {
+            mobilityInsertAfterPage = selection
+        }
     }
 
     private func removeExecutionBlock(_ block: WorkoutExecutionBlock, from workout: Workout) {

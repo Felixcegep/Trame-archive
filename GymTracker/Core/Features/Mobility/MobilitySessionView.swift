@@ -14,6 +14,10 @@ struct MobilitySessionView: View {
     let session: MobilitySession
     let linkedWorkoutName: String?
     let linkedWorkoutStartTime: Date?
+    /// When true, Active Workout already owns the session chrome (title,
+    /// timer, pager rail). This view only renders the movement itself so the
+    /// stretch can sit between exercises instead of replacing the workout.
+    let embedsInWorkoutPager: Bool
     let onFinished: () -> Void
     @Query(
         filter: #Predicate<MobilitySession> { $0.statusRaw != "active" },
@@ -45,11 +49,13 @@ struct MobilitySessionView: View {
         session: MobilitySession,
         linkedWorkoutName: String? = nil,
         linkedWorkoutStartTime: Date? = nil,
+        embedsInWorkoutPager: Bool = false,
         onFinished: @escaping () -> Void
     ) {
         self.session = session
         self.linkedWorkoutName = linkedWorkoutName
         self.linkedWorkoutStartTime = linkedWorkoutStartTime
+        self.embedsInWorkoutPager = embedsInWorkoutPager
         self.onFinished = onFinished
     }
 
@@ -121,7 +127,9 @@ struct MobilitySessionView: View {
     ) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                if isLinkedWorkoutStage {
+                if embedsInWorkoutPager && isLinkedWorkoutStage {
+                    embeddedPagerChrome
+                } else if isLinkedWorkoutStage {
                     linkedWorkoutChrome
                 } else {
                     progressHeader
@@ -138,6 +146,17 @@ struct MobilitySessionView: View {
 
     private var isLinkedWorkoutStage: Bool {
         session.workoutID != nil && session.context.isWorkoutLinkedStageCandidate
+    }
+
+    /// Compact hero used when the stretch is a page in the Active Workout
+    /// pager. The workout header already shows name, timer, and position; the
+    /// movement name stays on the entry itself so it is not repeated.
+    private var embeddedPagerChrome: some View {
+        HStack(alignment: .center, spacing: Spacing.s) {
+            mobilityStagePosition
+            Spacer(minLength: 0)
+            linkedStageMenu
+        }
     }
 
     /// The shared training-cover hierarchy for linked warm-up and cooldown.
