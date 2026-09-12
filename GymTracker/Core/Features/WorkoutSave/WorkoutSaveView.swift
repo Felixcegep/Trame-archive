@@ -632,6 +632,28 @@ struct WorkoutSaveView: View {
         activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
         let shouldDismissTraining = onWorkoutSaved(workoutID)
         navigationPath.removeAll()
+        if CloudFileSyncService.shared.isLinked,
+           AppLaunchArguments.current.contains("-ui-testing") == false {
+            let restTimer = UserDefaults.standard.integer(forKey: DefaultsKey.restTimer)
+            let unitSystem = UserDefaults.standard.unitSystem
+            let stored = AppAppearance(
+                rawValue: UserDefaults.standard.string(forKey: DefaultsKey.appearance) ?? ""
+            ) ?? .dark
+            let isDark = AppAppearance.resolved(
+                stored: stored,
+                legacyDarkMode: UserDefaults.standard.bool(forKey: DefaultsKey.darkMode)
+            ) == .dark
+            Task {
+                _ = await CloudFileSyncService.shared.sync(
+                    from: modelContext,
+                    hasActiveWorkout: false,
+                    restTimer: restTimer,
+                    darkMode: isDark,
+                    unitSystem: unitSystem,
+                    request: .automatic
+                )
+            }
+        }
         if shouldOpenNutritionAfterSave {
             onOpenNutrition?()
         }

@@ -95,7 +95,7 @@ tests_for_scene() {
     brand) echo "testCaptureLaunchBrandScreenshot" ;;
     onboarding) echo "testCaptureOnboardingJourneyScreenshots" ;;
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureWave1LightModeScreenshots" ;;
-    settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot" ;;
+    settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot testCaptureSettingsCloudFileLinkedScreenshot" ;;
   pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
     coach-exchange) echo "testCaptureCoachExchangeScreenshots testCaptureCoachExchangeImportScreenshots" ;;
     journey) echo "testCaptureTrainingJourneyScreenshots" ;;
@@ -142,7 +142,7 @@ files_for_scene() {
     brand) echo "overview/00a_Launch_Brand.png" ;;
     onboarding) echo "onboarding/00_Welcome.png onboarding/01_Discipline.png onboarding/02_Goal.png onboarding/03_Experience.png onboarding/03a_Frequency.png onboarding/03b_Equipment.png onboarding/04_Recommendations.png" ;;
     overview) echo "overview/01_Today.png overview/01_Today_Light.png overview/02_Train.png overview/02_Train_Light.png overview/03_Progress_Empty.png overview/03_Progress_Empty_Light.png overview/03a_Progress_Populated.png overview/04_Settings.png overview/04_Settings_Light.png overview/05_Home_With_Active_Workout_Light.png nutrition/20_Nutrition_Today_Light.png" ;;
-    settings-data-safety) echo "overview/04g_Settings_Data_Safety.png overview/04h_Backup_Export_Wizard.png" ;;
+    settings-data-safety) echo "overview/04g_Settings_Data_Safety.png overview/04h_Backup_Export_Wizard.png overview/04i_Settings_Cloud_File.png" ;;
     pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png mobility/19a_Active_Mobility_Safety.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png overview/04g_Settings_Data_Safety.png overview/04h_Backup_Export_Wizard.png" ;;
     coach-exchange) echo "coach-exchange/23_Coach_Exchange_Empty.png coach-exchange/23a_Coach_Exchange_Package_Builder.png coach-exchange/23b_Coach_Exchange_Conflict_Preview.png coach-exchange/23c_Coach_Exchange_Import_Complete.png" ;;
     journey) echo "journey/24_Training_Journey_List.png journey/24a_Training_Journey_Timeline.png" ;;

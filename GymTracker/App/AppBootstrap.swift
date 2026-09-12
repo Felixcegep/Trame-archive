@@ -36,6 +36,8 @@ enum AppBootstrap {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.darkMode)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupExportTimestamp)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupRestoreTimestamp)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.cloudFileLinkRecord)
+        CloudFileSyncService.shared.unlink()
         // Onboarding state is preference-shaped, so clearing the store alone
         // would leave a previous run's half-answered draft behind — and the
         // welcome screenshot lane would open on question four instead of the

@@ -57,6 +57,10 @@ struct DefaultsKey {
     /// safety state, so a restored backup must not carry another device's dates in.
     static let lastBackupExportTimestamp = "lastBackupExportTimestamp"
     static let lastBackupRestoreTimestamp = "lastBackupRestoreTimestamp"
+    /// Bookmark and last-sync state for the optional KeePass-style cloud file.
+    /// Installation-local: a restored backup must not inherit another device's
+    /// Files location.
+    nonisolated static let cloudFileLinkRecord = "cloudFileLinkRecord"
 }
 
 enum AppAppearance: String, CaseIterable {
