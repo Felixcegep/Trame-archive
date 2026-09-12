@@ -19,12 +19,14 @@ import SwiftUI
 /// where these are not.
 struct SupportingHistoryView: View {
     let initialScope: SupportingHistoryScope
+    var onOpenNutritionDay: ((LocalDay) -> Void)? = nil
 
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     @State private var scope: SupportingHistoryScope
 
-    init(initialScope: SupportingHistoryScope) {
+    init(initialScope: SupportingHistoryScope, onOpenNutritionDay: ((LocalDay) -> Void)? = nil) {
         self.initialScope = initialScope
+        self.onOpenNutritionDay = onOpenNutritionDay
         // Seeded from the route so a deep link — a calendar day, a
         // notification — lands on the record it meant rather than on the
         // first scope.
@@ -83,7 +85,7 @@ struct SupportingHistoryView: View {
         case .journal:
             JournalHistoryView()
         case .nutrition:
-            NutritionHistoryView()
+            NutritionHistoryView(onOpenNutritionDay: onOpenNutritionDay)
         }
     }
 }

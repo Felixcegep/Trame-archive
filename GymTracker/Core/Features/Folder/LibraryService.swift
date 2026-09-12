@@ -22,15 +22,25 @@ enum LibraryService {
     }
 
     /// Used by the builder, which orders exercises and can pair them into
-    /// supersets — detail that a plain `[Exercise]` cannot carry.
+    /// supersets — detail that a plain `[Exercise]` cannot carry. Warm-up and
+    /// post-workout stretches are the same links the template editor owns, so
+    /// they can be chosen while the workout is still a draft.
     @discardableResult
     static func createWorkoutTemplate(
         name: String,
         templateExercises: [TemplateExercise],
+        preWorkoutMobilityRoutine: MobilityRoutine? = nil,
+        postWorkoutMobilityRoutine: MobilityRoutine? = nil,
         using modelContext: ModelContext
     ) -> Bool {
         modelContext.insert(
-            WorkoutTemplate(name: name, exercises: [], templateExercises: templateExercises)
+            WorkoutTemplate(
+                name: name,
+                exercises: [],
+                templateExercises: templateExercises,
+                preWorkoutMobilityRoutine: preWorkoutMobilityRoutine,
+                postWorkoutMobilityRoutine: postWorkoutMobilityRoutine
+            )
         )
         return saveModelContext(modelContext)
     }

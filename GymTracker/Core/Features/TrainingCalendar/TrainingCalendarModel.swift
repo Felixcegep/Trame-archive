@@ -163,24 +163,24 @@ enum TrainingCalendarBuilder {
 
         let plannedByDay = Dictionary(grouping: planRuns.flatMap { run in
             schedulableProgress(in: run).compactMap { progress -> (String, TrainingCalendarPlannedWorkout)? in
-                guard let scheduledDate = progress.scheduledDate, isVisible(scheduledDate) else { return nil }
-                let day = LocalDay(date: scheduledDate, calendar: calendar)
+                let projectedDate: Date
+                if let scheduledDate = progress.scheduledDate {
+                    projectedDate = scheduledDate
+                } else if projectsFlexibleRemaining(
+                    progress,
+                    in: run,
+                    onto: today,
+                    today: today,
+                    calendar: calendar
+                ) {
+                    projectedDate = today
+                } else {
+                    return nil
+                }
+                guard isVisible(projectedDate) else { return nil }
                 return (
-                    day.rawValue,
-                    TrainingCalendarPlannedWorkout(
-                        id: progress.id,
-                        runID: run.id,
-                        planID: run.sourcePlanID,
-                        workoutName: progress.plannedWorkoutName,
-                        planName: run.sourcePlanName,
-                        state: PlanCalendarBuilder.displayState(
-                            status: progress.status,
-                            scheduledDate: scheduledDate,
-                            today: today,
-                            calendar: calendar
-                        ),
-                        completedWorkoutID: progress.completedWorkout?.id
-                    )
+                    LocalDay(date: projectedDate, calendar: calendar).rawValue,
+                    plannedWorkout(from: progress, in: run, today: today, calendar: calendar)
                 )
             }
         }, by: \.0)
@@ -282,23 +282,18 @@ enum TrainingCalendarBuilder {
         let day = LocalDay(date: date, calendar: calendar)
         let plannedWorkouts = planRuns.flatMap { run in
             schedulableProgress(in: run).compactMap { progress -> TrainingCalendarPlannedWorkout? in
-                guard let scheduledDate = progress.scheduledDate,
-                      calendar.isDate(scheduledDate, inSameDayAs: date)
-                else { return nil }
-                return TrainingCalendarPlannedWorkout(
-                    id: progress.id,
-                    runID: run.id,
-                    planID: run.sourcePlanID,
-                    workoutName: progress.plannedWorkoutName,
-                    planName: run.sourcePlanName,
-                    state: PlanCalendarBuilder.displayState(
-                        status: progress.status,
-                        scheduledDate: progress.scheduledDate,
-                        today: today,
-                        calendar: calendar
-                    ),
-                    completedWorkoutID: progress.completedWorkout?.id
-                )
+                if let scheduledDate = progress.scheduledDate {
+                    guard calendar.isDate(scheduledDate, inSameDayAs: date) else { return nil }
+                } else if !projectsFlexibleRemaining(
+                    progress,
+                    in: run,
+                    onto: date,
+                    today: today,
+                    calendar: calendar
+                ) {
+                    return nil
+                }
+                return plannedWorkout(from: progress, in: run, today: today, calendar: calendar)
             }
         }
         .sorted { lhs, rhs in
@@ -373,6 +368,55 @@ enum TrainingCalendarBuilder {
             nutrition: nutrition,
             checkIn: checkIn,
             creatine: creatine
+        )
+    }
+
+    private static func plannedWorkout(
+        from progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        today: Date,
+        calendar: Calendar
+    ) -> TrainingCalendarPlannedWorkout {
+        TrainingCalendarPlannedWorkout(
+            id: progress.id,
+            runID: run.id,
+            planID: run.sourcePlanID,
+            workoutName: progress.plannedWorkoutName,
+            planName: run.sourcePlanName,
+            state: PlanCalendarBuilder.displayState(
+                for: progress,
+                in: run,
+                today: today,
+                calendar: calendar
+            ),
+            completedWorkoutID: progress.completedWorkout?.id
+        )
+    }
+
+    /// Flexible-week sessions have no weekday pin. Remaining work for the
+    /// current plan week appears on today so the month grid can show what is
+    /// still open without marking every other weekday as missed.
+    private static func projectsFlexibleRemaining(
+        _ progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        onto date: Date,
+        today: Date,
+        calendar: Calendar
+    ) -> Bool {
+        guard run.plan?.scheduleMode.usesFlexibleWeekWindow == true else { return false }
+        guard progress.scheduledDate == nil else { return false }
+        switch progress.status {
+        case .available, .upcoming:
+            break
+        case .inProgress, .completed, .skipped:
+            return false
+        }
+        guard calendar.startOfDay(for: date) == calendar.startOfDay(for: today) else { return false }
+        return PlanWeekWindow.contains(
+            date,
+            weekIndex: progress.weekIndex,
+            runStart: run.startDate,
+            calendar: calendar
         )
     }
 

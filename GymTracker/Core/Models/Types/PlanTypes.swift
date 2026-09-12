@@ -32,20 +32,27 @@ enum PlanPhaseType: String, Codable, CaseIterable {
 }
 
 /// Controls how a PlanRun places future sessions on the local calendar.
-/// `dayOffset` remains the source-of-truth for fixed-weekday plans; the other
-/// modes derive dates from session order without changing the prescription.
+/// `dayOffset` remains the source-of-truth for fixed-weekday plans; sequential
+/// and interval modes derive dates from session order; `flexibleWeek` keeps
+/// sessions inside a plan week without pinning them to a weekday.
 enum PlanScheduleMode: String, Codable, CaseIterable, Hashable {
     case fixedWeekdays
     case sequential
     case everyNDays
+    case flexibleWeek
 
     var title: String {
         switch self {
         case .fixedWeekdays: return "Fixed weekdays"
         case .sequential: return "Sequential sessions"
         case .everyNDays: return "Every N days"
+        case .flexibleWeek: return "Flexible week"
         }
     }
+
+    var pinsWeekdays: Bool { self == .fixedWeekdays }
+
+    var usesFlexibleWeekWindow: Bool { self == .flexibleWeek }
 }
 
 enum PlanRunStatus: String, Codable {

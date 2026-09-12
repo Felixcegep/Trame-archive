@@ -95,7 +95,7 @@ struct ActiveWorkoutStageHeader: View {
                         Button {
                             onAddMobility()
                         } label: {
-                            Label("Add mobility", systemImage: AppIcon.mobility)
+                            Label("Add stretch", systemImage: AppIcon.mobility)
                         }
                         .accessibilityIdentifier("add-active-mobility-menu")
                     }

@@ -8,6 +8,7 @@ struct WorkoutSaveView: View {
     @Binding var navigationPath: [ActiveWorkoutRoute]
     @Binding var isPresented: Bool
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
+    let onOpenNutrition: (() -> Void)?
     /// Returns whether the root training cover should dismiss. A linked
     /// post-workout mobility stage returns `false` so execution can continue
     /// in the same cover after the strength evidence has been committed.
@@ -30,6 +31,7 @@ struct WorkoutSaveView: View {
     /// so neither can fire from anything except a completed attempt.
     @State private var saveSucceededCount = 0
     @State private var saveFailedCount = 0
+    @State private var shouldOpenNutritionAfterSave = false
     @FocusState private var isNotesFocused: Bool
 
     init(
@@ -37,6 +39,7 @@ struct WorkoutSaveView: View {
         navigationPath: Binding<[ActiveWorkoutRoute]>,
         isPresented: Binding<Bool>,
         activeLoggingMetrics: ActiveLoggingMetricsRecorder,
+        onOpenNutrition: (() -> Void)? = nil,
         onWorkoutSaved: @escaping (UUID) -> Bool,
         onDiscardRequested: @escaping () -> Void
     ) {
@@ -44,6 +47,7 @@ struct WorkoutSaveView: View {
         _navigationPath = navigationPath
         _isPresented = isPresented
         self.activeLoggingMetrics = activeLoggingMetrics
+        self.onOpenNutrition = onOpenNutrition
         self.onWorkoutSaved = onWorkoutSaved
         self.onDiscardRequested = onDiscardRequested
 
@@ -305,6 +309,17 @@ struct WorkoutSaveView: View {
                 }
                 .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("save-workout")
+
+                if FeatureFlags.current.isEnabled(.nutrition), onOpenNutrition != nil {
+                    Button("Save and log food") {
+                        shouldOpenNutritionAfterSave = true
+                        saveWorkout()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                    .accessibilityIdentifier("save-workout-and-log-food")
+                }
 
                 Button("Discard workout", role: .destructive) {
                     isShowingDiscardConfirmation = true
@@ -617,6 +632,9 @@ struct WorkoutSaveView: View {
         activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
         let shouldDismissTraining = onWorkoutSaved(workoutID)
         navigationPath.removeAll()
+        if shouldOpenNutritionAfterSave {
+            onOpenNutrition?()
+        }
         if shouldDismissTraining {
             isPresented = false
         }

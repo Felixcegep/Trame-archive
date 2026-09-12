@@ -192,15 +192,20 @@ struct DataSafetyService {
         from context: ModelContext,
         restTimer: Int,
         darkMode: Bool,
-        unitSystem: UnitSystem
+        unitSystem: UnitSystem,
+        selection: BackupExportSelection = .everything
     ) async throws -> DataSafetyExportResult {
+        guard selection.isEmpty == false else {
+            throw BackupExportError.nothingSelected
+        }
+
         // A second context sees only committed data. Preserve the previous
         // export contract for a caller with pending edits by reading the
         // caller's context in that case; the normal saved-store path moves
         // the expensive graph traversal to the model actor.
-        let backup: BackupDTO
+        let snapshot: BackupDTO
         if context.hasChanges {
-            backup = try BackupDTO.create(
+            snapshot = try BackupDTO.create(
                 from: context,
                 restTimer: restTimer,
                 darkMode: darkMode,
@@ -208,12 +213,13 @@ struct DataSafetyService {
             )
         } else {
             let snapshotActor = BackupSnapshotActor(modelContainer: context.container)
-            backup = try await snapshotActor.makeBackup(
+            snapshot = try await snapshotActor.makeBackup(
                 restTimer: restTimer,
                 darkMode: darkMode,
                 unitSystem: unitSystem
             )
         }
+        let backup = try snapshot.applying(selection)
 
         let targetDirectory = fileManager.temporaryDirectory
         let archive = try await Task.detached(priority: .utility) {
@@ -238,6 +244,7 @@ struct DataSafetyService {
         restTimer: Int,
         darkMode: Bool,
         unitSystem: UnitSystem,
+        selection: BackupExportSelection = .everything,
         defaults: UserDefaults = .standard,
         fileManager: FileManager = .default
     ) async throws -> DataSafetyExportResult {
@@ -245,7 +252,8 @@ struct DataSafetyService {
             from: context,
             restTimer: restTimer,
             darkMode: darkMode,
-            unitSystem: unitSystem
+            unitSystem: unitSystem,
+            selection: selection
         )
     }
 }

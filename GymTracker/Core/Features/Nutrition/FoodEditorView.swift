@@ -72,6 +72,13 @@ struct FoodEditorView: View {
                         }
                     }
                 }
+                if isReplacingReferencedFood {
+                    Section {
+                        Text("This food is in logged meals or recipes. Saving archives the previous definition and creates a new one. History keeps its original snapshots.")
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .background(Color.gymBackground)
@@ -91,6 +98,11 @@ struct FoodEditorView: View {
         }
     }
 
+    private var isReplacingReferencedFood: Bool {
+        guard let food, food.sourceKind == .userCreated else { return false }
+        return FoodLibraryService.isReferenced(food, using: modelContext)
+    }
+
     private func load() {
         guard let food else { return }
         name = food.name; referenceAmount = food.referenceAmount; referenceUnit = food.referenceUnit
@@ -106,31 +118,100 @@ struct FoodEditorView: View {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let amount = referenceAmount, amount > 0 else { errorMessage = "Enter a positive reference amount."; return }
         let allFoods = (try? modelContext.fetch(FetchDescriptor<FoodItem>())) ?? []
-        guard allFoods.allSatisfy({ $0.id == food?.id || $0.name.localizedCaseInsensitiveCompare(trimmed) != .orderedSame }) else { errorMessage = "A food with that name already exists."; return }
+        guard allFoods.allSatisfy({ candidate in
+            if candidate.id == food?.id { return true }
+            if candidate.isArchived { return true }
+            return candidate.name.localizedCaseInsensitiveCompare(trimmed) != .orderedSame
+        }) else { errorMessage = "A food with that name already exists."; return }
         guard [calories, protein, carbohydrates, fat, caffeine].allSatisfy({ ($0 ?? 0) >= 0 }) else { errorMessage = "Nutrition values must be positive numbers or left blank."; return }
-        let target = food ?? FoodItem(name: trimmed)
-        target.name = trimmed; target.referenceAmount = amount; target.referenceUnit = referenceUnit
-        target.calories = calories; target.proteinGrams = protein; target.carbohydrateGrams = carbohydrates; target.fatGrams = fat
-        target.caffeineMilligrams = caffeine
-        let trimmedNPN = npn.trimmingCharacters(in: .whitespacesAndNewlines)
-        target.npn = trimmedNPN.isEmpty ? nil : trimmedNPN
-        target.confidence = confidence; target.preparationState = preparation; target.updatedAt = .now
-        if food == nil { modelContext.insert(target) }
         let trimmedServing = servingName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if removesQuickServing {
-            for serving in target.servings { modelContext.delete(serving) }
-            target.servings = []
-        } else if trimmedServing.isEmpty == false {
+        if removesQuickServing == false, trimmedServing.isEmpty == false {
             guard let servingAmount, servingAmount > 0,
-                  let equivalent = servingEquivalentReferenceAmount, equivalent > 0 else { errorMessage = "Enter positive serving and equivalent reference amounts."; return }
-            let priorServings = target.servings
-            target.servings = [FoodServing(name: trimmedServing, amount: servingAmount, unit: servingUnit, equivalentReferenceAmount: equivalent)]
-            for serving in priorServings { modelContext.delete(serving) }
+                  let equivalent = servingEquivalentReferenceAmount, equivalent > 0 else {
+                errorMessage = "Enter positive serving and equivalent reference amounts."
+                return
+            }
         }
+        let trimmedNPN = npn.trimmingCharacters(in: .whitespacesAndNewlines)
+        let npnValue = trimmedNPN.isEmpty ? nil : trimmedNPN
+
+        let target: FoodItem
+        if isReplacingReferencedFood, let original = food {
+            let wasFavorite = original.isFavorite
+            original.isArchived = true
+            original.isFavorite = false
+            original.updatedAt = .now
+            target = FoodItem(
+                name: trimmed,
+                referenceAmount: amount,
+                referenceUnit: referenceUnit,
+                calories: calories,
+                proteinGrams: protein,
+                carbohydrateGrams: carbohydrates,
+                fatGrams: fat,
+                caffeineMilligrams: caffeine,
+                npn: npnValue,
+                sourceKind: original.sourceKind,
+                confidence: confidence,
+                preparationState: preparation,
+                isFavorite: wasFavorite
+            )
+            target.searchAliases = original.searchAliases
+            target.frenchName = original.frenchName
+            target.categoryName = original.categoryName
+            modelContext.insert(target)
+            applyServing(to: target)
+            retargetRecipes(from: original, to: target)
+        } else {
+            target = food ?? FoodItem(name: trimmed)
+            target.name = trimmed
+            target.referenceAmount = amount
+            target.referenceUnit = referenceUnit
+            target.calories = calories
+            target.proteinGrams = protein
+            target.carbohydrateGrams = carbohydrates
+            target.fatGrams = fat
+            target.caffeineMilligrams = caffeine
+            target.npn = npnValue
+            target.confidence = confidence
+            target.preparationState = preparation
+            target.updatedAt = .now
+            if food == nil { modelContext.insert(target) }
+            applyServing(to: target)
+        }
+
         guard modelContext.saveOrRollback() else {
             errorMessage = "The food could not be saved. Try again."
             return
         }
         dismiss()
+    }
+
+    private func applyServing(to target: FoodItem) {
+        let trimmedServing = servingName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if removesQuickServing {
+            for serving in target.servings { modelContext.delete(serving) }
+            target.servings = []
+        } else if trimmedServing.isEmpty == false, let servingAmount, let equivalent = servingEquivalentReferenceAmount {
+            let priorServings = target.servings
+            target.servings = [FoodServing(name: trimmedServing, amount: servingAmount, unit: servingUnit, equivalentReferenceAmount: equivalent)]
+            for serving in priorServings { modelContext.delete(serving) }
+        }
+    }
+
+    private func retargetRecipes(from original: FoodItem, to replacement: FoodItem) {
+        let items = original.mealTemplateItems
+        for item in items {
+            let previousServing = original.servings.first { $0.id == item.servingID }
+            item.food = replacement
+            if let previousServing,
+               let mapped = replacement.servings.first(where: {
+                   $0.name == previousServing.name && $0.amount == previousServing.amount
+               }) {
+                item.servingID = mapped.id
+            } else {
+                item.servingID = replacement.orderedServings.first?.id
+            }
+        }
     }
 }

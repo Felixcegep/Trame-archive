@@ -17,6 +17,23 @@ struct StageFinishPage: View {
     let blockers: [String]
     let onJumpToPage: (WorkoutStagePage) -> Void
     let onAdjustDuration: (TimeInterval) -> Void
+    /// Starts a mid-session stretch from the empty-session page. Nil when
+    /// mobility is unavailable; the command bar still adds the first exercise.
+    let onAddMobility: (() -> Void)?
+
+    init(
+        workout: Workout,
+        blockers: [String],
+        onJumpToPage: @escaping (WorkoutStagePage) -> Void,
+        onAdjustDuration: @escaping (TimeInterval) -> Void,
+        onAddMobility: (() -> Void)? = nil
+    ) {
+        self.workout = workout
+        self.blockers = blockers
+        self.onJumpToPage = onJumpToPage
+        self.onAdjustDuration = onAdjustDuration
+        self.onAddMobility = onAddMobility
+    }
 
     @State private var isEditingDuration = false
 
@@ -81,12 +98,35 @@ struct StageFinishPage: View {
                 .font(AppFont.stageTitle)
                 .foregroundStyle(Color.trameText)
                 .accessibilityAddTraits(.isHeader)
-            Text("Add exercises as you go. Reorder from More.")
+            Text(emptyWorkoutGuidance)
                 .font(AppFont.body)
                 .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if let onAddMobility {
+                Button(action: onAddMobility) {
+                    Label("Add stretch", systemImage: AppIcon.mobility)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.trameMobility)
+                        .frame(
+                            minHeight: ComponentSize.minimumTouchTarget,
+                            alignment: .leading
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Starts a stretch inside this workout.")
+                .accessibilityIdentifier("add-first-mobility-empty")
+            }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("empty-workout-state")
+    }
+
+    private var emptyWorkoutGuidance: LocalizedStringKey {
+        onAddMobility == nil
+            ? "Add exercises as you go. Reorder from More."
+            : "Add exercises as you go. A stretch can start from here too."
     }
 
     private var summaryCard: some View {

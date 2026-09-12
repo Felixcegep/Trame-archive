@@ -42,13 +42,14 @@ struct TodayWorkoutSummary {
             )
         }
         if let activePlanRun, let nextPlanProgress {
-            let timing = nextPlanProgress.scheduledDate.map {
-                calendar.isDateInToday($0) ? "Today" : "Start when you are ready"
-            } ?? "Start when you are ready"
             return .init(
                 kind: .planned,
                 title: nextPlanProgress.plannedWorkoutName,
-                subtitle: "\(activePlanRun.sourcePlanName) · Week \(nextPlanProgress.weekIndex + 1) · \(timing)"
+                subtitle: plannedSubtitle(
+                    run: activePlanRun,
+                    progress: nextPlanProgress,
+                    calendar: calendar
+                )
             )
         }
         return resolve(
@@ -100,12 +101,14 @@ struct TodayWorkoutSummary {
 
         if let activePlanRun = activeFixedRuns.first,
            let nextPlanProgress = PlanCoordinator.nextProgress(in: activePlanRun) {
-            let timing = nextPlanProgress.scheduledDate.map { calendar.isDateInToday($0) ? "Today" : "Start when you are ready" }
-                ?? "Start when you are ready"
             return .init(
                 kind: .planned,
                 title: nextPlanProgress.plannedWorkoutName,
-                subtitle: "\(activePlanRun.sourcePlanName) · Week \(nextPlanProgress.weekIndex + 1) · \(timing)"
+                subtitle: plannedSubtitle(
+                    run: activePlanRun,
+                    progress: nextPlanProgress,
+                    calendar: calendar
+                )
             )
         }
 
@@ -140,6 +143,28 @@ struct TodayWorkoutSummary {
         }
 
         return .init(kind: .free, title: "Free Workout", subtitle: "Jump in and add exercises as you go.")
+    }
+
+    private static func plannedSubtitle(
+        run: PlanRun,
+        progress: PlanWorkoutProgress,
+        calendar: Calendar
+    ) -> String {
+        let timing: String
+        if run.plan?.scheduleMode.usesFlexibleWeekWindow == true {
+            let remaining = run.orderedWorkoutProgress.filter {
+                $0.weekIndex == progress.weekIndex
+                    && ($0.status == .available || $0.status == .upcoming)
+            }.count
+            timing = remaining == 1
+                ? String(localized: "1 remaining this week")
+                : String(localized: "\(remaining) remaining this week")
+        } else if let scheduledDate = progress.scheduledDate, calendar.isDateInToday(scheduledDate) {
+            timing = String(localized: "Today")
+        } else {
+            timing = String(localized: "Start when you are ready")
+        }
+        return "\(run.sourcePlanName) · Week \(progress.weekIndex + 1) · \(timing)"
     }
 }
 

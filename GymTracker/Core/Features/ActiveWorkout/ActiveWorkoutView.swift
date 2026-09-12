@@ -494,7 +494,10 @@ struct ActiveWorkoutView: View {
                 onAdjustDuration: { duration in
                     _ = workout.updateElapsedDuration(duration)
                     viewModel.persistChanges()
-                }
+                },
+                onAddMobility: FeatureFlags.current.isEnabled(.mobility)
+                    ? { isShowingMobilityInsertPicker = true }
+                    : nil
             )
         } else {
             ExerciseStagePage(

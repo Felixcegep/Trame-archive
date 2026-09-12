@@ -53,6 +53,32 @@ final class PlanSchedulingTests: XCTestCase {
         }
     }
 
+    func testFlexibleWeekStartLeavesSessionsUnscheduled() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        plan.scheduleMode = .flexibleWeek
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: start))
+
+        XCTAssertEqual(run.orderedWorkoutProgress.count, 2)
+        XCTAssertTrue(run.orderedWorkoutProgress.allSatisfy { $0.scheduledDate == nil })
+        XCTAssertEqual(run.orderedWorkoutProgress.map(\.weekIndex), [0, 0])
+        XCTAssertEqual(PlanCoordinator.nextProgress(in: run)?.workoutIndex, 0)
+    }
+
+    func testFlexibleWeekResumeDoesNotInventWeekdayPins() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        plan.scheduleMode = .flexibleWeek
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        run.status = .paused
+        PlanCoordinator.resume(run, at: Date(timeIntervalSince1970: 1_700_086_400))
+
+        XCTAssertTrue(run.orderedWorkoutProgress.allSatisfy { $0.scheduledDate == nil })
+    }
+
     func testReschedulingPromotesTheEarlierScheduledSessionToAvailable() throws {
         let context = try makeContext()
         let plan = try makeScheduledPlan(in: context)

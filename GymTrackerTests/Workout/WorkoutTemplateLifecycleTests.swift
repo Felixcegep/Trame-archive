@@ -91,6 +91,40 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
         XCTAssertTrue(templates.contains { $0.id == template.id })
     }
 
+    func testCreateTemplatePersistsWarmupAndPostWorkoutStretches() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
+        let warmup = MobilityRoutine(name: "Hip openers")
+        let cooldown = MobilityRoutine(name: "Down dogs")
+        let movement = MobilityDefinition(name: "World's greatest")
+        warmup.items = [
+            MobilityRoutineItem(definition: movement, orderIndex: 0, targetDurationSeconds: 30, side: .left)
+        ]
+        cooldown.items = [
+            MobilityRoutineItem(definition: movement, orderIndex: 0, targetDurationSeconds: 45, side: .bilateral)
+        ]
+        context.insert(exercise)
+        context.insert(movement)
+        context.insert(warmup)
+        context.insert(cooldown)
+        try context.save()
+
+        let created = LibraryService.createWorkoutTemplate(
+            name: "Lower Body",
+            templateExercises: [TemplateExercise(exercise: exercise, order: 0)],
+            preWorkoutMobilityRoutine: warmup,
+            postWorkoutMobilityRoutine: cooldown,
+            using: context
+        )
+
+        XCTAssertTrue(created)
+        let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        let template = try XCTUnwrap(templates.first { $0.name == "Lower Body" })
+        XCTAssertEqual(template.preWorkoutMobilityRoutine?.id, warmup.id)
+        XCTAssertEqual(template.postWorkoutMobilityRoutine?.id, cooldown.id)
+        XCTAssertEqual(template.orderedTemplateExercises.first?.exercise.name, "Squat")
+    }
+
     func testRestoreArchivedTemplateClearsArchivedFlag() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let template = WorkoutTemplate(name: "Archived Template", exercises: [], isArchived: true)

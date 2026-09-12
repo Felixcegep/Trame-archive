@@ -50,6 +50,26 @@ struct HomeWeekSummaryCard: View {
     private var scheduledDays: [TrainingWeekSummary.ScheduledDay] {
         var days: [TrainingWeekSummary.ScheduledDay] = []
         for run in planRuns where run.status == .active {
+            if run.plan?.scheduleMode.usesFlexibleWeekWindow == true {
+                guard let next = PlanCoordinator.nextProgress(in: run),
+                      next.status == .available || next.status == .upcoming
+                else { continue }
+                let calendar = Calendar.current
+                let today = calendar.startOfDay(for: .now)
+                guard PlanWeekWindow.contains(
+                    today,
+                    weekIndex: next.weekIndex,
+                    runStart: run.startDate,
+                    calendar: calendar
+                ) else { continue }
+                days.append(
+                    TrainingWeekSummary.ScheduledDay(
+                        date: today,
+                        title: next.plannedWorkoutName
+                    )
+                )
+                continue
+            }
             for progress in run.workoutProgress {
                 guard progress.status == .upcoming || progress.status == .available,
                       let date = progress.scheduledDate

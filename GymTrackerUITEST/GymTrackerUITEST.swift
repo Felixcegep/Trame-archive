@@ -130,8 +130,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             expectedHomeControl: "tab-nutrition"
         )
         selectTab(.nutrition, in: app)
-        let entries = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "logged-meal-"))
-        XCTAssertTrue(entries.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
+        let entries = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "logged-meal-")
+        )
+        scrollToElement(entries.firstMatch, in: app)
         let originalCount = entries.count
 
         entries.firstMatch.tap()
@@ -1116,9 +1120,16 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(exportButton.exists)
         exportButton.tap()
         XCTAssertTrue(
+            app.descendants(matching: .any)["backup-export-wizard"].waitForExistence(timeout: 5),
+            "Export should open a wizard so the person can choose what to include."
+        )
+        tapButton("backup-export-continue", in: app)
+        tapButton("backup-export-create", in: app, timeout: 15)
+        XCTAssertTrue(
             app.buttons["Share Export"].waitForExistence(timeout: 10),
             "A produced backup should expose the share action."
         )
+        XCTAssertTrue(app.buttons["settings-save-backup-to-phone"].waitForExistence(timeout: 5))
         let updatedLastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
         XCTAssertFalse(updatedLastExport.label.contains("Never"))
         XCTAssertNotEqual(updatedLastExport.value as? String, "Never")
@@ -1242,6 +1253,48 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.buttons["save-template"].tap()
 
         assertLibrarySearchResult("Push Integration Template", in: app)
+    }
+
+    func testNewWorkoutDirtyCancelAsksToKeepDraft() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("Create library item", in: app)
+        XCTAssertTrue(app.buttons["New Workout"].waitForExistence(timeout: 5))
+        app.buttons["New Workout"].tap()
+
+        let nameField = app.textFields["template-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Keep This Draft")
+        XCTAssertEqual(nameField.value as? String, "Keep This Draft")
+        if app.buttons["dismiss-template-search-keyboard"].waitForExistence(timeout: 2) {
+            app.buttons["dismiss-template-search-keyboard"].tap()
+        }
+        XCTAssertTrue(app.buttons["save-template"].firstMatch.isEnabled)
+
+        let cancel = app.navigationBars["New Workout"].buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        cancel.tap()
+        tapButton("keep-editing-workout-template", in: app)
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        XCTAssertEqual(nameField.value as? String, "Keep This Draft")
+
+        cancel.tap()
+        tapButton("confirm-discard-workout-template", in: app)
+        XCTAssertTrue(nameField.waitForNonExistence(timeout: 5))
+    }
+
+    func testEmptyActiveWorkoutCanAddStretch() {
+        let app = launchFreshApp()
+        startEmptyWorkout(in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 5))
+        tapControl("add-first-mobility-empty", in: app)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["active-workout-mobility-insert-picker"]
+                .waitForExistence(timeout: 10)
+        )
+        tapButton("cancel-active-workout-mobility-insert", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 5))
     }
 
     func testCreatesPlanStartsRunAndLaunchesPlannedWorkout() {

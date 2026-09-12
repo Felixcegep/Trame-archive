@@ -7,7 +7,7 @@ struct TrainingCalendarView: View {
     @Environment(\.modelContext) private var modelContext
 
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
-    let onOpenNutrition: () -> Void
+    let onOpenNutrition: (LocalDay) -> Void
     let onOpenMobilityHistory: () -> Void
     let onOpenJournalHistory: () -> Void
 
@@ -411,7 +411,7 @@ private struct TrainingCalendarDayAgenda: View {
     let onStart: (TrainingCalendarPlannedWorkout) -> Void
     let onReschedule: (TrainingCalendarPlannedWorkout) -> Void
     let onSkip: (TrainingCalendarPlannedWorkout) -> Void
-    let onOpenNutrition: () -> Void
+    let onOpenNutrition: (LocalDay) -> Void
     let onOpenMobilityHistory: () -> Void
     let onOpenJournalHistory: () -> Void
 
@@ -428,12 +428,19 @@ private struct TrainingCalendarDayAgenda: View {
                 performedSection
                 contextSection
             } else {
-                ContentUnavailableView(
-                    "Nothing recorded for this day",
-                    systemImage: AppIcon.plan,
-                    description: Text("Training, mobility, nutrition, and check-ins will appear here."))
+                VStack(spacing: Spacing.l) {
+                    ContentUnavailableView(
+                        "Nothing recorded for this day",
+                        systemImage: AppIcon.plan,
+                        description: Text("Training, mobility, nutrition, and check-ins will appear here."))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.xl)
+                    if featureFlags.isEnabled(.nutrition) {
+                        Button("Log nutrition") { onOpenNutrition(day.day) }
+                            .buttonStyle(.tramePrimaryAction)
+                            .accessibilityIdentifier("training-calendar-log-nutrition")
+                    }
+                }
             }
         }
     }
@@ -585,25 +592,34 @@ private struct TrainingCalendarDayAgenda: View {
 
     @ViewBuilder
     private var contextSection: some View {
-        if (featureFlags.isEnabled(.nutrition) && day.nutrition != nil)
+        if featureFlags.isEnabled(.nutrition)
             || day.checkIn != nil
             || day.creatine != nil {
             agendaSection("Daily context", icon: AppIcon.nutrition) {
-                if featureFlags.isEnabled(.nutrition), let nutrition = day.nutrition {
-                    Button(action: onOpenNutrition) {
+                if featureFlags.isEnabled(.nutrition) {
+                    Button {
+                        onOpenNutrition(day.day)
+                    } label: {
                         HStack(spacing: Spacing.m) {
                             Image(systemName: AppIcon.nutrition).foregroundStyle(Color.trameConditioning)
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text("Nutrition").font(AppFont.subheadlineSemibold)
-                                Text("\(FoodLibraryService.format(nutrition.totals.calories)) kcal · \(FoodLibraryService.format(nutrition.totals.protein)) g protein")
-                                    .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
-                                if nutrition.totals.hasUnknownValues {
-                                    Text("Some nutrients unknown").font(AppFont.caption).foregroundStyle(Color.trameAttention)
+                                if let nutrition = day.nutrition {
+                                    Text("\(FoodLibraryService.format(nutrition.totals.calories)) kcal · \(FoodLibraryService.format(nutrition.totals.protein)) g protein")
+                                        .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
+                                    if nutrition.totals.hasUnknownValues {
+                                        Text("Some nutrients unknown").font(AppFont.caption).foregroundStyle(Color.trameAttention)
+                                    }
+                                } else {
+                                    Text("Log food for this day")
+                                        .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
                                 }
                             }
                             Spacer()
-                            Text("\(nutrition.mealCount) meal\(nutrition.mealCount == 1 ? "" : "s")")
-                                .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
+                            if let nutrition = day.nutrition {
+                                Text("\(nutrition.mealCount) meal\(nutrition.mealCount == 1 ? "" : "s")")
+                                    .font(AppFont.caption).foregroundStyle(Color.trameSubdued)
+                            }
                         }
                     }
                     .buttonStyle(.plain)

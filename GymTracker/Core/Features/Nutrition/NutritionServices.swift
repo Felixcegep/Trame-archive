@@ -53,6 +53,16 @@ enum FoodLibraryService {
         return saved
     }
 
+    static func isReferenced(_ food: FoodItem, using context: ModelContext) -> Bool {
+        let foodID = food.id
+        var historyDescriptor = FetchDescriptor<LoggedMealItem>(
+            predicate: #Predicate { $0.sourceFoodID == foodID }
+        )
+        historyDescriptor.fetchLimit = 1
+        let isReferencedByHistory = ((try? context.fetch(historyDescriptor))?.isEmpty == false)
+        return isReferencedByHistory || food.mealTemplateItems.isEmpty == false
+    }
+
     static func archiveOrDelete(_ food: FoodItem, using context: ModelContext) throws {
         let foodID = food.id
         var historyDescriptor = FetchDescriptor<LoggedMealItem>(
@@ -116,6 +126,127 @@ enum FoodLibraryService {
     }
 }
 
+enum NutritionLogQuantity {
+    static let massRange: ClosedRange<Double> = 0.5...5_000
+    static let countRange: ClosedRange<Double> = 0.05...50
+
+    static func displayedAmount(quantity: Double, portion: FoodPortion) -> Double {
+        switch portion.unit {
+        case .grams, .milliliters: quantity * portion.amount
+        case .count, .serving: quantity
+        }
+    }
+
+    static func quantity(amount: Double, portion: FoodPortion) -> Double {
+        switch portion.unit {
+        case .grams, .milliliters:
+            guard portion.amount > 0 else { return 0 }
+            return amount / portion.amount
+        case .count, .serving:
+            return amount
+        }
+    }
+
+    static func amountRange(for portion: FoodPortion) -> ClosedRange<Double> {
+        switch portion.unit {
+        case .grams, .milliliters: massRange
+        case .count, .serving: countRange
+        }
+    }
+
+    static func amountFieldTitle(for portion: FoodPortion) -> String {
+        switch portion.unit {
+        case .grams: "Grams"
+        case .milliliters: "Millilitres"
+        case .count, .serving: "Quantity"
+        }
+    }
+
+    static func isValid(quantity: Double, portionAmount: Double, unit: NutritionServingUnit) -> Bool {
+        guard quantity > 0, portionAmount > 0 else { return false }
+        switch unit {
+        case .grams, .milliliters:
+            return massRange.contains(quantity * portionAmount)
+        case .count, .serving:
+            return countRange.contains(quantity)
+        }
+    }
+}
+
+struct NutritionRecentEntry: Equatable, Identifiable {
+    var id: UUID { food.id }
+    let food: FoodItem
+    let logCount: Int
+    let lastQuantity: Double
+    let lastPortion: FoodPortion
+    let lastSlot: MealSlot
+}
+
+enum NutritionRecentFoods {
+    static let favoriteLimit = 8
+    static let recentLimit = 12
+
+    static func ranked(foods: [FoodItem], meals: [LoggedMeal]) -> [NutritionRecentEntry] {
+        let available = Dictionary(uniqueKeysWithValues: foods.map { ($0.id, $0) })
+        var counts: [UUID: Int] = [:]
+        var lastItem: [UUID: LoggedMealItem] = [:]
+        var lastSlot: [UUID: MealSlot] = [:]
+        for meal in meals.sorted(by: { $0.loggedAt > $1.loggedAt }) {
+            for item in meal.orderedItems {
+                guard let foodID = item.sourceFoodID, available[foodID] != nil else { continue }
+                counts[foodID, default: 0] += 1
+                if lastItem[foodID] == nil {
+                    lastItem[foodID] = item
+                    lastSlot[foodID] = meal.slot
+                }
+            }
+        }
+        return counts.keys.compactMap { foodID -> NutritionRecentEntry? in
+            guard let food = available[foodID], let item = lastItem[foodID] else { return nil }
+            let portion = FoodPortion(
+                id: nil,
+                name: item.servingNameSnapshot,
+                amount: item.portionAmountSnapshot,
+                unit: item.portionUnit,
+                equivalentReferenceAmount: item.portionAmountSnapshot
+            )
+            return NutritionRecentEntry(
+                food: food,
+                logCount: counts[foodID] ?? 0,
+                lastQuantity: item.quantity,
+                lastPortion: portion,
+                lastSlot: lastSlot[foodID] ?? .snack
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.logCount != rhs.logCount { return lhs.logCount > rhs.logCount }
+            return lhs.food.name.localizedCaseInsensitiveCompare(rhs.food.name) == .orderedAscending
+        }
+        .prefix(recentLimit)
+        .map { $0 }
+    }
+}
+
+struct NutritionEstimateDraftItem: Equatable, Sendable {
+    var name: String
+    var calories: Double?
+    var proteinGrams: Double?
+    var carbohydrateGrams: Double?
+    var fatGrams: Double?
+
+    var sanitized: NutritionEstimateDraftItem? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        return NutritionEstimateDraftItem(
+            name: trimmed,
+            calories: calories.map { max($0, 0) },
+            proteinGrams: proteinGrams.map { max($0, 0) },
+            carbohydrateGrams: carbohydrateGrams.map { max($0, 0) },
+            fatGrams: fatGrams.map { max($0, 0) }
+        )
+    }
+}
+
 @MainActor
 enum NutritionLoggingService {
     @discardableResult
@@ -128,8 +259,10 @@ enum NutritionLoggingService {
         loggedAt: Date = .now,
         using context: ModelContext
     ) -> LoggedMeal? {
-        guard quantity > 0, food.isArchived == false else { return nil }
         let selected = portion ?? FoodLibraryService.defaultPortion(for: food)
+        guard food.isArchived == false,
+              NutritionLogQuantity.isValid(quantity: quantity, portionAmount: selected.amount, unit: selected.unit)
+        else { return nil }
         let meal = LoggedMeal(day: day ?? .today, slot: slot, loggedAt: loggedAt, nameSnapshot: food.name)
         meal.items = [snapshot(food: food, portion: selected, quantity: quantity, orderIndex: 0)]
         context.insert(meal)
@@ -157,6 +290,67 @@ enum NutritionLoggingService {
         guard meal.items.isEmpty == false else { return nil }
         context.insert(meal)
         return save(meal, using: context) ? meal : nil
+    }
+
+    @discardableResult
+    static func logEstimate(
+        name: String,
+        calories: Double?,
+        proteinGrams: Double?,
+        carbohydrateGrams: Double?,
+        fatGrams: Double?,
+        day: LocalDay? = nil,
+        slot: MealSlot = .snack,
+        loggedAt: Date = .now,
+        using context: ModelContext
+    ) -> LoggedMeal? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        let meal = LoggedMeal(day: day ?? .today, slot: slot, loggedAt: loggedAt, nameSnapshot: trimmed)
+        meal.items = [
+            estimatedItem(
+                name: trimmed,
+                calories: calories,
+                proteinGrams: proteinGrams,
+                carbohydrateGrams: carbohydrateGrams,
+                fatGrams: fatGrams,
+                orderIndex: 0
+            )
+        ]
+        context.insert(meal)
+        return save(meal, using: context) ? meal : nil
+    }
+
+    @discardableResult
+    static func logEstimates(
+        name: String,
+        items: [NutritionEstimateDraftItem],
+        day: LocalDay? = nil,
+        slot: MealSlot = .snack,
+        loggedAt: Date = .now,
+        using context: ModelContext
+    ) -> LoggedMeal? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let validItems = items.compactMap(\.sanitized)
+        guard trimmed.isEmpty == false, validItems.isEmpty == false else { return nil }
+        let meal = LoggedMeal(day: day ?? .today, slot: slot, loggedAt: loggedAt, nameSnapshot: trimmed)
+        meal.items = validItems.enumerated().map { index, item in
+            estimatedItem(
+                name: item.name,
+                calories: item.calories,
+                proteinGrams: item.proteinGrams,
+                carbohydrateGrams: item.carbohydrateGrams,
+                fatGrams: item.fatGrams,
+                orderIndex: index
+            )
+        }
+        context.insert(meal)
+        return save(meal, using: context) ? meal : nil
+    }
+
+    @discardableResult
+    static func copyMeals(_ sources: [LoggedMeal], to day: LocalDay, slot: MealSlot? = nil, using context: ModelContext) -> [LoggedMeal] {
+        sources.compactMap { repeatMeal($0, day: day, slot: slot, using: context) }
     }
 
     @discardableResult
@@ -196,8 +390,9 @@ enum NutritionLoggingService {
         slot: MealSlot,
         using context: ModelContext
     ) -> Bool {
-        guard (0.25...20).contains(quantity), meal.items.count == 1, let item = meal.items.first,
-              item.quantity > 0 else { return false }
+        guard meal.items.count == 1, let item = meal.items.first, item.quantity > 0,
+              NutritionLogQuantity.isValid(quantity: quantity, portionAmount: item.portionAmountSnapshot, unit: item.portionUnit)
+        else { return false }
         let multiplier = quantity / item.quantity
         let replacement = LoggedMeal(
             day: LocalDay(rawValue: meal.dayKey),
@@ -224,6 +419,56 @@ enum NutritionLoggingService {
             preparationState: FoodPreparationState(rawValue: item.preparationStateRaw) ?? .raw,
             orderIndex: item.orderIndex
         )]
+        context.insert(replacement)
+        context.delete(meal)
+        do {
+            try context.save()
+            return true
+        } catch {
+            context.rollback()
+            return false
+        }
+    }
+
+    /// Scales every snapshotted item by `factor` without re-reading foods.
+    @discardableResult
+    static func rescaleMeal(_ meal: LoggedMeal, factor: Double, slot: MealSlot, using context: ModelContext) -> Bool {
+        guard factor > 0, meal.items.isEmpty == false else { return false }
+        let allValid = meal.orderedItems.allSatisfy { item in
+            NutritionLogQuantity.isValid(
+                quantity: item.quantity * factor,
+                portionAmount: item.portionAmountSnapshot,
+                unit: item.portionUnit
+            )
+        }
+        guard allValid else { return false }
+        let replacement = LoggedMeal(
+            day: LocalDay(rawValue: meal.dayKey),
+            slot: slot,
+            loggedAt: meal.loggedAt,
+            nameSnapshot: meal.nameSnapshot,
+            sourceMealTemplateID: meal.sourceMealTemplateID,
+            sourceMealTemplateName: meal.sourceMealTemplateName
+        )
+        replacement.items = meal.orderedItems.enumerated().map { index, item in
+            LoggedMealItem(
+                sourceFoodID: item.sourceFoodID,
+                foodNameSnapshot: item.foodNameSnapshot,
+                servingNameSnapshot: item.servingNameSnapshot,
+                quantity: item.quantity * factor,
+                portionAmountSnapshot: item.portionAmountSnapshot,
+                portionUnit: item.portionUnit,
+                caloriesSnapshot: item.caloriesSnapshot.map { $0 * factor },
+                proteinGramsSnapshot: item.proteinGramsSnapshot.map { $0 * factor },
+                carbohydrateGramsSnapshot: item.carbohydrateGramsSnapshot.map { $0 * factor },
+                fatGramsSnapshot: item.fatGramsSnapshot.map { $0 * factor },
+                caffeineMilligramsSnapshot: item.caffeineMilligramsSnapshot.map { $0 * factor },
+                sourceKind: FoodSourceKind(rawValue: item.sourceKindRaw) ?? .userCreated,
+                confidence: FoodConfidence(rawValue: item.confidenceRaw) ?? .userProvided,
+                preparationState: FoodPreparationState(rawValue: item.preparationStateRaw) ?? .raw,
+                orderIndex: index
+            )
+        }
         context.insert(replacement)
         context.delete(meal)
         do {
@@ -268,6 +513,33 @@ enum NutritionLoggingService {
         )
     }
 
+    private static func estimatedItem(
+        name: String,
+        calories: Double?,
+        proteinGrams: Double?,
+        carbohydrateGrams: Double?,
+        fatGrams: Double?,
+        orderIndex: Int
+    ) -> LoggedMealItem {
+        LoggedMealItem(
+            sourceFoodID: nil,
+            foodNameSnapshot: name,
+            servingNameSnapshot: "Estimate",
+            quantity: 1,
+            portionAmountSnapshot: 1,
+            portionUnit: .serving,
+            caloriesSnapshot: calories,
+            proteinGramsSnapshot: proteinGrams,
+            carbohydrateGramsSnapshot: carbohydrateGrams,
+            fatGramsSnapshot: fatGrams,
+            caffeineMilligramsSnapshot: nil,
+            sourceKind: .userCreated,
+            confidence: .estimated,
+            preparationState: .cooked,
+            orderIndex: orderIndex
+        )
+    }
+
     private static func save(_ meal: LoggedMeal, using context: ModelContext) -> Bool {
         do {
             try context.save()
@@ -291,6 +563,7 @@ enum CaffeineLoggingService {
         defaultMediumMilligrams: Double,
         sizedMilligrams: Double,
         sizeTitle: String,
+        day: LocalDay? = nil,
         using context: ModelContext
     ) -> LoggedMeal? {
         let food = existingOrNewFood(name: name, defaultMediumMilligrams: defaultMediumMilligrams, using: context)
@@ -302,7 +575,7 @@ enum CaffeineLoggingService {
             unit: .serving,
             equivalentReferenceAmount: food.referenceAmount * ratio
         )
-        return NutritionLoggingService.log(food: food, portion: portion, slot: .snack, using: context)
+        return NutritionLoggingService.log(food: food, portion: portion, day: day, slot: .snack, using: context)
     }
 
     private static func existingOrNewFood(name: String, defaultMediumMilligrams: Double, using context: ModelContext) -> FoodItem {

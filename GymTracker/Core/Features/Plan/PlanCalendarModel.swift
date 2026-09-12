@@ -95,29 +95,108 @@ struct PlanCalendarWeek: Identifiable {
     var id: Int { weekIndex }
 }
 
+/// Plan-week window used by flexible-week schedules. Week 0 starts on the
+/// run's local start day and lasts seven days; later weeks follow the same
+/// stride. This is not a weekday pin.
+enum PlanWeekWindow {
+    static func deadline(
+        weekIndex: Int,
+        runStart: Date,
+        calendar: Calendar
+    ) -> Date? {
+        let start = calendar.startOfDay(for: runStart)
+        return calendar.date(byAdding: .day, value: (weekIndex * 7) + 6, to: start)
+    }
+
+    static func contains(
+        _ date: Date,
+        weekIndex: Int,
+        runStart: Date,
+        calendar: Calendar
+    ) -> Bool {
+        let start = calendar.startOfDay(for: runStart)
+        guard
+            let weekStart = calendar.date(byAdding: .day, value: weekIndex * 7, to: start),
+            let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart)
+        else {
+            return false
+        }
+        let day = calendar.startOfDay(for: date)
+        return day >= weekStart && day <= weekEnd
+    }
+}
+
 enum PlanCalendarBuilder {
     static func displayState(
         status: PlanWorkoutStatus,
         scheduledDate: Date?,
         today: Date,
-        calendar: Calendar
+        calendar: Calendar,
+        weekDeadline: Date? = nil
     ) -> PlanCalendarDisplayState {
         switch status {
         case .completed: return .completed
         case .skipped: return .skipped
         case .inProgress: return .inProgress
         case .available, .upcoming:
-            guard let scheduledDate else { return status == .available ? .available : .upcoming }
-            return calendar.startOfDay(for: scheduledDate) < calendar.startOfDay(for: today)
-                ? .missed
-                : (status == .available ? .available : .upcoming)
+            if let scheduledDate {
+                return calendar.startOfDay(for: scheduledDate) < calendar.startOfDay(for: today)
+                    ? .missed
+                    : (status == .available ? .available : .upcoming)
+            }
+            if let weekDeadline, calendar.startOfDay(for: weekDeadline) < calendar.startOfDay(for: today) {
+                return .missed
+            }
+            return status == .available ? .available : .upcoming
         }
+    }
+
+    static func weekDeadline(
+        for progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        calendar: Calendar
+    ) -> Date? {
+        guard run.plan?.scheduleMode.usesFlexibleWeekWindow == true else { return nil }
+        return PlanWeekWindow.deadline(
+            weekIndex: progress.weekIndex,
+            runStart: run.startDate,
+            calendar: calendar
+        )
+    }
+
+    static func displayState(
+        for progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        today: Date = .now,
+        calendar: Calendar = .current
+    ) -> PlanCalendarDisplayState {
+        displayState(
+            status: progress.status,
+            scheduledDate: progress.scheduledDate,
+            today: today,
+            calendar: calendar,
+            weekDeadline: weekDeadline(for: progress, in: run, calendar: calendar)
+        )
+    }
+
+    static func weeks(
+        for run: PlanRun,
+        today: Date = .now,
+        calendar: Calendar = .current
+    ) -> [PlanCalendarWeek] {
+        weeks(
+            for: run.orderedWorkoutProgress,
+            today: today,
+            calendar: calendar,
+            weekDeadlineFor: { weekDeadline(for: $0, in: run, calendar: calendar) }
+        )
     }
 
     static func weeks(
         for progress: [PlanWorkoutProgress],
         today: Date = .now,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        weekDeadlineFor: (PlanWorkoutProgress) -> Date? = { _ in nil }
     ) -> [PlanCalendarWeek] {
         let entries = progress.map { item in
             PlanCalendarEntry(
@@ -130,7 +209,8 @@ enum PlanCalendarBuilder {
                     status: item.status,
                     scheduledDate: item.scheduledDate,
                     today: today,
-                    calendar: calendar
+                    calendar: calendar,
+                    weekDeadline: weekDeadlineFor(item)
                 )
             )
         }

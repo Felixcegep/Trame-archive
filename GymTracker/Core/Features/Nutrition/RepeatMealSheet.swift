@@ -5,10 +5,12 @@ struct RepeatMealSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let meal: LoggedMeal
+    var day: LocalDay = .today
     @State private var slot: MealSlot
 
-    init(meal: LoggedMeal) {
+    init(meal: LoggedMeal, day: LocalDay = .today) {
         self.meal = meal
+        self.day = day
         _slot = State(initialValue: meal.slot)
     }
 
@@ -33,7 +35,7 @@ struct RepeatMealSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { if NutritionLoggingService.repeatMeal(meal, slot: slot, using: modelContext) != nil { dismiss() } }
+                    Button("Add") { if NutritionLoggingService.repeatMeal(meal, day: day, slot: slot, using: modelContext) != nil { dismiss() } }
                         .accessibilityIdentifier("confirm-repeat-meal")
                 }
             }

@@ -7,6 +7,7 @@ final class FeatureFlagsTests: XCTestCase {
         XCTAssertEqual(Set(configuration.enabledFlags), Set(FeatureFlag.allCases))
         XCTAssertTrue(configuration.isEnabled(.nutrition))
         XCTAssertTrue(configuration.isEnabled(.recipeGeneration))
+        XCTAssertTrue(configuration.isEnabled(.mealPhotoAnalysis))
     }
 
     func testReleaseChannelMatchesGeneralAvailabilityMatrix() {
@@ -64,6 +65,12 @@ final class FeatureFlagsTests: XCTestCase {
             overrides: [.recipeGeneration]
         )
         XCTAssertFalse(generationOnly.isEnabled(.recipeGeneration))
+
+        let photoOnly = DefaultFeatureFlagConfiguration(
+            buildChannel: .release,
+            overrides: [.mealPhotoAnalysis]
+        )
+        XCTAssertFalse(photoOnly.isEnabled(.mealPhotoAnalysis))
     }
 
     func testCurrentWaveExcludesUnfinishedSurfacesOnly() {
@@ -72,7 +79,7 @@ final class FeatureFlagsTests: XCTestCase {
             Set(configuration.enabledFlags),
             Set(FeatureFlag.allCases).subtracting([
                 .mobilityAssessment, .mobilityProgram, .recipeGeneration,
-                .workoutGeneration, .sportSpecializations
+                .workoutGeneration, .sportSpecializations, .mealPhotoAnalysis
             ])
         )
         XCTAssertFalse(configuration.isEnabled(.mobilityAssessment))
@@ -81,6 +88,23 @@ final class FeatureFlagsTests: XCTestCase {
         XCTAssertFalse(configuration.isEnabled(.workoutGeneration))
         XCTAssertTrue(configuration.isEnabled(.nutrition))
         XCTAssertFalse(configuration.isEnabled(.sportSpecializations))
+        XCTAssertFalse(configuration.isEnabled(.mealPhotoAnalysis))
+    }
+
+    func testMealPhotoAnalysisRequiresNutrition() {
+        let withNutrition = DefaultFeatureFlagConfiguration(
+            buildChannel: .internalDevelopment,
+            overrides: Set(FeatureFlag.allCases)
+        )
+        XCTAssertTrue(withNutrition.isMealPhotoAnalysisAvailable)
+
+        let withoutNutrition = DefaultFeatureFlagConfiguration(
+            buildChannel: .internalDevelopment,
+            overrides: Set(FeatureFlag.allCases).subtracting([.nutrition])
+        )
+        XCTAssertFalse(withoutNutrition.isEnabled(.nutrition))
+        XCTAssertFalse(withoutNutrition.isEnabled(.mealPhotoAnalysis))
+        XCTAssertFalse(withoutNutrition.isMealPhotoAnalysisAvailable)
     }
 
     func testCaffeineQuickLoggingRequiresNutrition() {

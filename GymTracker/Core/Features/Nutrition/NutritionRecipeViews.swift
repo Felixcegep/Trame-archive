@@ -435,6 +435,7 @@ private enum RecipeLogAmount: Hashable {
 struct LogRecipeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.nutritionSelectedDay) private var day
     let template: MealTemplate
 
     @State private var slot: MealSlot = .snack
@@ -476,7 +477,7 @@ struct LogRecipeSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.gymBackground)
-            .navigationTitle("Add to today")
+            .navigationTitle(day == .today ? "Add to today" : "Add to \(day.displayName())")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -508,8 +509,8 @@ struct LogRecipeSheet: View {
 
     private func add() {
         guard let fraction = resolvedFraction else { return }
-        if NutritionLoggingService.log(template: template, fraction: fraction, slot: slot, loggedAt: loggedAt, using: modelContext) != nil {
-            UIAccessibility.post(notification: .announcement, argument: String(localized: "Recipe added to today."))
+        if NutritionLoggingService.log(template: template, fraction: fraction, day: day, slot: slot, loggedAt: loggedAt, using: modelContext) != nil {
+            UIAccessibility.post(notification: .announcement, argument: String(localized: "Recipe added."))
             dismiss()
         } else {
             errorMessage = String(localized: "The recipe could not be logged. Try again.")

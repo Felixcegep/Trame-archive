@@ -41,6 +41,7 @@ struct RootView: View {
     @State private var trainPlanSegment: PlanScreenSegment = .overview
     @State private var trainNavigationID = UUID()
     @State private var nutritionPath: [NutritionRoute] = []
+    @State private var nutritionSelectedDay = LocalDay.today
     @State private var progressPath: [ProgressRoute] = []
     @State private var activeSessionRouter = ActiveSessionRouter()
     @State private var selectedTab: AppTab = .today
@@ -107,7 +108,7 @@ struct RootView: View {
 
             if featureFlags.isEnabled(.nutrition) {
                 NavigationStack(path: $nutritionPath) {
-                    NutritionCenterView()
+                    NutritionCenterView(selectedDay: $nutritionSelectedDay)
                         .navigationDestination(for: NutritionRoute.self) { route in
                             switch route {
                             case .foodLibrary:
@@ -119,6 +120,7 @@ struct RootView: View {
                             }
                         }
                 }
+                .environment(\.nutritionSelectedDay, nutritionSelectedDay)
                 .clearingTabBar()
                 .tabItem {
                     tabLabel(for: .nutrition)
@@ -129,7 +131,8 @@ struct RootView: View {
             NavigationStack(path: $progressPath) {
                 ProgressHubView(
                     onOpenPlan: openPlanFromProgress,
-                    onNavigate: { progressPath.append($0) }
+                    onNavigate: { progressPath.append($0) },
+                    onOpenNutritionDay: { openNutrition(day: $0) }
                 )
                     .navigationDestination(for: ProgressRoute.self) { route in
                         switch route {
@@ -150,7 +153,10 @@ struct RootView: View {
                         case .coachExchange:
                             CoachExchangeView()
                         case let .supportingHistory(scope):
-                            SupportingHistoryView(initialScope: scope)
+                            SupportingHistoryView(
+                                initialScope: scope,
+                                onOpenNutritionDay: { openNutrition(day: $0) }
+                            )
                         case .mobilityAssessmentHistory:
                             MobilityAssessmentHistoryView()
                         }
@@ -237,6 +243,7 @@ struct RootView: View {
                             navigationPath: $activeSessionRouter.activeWorkoutPath,
                             isPresented: $activeSessionRouter.isShowingActiveWorkout,
                             activeLoggingMetrics: activeLoggingMetrics,
+                            onOpenNutrition: { openNutrition(day: .today) },
                             onWorkoutSaved: { workoutID in
                                 preparePendingProgressionReceipts(for: workoutID)
                                 // Raised here rather than on the save screen,
@@ -1540,8 +1547,9 @@ struct RootView: View {
     /// Central gate for every path that can navigate to the Nutrition tab.
     /// Disabled destinations simply stay on the current parent screen rather
     /// than navigating into an unavailable tab.
-    private func openNutrition() {
+    private func openNutrition(day: LocalDay = .today) {
         guard featureFlags.isEnabled(.nutrition) else { return }
+        nutritionSelectedDay = day
         selectedTab = .nutrition
     }
 

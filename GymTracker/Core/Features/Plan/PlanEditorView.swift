@@ -59,7 +59,7 @@ struct PlanEditorView: View {
                                     Text(workout.name)
                                         .font(AppFont.sectionTitle)
                                         .foregroundStyle(Color.trameText)
-                                    Text("Day \(workout.dayOffset + 1) · \(workout.exercises.count) exercises")
+                                    Text(workoutScheduleCaption(workout))
                                         .font(AppFont.metadata)
                                         .foregroundStyle(Color.trameSubdued)
                                 }
@@ -114,5 +114,15 @@ struct PlanEditorView: View {
                 }
             }
         }
+    }
+
+    private func workoutScheduleCaption(_ workout: PlanWorkoutDraft) -> String {
+        let session: String
+        if draft.scheduleMode.pinsWeekdays {
+            session = "Day \(workout.dayOffset + 1)"
+        } else {
+            session = "Workout \(workout.dayOffset + 1)"
+        }
+        return "\(session) · \(workout.exercises.count) exercises"
     }
 }

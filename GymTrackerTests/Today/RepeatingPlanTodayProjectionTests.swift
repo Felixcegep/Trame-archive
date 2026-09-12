@@ -34,6 +34,41 @@ final class RepeatingPlanTodayProjectionTests: XCTestCase {
         XCTAssertTrue(summary.subtitle.contains("Week 1"))
     }
 
+    func testFlexibleWeekTodayCopyStatesRemainingWork() {
+        let plan = WorkoutPlan(
+            name: "Open Week",
+            daysPerWeek: 3,
+            durationWeeks: 4,
+            scheduleMode: .flexibleWeek
+        )
+        let run = PlanRun(plan: plan, startDate: .now)
+        let first = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: "Push",
+            weekIndex: 0,
+            workoutIndex: 0
+        )
+        first.status = .available
+        let second = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: "Pull",
+            weekIndex: 0,
+            workoutIndex: 1
+        )
+        second.status = .upcoming
+        run.workoutProgress = [first, second]
+
+        let summary = TodayWorkoutSummary.resolve(
+            activeWorkout: nil,
+            planRuns: [run],
+            repeatingPlanRuns: []
+        )
+
+        XCTAssertEqual(summary.kind, .planned)
+        XCTAssertEqual(summary.title, "Push")
+        XCTAssertTrue(summary.subtitle.contains("2 remaining this week"))
+    }
+
     func testSoleActiveRepeatingPlanProjectsCursorAndCycle() {
         let run = makeRepeatingRun(names: ["Push", "Pull", "Legs"])
         run.currentSlotIndex = 1

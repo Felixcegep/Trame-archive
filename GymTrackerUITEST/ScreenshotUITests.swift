@@ -223,14 +223,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         let nameField = app.textFields["template-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        let search = app.searchFields["Search exercises"]
+        let search = app.textFields["template-exercise-search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText("Arnold Press")
-        let searchKey = app.keyboards.buttons["Search"]
-        XCTAssertTrue(searchKey.waitForExistence(timeout: 5))
-        searchKey.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        dismissTemplateExerciseSearchKeyboard(search, in: app)
         tapButton("template-exercise-Arnold Press", in: app)
         saveScreenshot("templates/12b_New_Workout_Form")
 
@@ -239,14 +236,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("templates/12c_Exercise_Filters")
         tapFirstAvailableButton(["Done"], in: app)
         if app.keyboards.firstMatch.waitForExistence(timeout: 1) {
-            let restoredSearchKey = app.keyboards.buttons["Search"]
-            XCTAssertTrue(restoredSearchKey.waitForExistence(timeout: 5))
-            restoredSearchKey.tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+            dismissTemplateExerciseSearchKeyboard(search, in: app)
         }
         let cancel = app.navigationBars["New Workout"].buttons["Cancel"].firstMatch
         XCTAssertTrue(cancel.waitForExistence(timeout: 5))
         cancel.tap()
+        tapButton("confirm-discard-workout-template", in: app)
         XCTAssertTrue(nameField.waitForNonExistence(timeout: 5))
 
         tapButton("library-create", in: app)
@@ -262,10 +257,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         tapButton("exercise-advanced-link", in: app)
-        XCTAssertTrue(app.navigationBars["Advanced Details"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Logging & Classification"].waitForExistence(timeout: 5))
         saveScreenshot("exercises/18c_New_Exercise_Advanced")
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.navigationBars["Advanced Details"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Logging & Classification"].waitForNonExistence(timeout: 5))
         tapButton("Cancel", in: app)
         XCTAssertTrue(exerciseNameField.waitForNonExistence(timeout: 5))
 
@@ -417,6 +412,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(dataSafety.waitForExistence(timeout: 5))
         app.swipeUp()
         saveScreenshot("overview/04g_Settings_Data_Safety")
+
+        tapButton("settings-export-data", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["backup-export-wizard"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/04h_Backup_Export_Wizard")
     }
 
     /// Coach Exchange is reached through the Progress hub rather than a
@@ -660,6 +659,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(empty.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 10))
         XCTAssertTrue(empty.staticTexts["Add your first exercise"].waitForExistence(timeout: 2))
         XCTAssertTrue(empty.buttons["add-first-exercise"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            empty.descendants(matching: .any)["add-first-mobility-empty"].waitForExistence(timeout: 5)
+        )
         XCTAssertFalse(empty.descendants(matching: .any)["finish-summary"].exists)
         saveScreenshot("active-workout/05_Active_Workout_Empty")
         tapButton("minimize-workout", in: empty)
@@ -1614,12 +1616,24 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         app.buttons["Cancel"].tap()
         XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
 
-        let quickLog = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quick-log-food-")).firstMatch
-        scrollToElement(quickLog, in: app)
-        XCTAssertTrue(quickLog.waitForExistence(timeout: 5))
-        quickLog.tap()
+        tapButton("open-food-library", in: app)
+        let foodRow = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "food-row-")
+        ).firstMatch
+        XCTAssertTrue(foodRow.waitForExistence(timeout: 5))
+        foodRow.tap()
         XCTAssertTrue(app.navigationBars["Log food"].waitForExistence(timeout: 5))
         saveScreenshot("nutrition/20k_Food_Intake")
+    }
+
+    func testCapturePhotoEstimateReviewScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-meal-photo-estimate-result", "success",
+        ])
+        selectTab(.nutrition, in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["photo-estimate-screen"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["confirm-photo-estimate"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20m_Photo_Estimate_Review")
     }
 
     func testCaptureNutritionTargetsEmptyScreenshot() {

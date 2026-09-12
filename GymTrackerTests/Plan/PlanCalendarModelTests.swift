@@ -27,6 +27,30 @@ final class PlanCalendarModelTests: XCTestCase {
         XCTAssertEqual(displayState(.available, nil), .available)
     }
 
+    func testFlexibleWeekUnscheduledSessionsAreMissedOnlyAfterTheWeekEnds() {
+        let weekEnd = date(2026, 7, 20, 0)
+        XCTAssertEqual(
+            PlanCalendarBuilder.displayState(
+                status: .available,
+                scheduledDate: nil,
+                today: date(2026, 7, 16, 12),
+                calendar: calendar,
+                weekDeadline: weekEnd
+            ),
+            .available
+        )
+        XCTAssertEqual(
+            PlanCalendarBuilder.displayState(
+                status: .upcoming,
+                scheduledDate: nil,
+                today: date(2026, 7, 21, 8),
+                calendar: calendar,
+                weekDeadline: weekEnd
+            ),
+            .missed
+        )
+    }
+
     func testWeeksGroupDaysInDateOrderAndKeepUnscheduledSessionsSeparate() {
         let late = progress(name: "Late", week: 0, workout: 2, date: date(2026, 7, 20, 8))
         let first = progress(name: "First", week: 0, workout: 0, date: date(2026, 7, 18, 8))

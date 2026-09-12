@@ -30,7 +30,7 @@ enum WeeklyProgramReviewBuilder {
         }
 
         let sessions = progress.map {
-            session(from: $0, today: today, calendar: calendar)
+            session(from: $0, in: run, today: today, calendar: calendar)
         }
         let completedWorkouts = completedWorkouts(
             from: progress,
@@ -83,6 +83,7 @@ enum WeeklyProgramReviewBuilder {
 
     private static func session(
         from progress: PlanWorkoutProgress,
+        in run: PlanRun,
         today: Date,
         calendar: Calendar
     ) -> WeeklyProgramReviewProjection.Session {
@@ -95,8 +96,8 @@ enum WeeklyProgramReviewBuilder {
             originalScheduledDate: progress.originalScheduledDate.map(calendar.startOfDay(for:)),
             lastRescheduledAt: progress.lastRescheduledAt,
             displayState: PlanCalendarBuilder.displayState(
-                status: progress.status,
-                scheduledDate: progress.scheduledDate,
+                for: progress,
+                in: run,
                 today: today,
                 calendar: calendar
             ),

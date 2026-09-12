@@ -65,6 +65,8 @@ struct PlanPrescriptionPreviewView: View {
             return "Sequential sessions"
         case .everyNDays:
             return "Every \(plan.scheduleIntervalDays) days"
+        case .flexibleWeek:
+            return "Flexible week · \(plan.daysPerWeek)/week"
         }
     }
 

@@ -13,6 +13,10 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     case advancedExecution
     case betaFeedback
     case recipeGeneration
+    /// Optional BYOK photo food estimates. Separate from `recipeGeneration`
+    /// because this is a capture convenience for logging, not recipe drafting,
+    /// and it is the app's first outbound model call.
+    case mealPhotoAnalysis
     /// On-device, user-confirmable workout drafting. Kept separate from the
     /// core workout paths so unavailable Apple Intelligence never blocks
     /// starting an empty, saved, planned, or rotating workout.
@@ -42,6 +46,7 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
         case .mobilityAssessment: .mobility
         case .mobilityProgram: .mobility
         case .recipeGeneration: .nutrition
+        case .mealPhotoAnalysis: .nutrition
         case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
              .programBuilder, .advancedExecution, .betaFeedback,
              .workoutGeneration, .sportSpecializations: nil
@@ -117,6 +122,7 @@ extension FeatureFlagConfiguration {
     /// Caffeine quick logging is a Nutrition sub-feature with no flag of its
     /// own; it must never be reachable while Nutrition itself is disabled.
     var isCaffeineQuickLoggingAvailable: Bool { isEnabled(.nutrition) }
+    var isMealPhotoAnalysisAvailable: Bool { isEnabled(.mealPhotoAnalysis) }
 }
 
 struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
@@ -157,7 +163,7 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
         .subtracting([
             .mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration,
-            .sportSpecializations
+            .sportSpecializations, .mealPhotoAnalysis
         ])
 
     /// What general availability ships. Today: exactly what beta ships.
@@ -166,8 +172,8 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// Nutrition — which made `release` the *widest* matrix in the app rather
     /// than the most conservative one. A build declaring `release` would have
     /// exposed mobility assessment, mobility programs, workout generation and
-    /// sport specializations: precisely the six surfaces `currentWave` withholds
-    /// from testers for being unfinished, handed instead to the general public.
+    /// sport specializations: precisely the unfinished surfaces `currentWave`
+    /// withholds from testers, handed instead to the general public.
     ///
     /// Defined as "whatever beta ships" so that promoting a surface to general
     /// availability is a deliberate edit here, made once that surface has
@@ -180,8 +186,8 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// is not the default: `currentWave` is, and it is wider than this.
     ///
     /// `currentWave` withholds unfinished surfaces (mobility assessment/program,
-    /// recipe generation, workout generation, sport specializations). Nutrition
-    /// ships with the beta wave once its Today logging loop is verified.
+    /// recipe generation, workout generation, sport specializations, photo
+    /// estimates). Nutrition ships with the beta wave once its Today logging loop is verified.
     static let coreReliabilityOnly: Set<FeatureFlag> = [.today, .betaFeedback]
 
     /// Fails a dependent flag closed whenever its prerequisite is disabled,

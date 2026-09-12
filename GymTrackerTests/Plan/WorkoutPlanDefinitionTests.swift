@@ -173,6 +173,40 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
         }
     }
 
+    func testFlexibleWeekCreationStoresSessionOrderWithoutWeekdayPins() throws {
+        let lowerExercise = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
+        let upperExercise = WorkoutTestFixture.makeExercise()
+        let lower = WorkoutTemplate(
+            name: "Lower",
+            exercises: [lowerExercise],
+            templateExercises: [TemplateExercise(exercise: lowerExercise, order: 0)]
+        )
+        let upper = WorkoutTemplate(
+            name: "Upper",
+            exercises: [upperExercise],
+            templateExercises: [TemplateExercise(exercise: upperExercise, order: 0)]
+        )
+
+        let plan = PlanCoordinator.createPlan(
+            name: "Flexible Upper Lower",
+            goal: .generalStrength,
+            experienceLevel: .intermediate,
+            durationWeeks: 1,
+            dayAssignments: [
+                .init(dayOffset: 0, template: lower),
+                .init(dayOffset: 1, template: upper),
+                .init(dayOffset: 2, template: lower)
+            ],
+            scheduleMode: .flexibleWeek
+        )
+
+        XCTAssertEqual(plan.scheduleMode, .flexibleWeek)
+        XCTAssertEqual(plan.daysPerWeek, 3)
+        let workouts = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts)
+        XCTAssertEqual(workouts.map(\.dayOffset), [0, 1, 2])
+        XCTAssertEqual(workouts.map(\.name), ["Lower", "Upper", "Lower"])
+    }
+
     func testPlanCreationBuildsAnOrderedScheduledDeloadBlock() {
         let exercise = WorkoutTestFixture.makeExercise()
         let template = WorkoutTemplate(

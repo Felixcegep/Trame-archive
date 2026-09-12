@@ -114,6 +114,7 @@ nonisolated struct AppIcon {
     static let warmup = "flame"
     static let relationship = "arrow.triangle.branch"
     static let recipePhoto = "photo.badge.plus"
+    static let photoEstimate = "camera"
     static let recipePhotoReplace = "arrow.triangle.2.circlepath"
     static let recipeGenerate = "wand.and.stars"
     static let search = "magnifyingglass"

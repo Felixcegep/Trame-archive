@@ -14,7 +14,7 @@ struct PlanCalendarDayView: View {
 
     private var entries: [PlanCalendarEntry] {
         let progressIDs = Set(day.entries.map(\.id))
-        return PlanCalendarBuilder.weeks(for: run.orderedWorkoutProgress)
+        return PlanCalendarBuilder.weeks(for: run)
             .flatMap { $0.days }
             .first(where: { $0.date == day.date })?
             .entries

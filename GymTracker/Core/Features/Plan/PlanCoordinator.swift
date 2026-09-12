@@ -107,16 +107,25 @@ enum PlanCoordinator {
         var sessionIndex = 0
         for week in plan.orderedWeeks {
             for workout in week.orderedPlannedWorkouts {
-                let dayOffset: Int
+                let scheduledDate: Date?
                 switch plan.scheduleMode {
                 case .fixedWeekdays:
-                    dayOffset = (week.weekIndex * 7) + workout.dayOffset
+                    let dayOffset = (week.weekIndex * 7) + workout.dayOffset
+                    scheduledDate = calendar.date(byAdding: .day, value: dayOffset, to: firstDay)
                 case .sequential:
-                    dayOffset = sessionIndex
+                    scheduledDate = calendar.date(byAdding: .day, value: sessionIndex, to: firstDay)
                 case .everyNDays:
-                    dayOffset = sessionIndex * max(1, plan.scheduleIntervalDays)
+                    scheduledDate = calendar.date(
+                        byAdding: .day,
+                        value: sessionIndex * max(1, plan.scheduleIntervalDays),
+                        to: firstDay
+                    )
+                case .flexibleWeek:
+                    // Week membership comes from `weekIndex`. Leaving the date
+                    // unset keeps the calendar from treating unused weekdays as
+                    // missed while the week is still open.
+                    scheduledDate = nil
                 }
-                let scheduledDate = calendar.date(byAdding: .day, value: dayOffset, to: firstDay)
                 run.workoutProgress.append(
                     PlanWorkoutProgress(
                         plannedWorkout: workout,
@@ -545,20 +554,33 @@ enum PlanCoordinator {
         let anchor = calendar.startOfDay(for: date)
 
         for (sequenceIndex, progress) in unfinished.enumerated() {
-            let dayOffset: Int
             switch plan.scheduleMode {
             case .fixedWeekdays:
-                dayOffset = (progress.weekIndex * 7) + (plannedWorkout(for: progress, in: run)?.dayOffset ?? 0)
+                let dayOffset = (progress.weekIndex * 7) + (plannedWorkout(for: progress, in: run)?.dayOffset ?? 0)
+                applyAutomaticSchedule(
+                    calendar.date(byAdding: .day, value: dayOffset, to: anchor),
+                    to: progress,
+                    calendar: calendar
+                )
             case .sequential:
-                dayOffset = sequenceIndex
+                applyAutomaticSchedule(
+                    calendar.date(byAdding: .day, value: sequenceIndex, to: anchor),
+                    to: progress,
+                    calendar: calendar
+                )
             case .everyNDays:
-                dayOffset = sequenceIndex * max(1, plan.scheduleIntervalDays)
+                applyAutomaticSchedule(
+                    calendar.date(
+                        byAdding: .day,
+                        value: sequenceIndex * max(1, plan.scheduleIntervalDays),
+                        to: anchor
+                    ),
+                    to: progress,
+                    calendar: calendar
+                )
+            case .flexibleWeek:
+                break
             }
-            applyAutomaticSchedule(
-                calendar.date(byAdding: .day, value: dayOffset, to: anchor),
-                to: progress,
-                calendar: calendar
-            )
         }
     }
 

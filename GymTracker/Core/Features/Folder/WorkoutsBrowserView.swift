@@ -11,7 +11,6 @@ struct WorkoutsBrowserView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
     @Query private var workoutTemplates: [WorkoutTemplate]
-    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
 
     /// The empty state offers creation, so this screen owns the form rather than
     /// asking the tab root to present it on its behalf.
@@ -59,8 +58,14 @@ struct WorkoutsBrowserView: View {
         .navigationTitle("Workouts")
         .sheet(isPresented: $isShowingWorkoutForm) {
             NavigationStack {
-                WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, templateExercises in
-                    LibraryService.createWorkoutTemplate(name: name, templateExercises: templateExercises, using: modelContext)
+                WorkoutTemplateFormView { name, templateExercises, preWorkout, postWorkout in
+                    LibraryService.createWorkoutTemplate(
+                        name: name,
+                        templateExercises: templateExercises,
+                        preWorkoutMobilityRoutine: preWorkout,
+                        postWorkoutMobilityRoutine: postWorkout,
+                        using: modelContext
+                    )
                 }
             }
         }

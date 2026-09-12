@@ -111,6 +111,7 @@ struct ProgramDiscoveryFilterSheet: View {
         case .fixedWeekdays: String(localized: "Fixed weekdays")
         case .sequential: String(localized: "In order")
         case .everyNDays: String(localized: "Every few days")
+        case .flexibleWeek: String(localized: "Flexible week")
         }
     }
 }

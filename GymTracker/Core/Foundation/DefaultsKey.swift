@@ -30,6 +30,8 @@ struct DefaultsKey {
     static let checkInReminderMinute = "checkInReminderMinute"
     nonisolated static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     nonisolated static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
+    /// How photo food estimates may leave the device. Never stored with the key.
+    nonisolated static let mealPhotoConsent = "mealPhotoConsent"
     /// Apple Health workout export is opt-in. Saving locally never depends on
     /// this value or on HealthKit availability/authorization.
     static let healthKitWorkoutExportEnabled = "healthKitWorkoutExportEnabled"

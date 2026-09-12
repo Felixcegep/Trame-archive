@@ -8,7 +8,7 @@ private let completeGymTrackerUITestFeatureFlags = [
     "today", "mobility", "nutrition", "bodyWeight", "dailyCheckIn",
     "programBuilder", "advancedExecution", "betaFeedback",
     "recipeGeneration", "workoutGeneration", "mobilityAssessment",
-    "mobilityProgram", "sportSpecializations"
+    "mobilityProgram", "sportSpecializations", "mealPhotoAnalysis"
 ].joined(separator: ",")
 
 extension XCUIApplication {
@@ -191,6 +191,42 @@ class GymTrackerUITestCase: XCTestCase {
             }
         }
         XCTFail("None of the expected buttons existed: \(identifiers)", file: file, line: line)
+    }
+
+    /// The iOS 26 Simulator alphabetic keyboard does not consistently expose a
+    /// queryable Search or Done key. Prefer the form's keyboard toolbar Done,
+    /// then submit the field the same way Train search does.
+    func dismissTemplateExerciseSearchKeyboard(
+        _ search: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let toolbarDone = app.buttons["dismiss-template-search-keyboard"].firstMatch
+        if toolbarDone.waitForExistence(timeout: 2) {
+            toolbarDone.tap()
+        } else {
+            search.typeText("\n")
+        }
+
+        if app.keyboards.firstMatch.waitForNonExistence(timeout: 2) {
+            return
+        }
+
+        let keyboardSearch = app.keyboards.buttons["Search"].firstMatch
+        let keyboardReturn = app.keyboards.buttons["Return"].firstMatch
+        if keyboardSearch.exists {
+            keyboardSearch.tap()
+        } else if keyboardReturn.exists {
+            keyboardReturn.tap()
+        }
+
+        XCTAssertTrue(
+            app.keyboards.firstMatch.waitForNonExistence(timeout: 5),
+            "Expected the New Workout search keyboard to dismiss",
+            file: file,
+            line: line
+        )
     }
 
     /// The workout menu and its destructive confirmation can briefly expose the

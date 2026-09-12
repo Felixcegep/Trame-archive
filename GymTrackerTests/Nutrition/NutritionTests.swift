@@ -196,6 +196,20 @@ final class NutritionTests: XCTestCase {
         XCTAssertEqual(replacementItem.proteinGramsSnapshot, 4.5)
     }
 
+    func testLoggedFoodCorrectionAllowsRealisticGramAmounts() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Rice", calories: 130)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+
+        XCTAssertNotNil(NutritionLoggingService.log(food: food, quantity: 0.1, using: context))
+        XCTAssertTrue(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 21, slot: .lunch, using: context))
+        let meals = try context.fetch(FetchDescriptor<LoggedMeal>())
+        XCTAssertEqual(meals.count, 2)
+        XCTAssertTrue(meals.contains { $0.items.first?.quantity == 21 })
+    }
+
     func testLoggedFoodCorrectionRejectsOutOfRangeQuantity() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let food = FoodItem(name: "Rice", calories: 130)
@@ -203,8 +217,8 @@ final class NutritionTests: XCTestCase {
         try context.save()
         let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
 
-        XCTAssertFalse(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 0.1, slot: .lunch, using: context))
-        XCTAssertFalse(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 21, slot: .lunch, using: context))
+        XCTAssertNil(NutritionLoggingService.log(food: food, quantity: 0.001, using: context))
+        XCTAssertFalse(NutritionLoggingService.updateSingleFoodMeal(meal, quantity: 60, slot: .lunch, using: context))
         XCTAssertEqual(try context.fetch(FetchDescriptor<LoggedMeal>()).count, 1)
         XCTAssertEqual(meal.items.first?.quantity, 1)
     }
@@ -463,5 +477,164 @@ final class NutritionTests: XCTestCase {
         try context.save()
         XCTAssertEqual(revised.orderedItems.count, 1)
         XCTAssertEqual(revised.orderedItems.first?.quantity, 2)
+    }
+
+    func testLocalDayAddingAndRelativeDisplayNames() {
+        let day = LocalDay(rawValue: "2026-09-08")
+        XCTAssertEqual(day.adding(days: -1).rawValue, "2026-09-07")
+        XCTAssertEqual(day.adding(days: 1).rawValue, "2026-09-09")
+        XCTAssertEqual(day.displayName(relativeTo: day), "Today")
+        XCTAssertEqual(day.adding(days: -1).displayName(relativeTo: day), "Yesterday")
+        XCTAssertEqual(day.adding(days: 1).displayName(relativeTo: day), "Tomorrow")
+    }
+
+    func testCopyMealsCreatesNewIdentifiersOnTheTargetDay() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Yogurt", calories: 100, proteinGrams: 18)
+        context.insert(food)
+        try context.save()
+        let yesterday = LocalDay.today.adding(days: -1)
+        let source = try XCTUnwrap(NutritionLoggingService.log(food: food, day: yesterday, slot: .dinner, using: context))
+        let originalID = source.id
+        let originalItemID = try XCTUnwrap(source.items.first?.id)
+
+        let copied = NutritionLoggingService.copyMeals([source], to: .today, using: context)
+        let copy = try XCTUnwrap(copied.first)
+        XCTAssertEqual(copied.count, 1)
+        XCTAssertNotEqual(copy.id, originalID)
+        XCTAssertNotEqual(copy.items.first?.id, originalItemID)
+        XCTAssertEqual(copy.dayKey, LocalDay.today.rawValue)
+        XCTAssertEqual(copy.slot, .dinner)
+        XCTAssertEqual(copy.items.first?.caloriesSnapshot, 100)
+        XCTAssertEqual(source.dayKey, yesterday.rawValue)
+    }
+
+    func testCopyMealsCanCopyASingleSlotWithoutTakingOtherSlots() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let yogurt = FoodItem(name: "Yogurt", calories: 100, proteinGrams: 18)
+        let chicken = FoodItem(name: "Chicken", calories: 160, proteinGrams: 30)
+        context.insert(yogurt)
+        context.insert(chicken)
+        try context.save()
+        let yesterday = LocalDay.today.adding(days: -1)
+        let breakfast = try XCTUnwrap(NutritionLoggingService.log(food: yogurt, day: yesterday, slot: .breakfast, using: context))
+        _ = try XCTUnwrap(NutritionLoggingService.log(food: chicken, day: yesterday, slot: .dinner, using: context))
+
+        let copied = NutritionLoggingService.copyMeals([breakfast], to: .today, using: context)
+        XCTAssertEqual(copied.count, 1)
+        XCTAssertEqual(copied.first?.slot, .breakfast)
+        XCTAssertEqual(copied.first?.dayKey, LocalDay.today.rawValue)
+        let todayMeals = try context.fetch(FetchDescriptor<LoggedMeal>()).filter { $0.dayKey == LocalDay.today.rawValue }
+        XCTAssertEqual(todayMeals.count, 1)
+        XCTAssertEqual(todayMeals.first?.nameSnapshot, "Yogurt")
+    }
+
+    func testLogEstimateDoesNotLinkASourceFood() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let meal = try XCTUnwrap(
+            NutritionLoggingService.logEstimate(
+                name: "Oats",
+                calories: 300,
+                proteinGrams: 12,
+                carbohydrateGrams: 50,
+                fatGrams: nil,
+                slot: .breakfast,
+                using: context
+            )
+        )
+        let item = try XCTUnwrap(meal.items.first)
+        XCTAssertNil(item.sourceFoodID)
+        XCTAssertEqual(item.confidenceRaw, FoodConfidence.estimated.rawValue)
+        XCTAssertEqual(item.caloriesSnapshot, 300)
+        XCTAssertNil(item.fatGramsSnapshot)
+        XCTAssertEqual(NutritionDaySummary.resolve(day: .today, meals: [meal]).totals.unknownFatCount, 1)
+    }
+
+    func testLogEstimateCanRecordANameWithEveryNutrientUnknown() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let meal = try XCTUnwrap(
+            NutritionLoggingService.logEstimate(
+                name: "Something",
+                calories: nil,
+                proteinGrams: nil,
+                carbohydrateGrams: nil,
+                fatGrams: nil,
+                using: context
+            )
+        )
+        XCTAssertNil(meal.items.first?.sourceFoodID)
+        XCTAssertEqual(NutritionDaySummary.resolve(day: .today, meals: [meal]).totals.unknownCaloriesCount, 1)
+        XCTAssertEqual(NutritionDaySummary.resolve(day: .today, meals: [meal]).totals.unknownProteinCount, 1)
+    }
+
+    func testLogEstimatesWritesAMultiItemPlateWithoutSourceFoods() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let meal = try XCTUnwrap(
+            NutritionLoggingService.logEstimates(
+                name: "Meal",
+                items: [
+                    NutritionEstimateDraftItem(name: "Chicken", calories: 280, proteinGrams: 40, carbohydrateGrams: 0, fatGrams: 8),
+                    NutritionEstimateDraftItem(name: "Rice", calories: 260, proteinGrams: 5, carbohydrateGrams: 56, fatGrams: 1)
+                ],
+                slot: .lunch,
+                using: context
+            )
+        )
+        XCTAssertEqual(meal.items.count, 2)
+        XCTAssertEqual(meal.slot, .lunch)
+        XCTAssertTrue(meal.items.allSatisfy { $0.sourceFoodID == nil })
+        XCTAssertTrue(meal.items.allSatisfy { $0.confidenceRaw == FoodConfidence.estimated.rawValue })
+        XCTAssertEqual(NutritionDaySummary.resolve(day: .today, meals: [meal]).totals.calories, 540)
+    }
+
+    func testLogEstimatesDropsBlankItems() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        XCTAssertNil(
+            NutritionLoggingService.logEstimates(
+                name: "Meal",
+                items: [NutritionEstimateDraftItem(name: "  ", calories: 10, proteinGrams: nil, carbohydrateGrams: nil, fatGrams: nil)],
+                using: context
+            )
+        )
+    }
+
+    func testRecentFoodsRankByFrequencyAndKeepLastAmount() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let oats = FoodItem(name: "Oats", calories: 380)
+        let yogurt = FoodItem(name: "Yogurt", calories: 100)
+        context.insert(oats)
+        context.insert(yogurt)
+        try context.save()
+
+        let first = Date(timeIntervalSince1970: 1_700_000_000)
+        _ = try XCTUnwrap(NutritionLoggingService.log(food: yogurt, quantity: 1, slot: .breakfast, loggedAt: first, using: context))
+        _ = try XCTUnwrap(NutritionLoggingService.log(food: oats, quantity: 1, slot: .lunch, loggedAt: first.addingTimeInterval(60), using: context))
+        _ = try XCTUnwrap(NutritionLoggingService.log(food: oats, quantity: 1.5, slot: .dinner, loggedAt: first.addingTimeInterval(120), using: context))
+
+        let ranked = NutritionRecentFoods.ranked(
+            foods: [oats, yogurt],
+            meals: try context.fetch(FetchDescriptor<LoggedMeal>())
+        )
+        XCTAssertEqual(ranked.map(\.food.name), ["Oats", "Yogurt"])
+        XCTAssertEqual(ranked[0].logCount, 2)
+        XCTAssertEqual(ranked[0].lastQuantity, 1.5)
+        XCTAssertEqual(ranked[0].lastSlot, .dinner)
+    }
+
+    func testRescaleMealScalesEverySnapshotWithoutRereadingFood() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Chicken", calories: 160, proteinGrams: 30)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+        food.calories = 999
+        try context.save()
+
+        XCTAssertTrue(NutritionLoggingService.rescaleMeal(meal, factor: 2, slot: .lunch, using: context))
+        let replacement = try XCTUnwrap(try context.fetch(FetchDescriptor<LoggedMeal>()).first)
+        XCTAssertEqual(replacement.slot, .lunch)
+        XCTAssertEqual(replacement.items.first?.quantity, 2)
+        XCTAssertEqual(replacement.items.first?.caloriesSnapshot, 320)
+        XCTAssertEqual(replacement.items.first?.proteinGramsSnapshot, 60)
     }
 }

@@ -154,6 +154,15 @@ struct PlanReviewView: View {
     }
 
     private var trainingDaysText: String {
+        if draft.scheduleMode.usesFlexibleWeekWindow {
+            let count = draft.weeks.first?.workouts.count ?? 0
+            return count == 1
+                ? String(localized: "1 workout a week")
+                : String(localized: "\(count) workouts a week")
+        }
+        if !draft.scheduleMode.pinsWeekdays {
+            return draft.scheduleMode.title
+        }
         let days = Set(draft.weeks.flatMap { $0.workouts.map(\.dayOffset) }).sorted()
         return days.map(dayName(for:)).joined(separator: ", ")
     }

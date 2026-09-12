@@ -42,7 +42,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         NavigationStack {
             content
                 .background(Color.trameCanvas)
-                .navigationTitle(String(localized: "Add mobility"))
+                .navigationTitle(String(localized: "Add stretch"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -228,7 +228,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(routine.name), \(WorkoutMobilityPresentation.routineSummary(for: routine))")
-        .accessibilityHint("Starts this routine inside the current workout.")
+        .accessibilityHint("Starts this stretch inside the current workout.")
         .accessibilityIdentifier("active-workout-mobility-insert-routine-\(routine.id)")
     }
 

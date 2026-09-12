@@ -123,6 +123,15 @@ struct SettingView: View {
                     DataSettingsView()
                 }
                 .accessibilityIdentifier("settings-data")
+                if featureFlags.isMealPhotoAnalysisAvailable {
+                    SettingsLinkRow(
+                        title: "Photo estimates",
+                        systemImage: AppIcon.photoEstimate
+                    ) {
+                        MealPhotoSettingsView()
+                    }
+                    .accessibilityIdentifier("settings-photo-estimates")
+                }
             } header: {
                 Text("Data")
             } footer: {
@@ -570,7 +579,11 @@ struct DataSettingsView: View {
     @AppStorage(DefaultsKey.lastBackupExportTimestamp) private var lastBackupExportTimestamp: Double?
     @AppStorage(DefaultsKey.lastBackupRestoreTimestamp) private var lastBackupRestoreTimestamp: Double?
     @State private var isShowingFileImporter = false
+    @State private var isShowingExportWizard = false
+    @State private var isSavingToFiles = false
     @State private var exportURL: URL?
+    @State private var exportDocument: TrameBackupFileDocument?
+    @State private var exportInventory: BackupExportInventory = .empty
     @State private var isPreparingExport = false
     @State private var importBackup: BackupDTO? = nil
     @State private var importErrorMessage: String? = nil
@@ -618,16 +631,23 @@ struct DataSettingsView: View {
                     ShareLink(item: exportURL) {
                         Label("Share Export", systemImage: AppIcon.export)
                     }
+
+                    Button {
+                        isSavingToFiles = true
+                    } label: {
+                        Label(
+                            String(localized: "Save to this iPhone"),
+                            systemImage: AppIcon.save
+                        )
+                    }
+                    .disabled(exportDocument == nil)
+                    .accessibilityIdentifier("settings-save-backup-to-phone")
                 }
 
                 Button {
-                    prepareExport()
+                    openExportWizard()
                 } label: {
-                    if isPreparingExport {
-                        Label("Preparing export", systemImage: AppIcon.export)
-                    } else {
-                        Label("Export Data", systemImage: AppIcon.export)
-                    }
+                    Label("Export Data", systemImage: AppIcon.export)
                 }
                 .disabled(isPreparingExport)
                 .accessibilityIdentifier("settings-export-data")
@@ -656,6 +676,29 @@ struct DataSettingsView: View {
                 loadImportBackup(from: url)
             case .failure(let error):
                 showImportError(error.localizedDescription)
+            }
+        }
+        .sheet(isPresented: $isShowingExportWizard) {
+            BackupExportWizardView(
+                inventory: exportInventory,
+                isPreparing: isPreparingExport,
+                onCancel: {
+                    guard isPreparingExport == false else { return }
+                    isShowingExportWizard = false
+                },
+                onConfirm: { selection in
+                    prepareExport(selection: selection)
+                }
+            )
+        }
+        .fileExporter(
+            isPresented: $isSavingToFiles,
+            document: exportDocument ?? TrameBackupFileDocument(data: Data()),
+            contentType: .json,
+            defaultFilename: "TrameBackup.json"
+        ) { result in
+            if case .failure(let error) = result {
+                showImportError("The backup could not be saved. \(error.localizedDescription)")
             }
         }
         .sheet(isPresented: Binding(
@@ -708,7 +751,12 @@ struct DataSettingsView: View {
             .formatted(.dateTime.year().month(.abbreviated).day())
     }
 
-    private func prepareExport() {
+    private func openExportWizard() {
+        exportInventory = (try? BackupExportInventory.load(from: modelContext)) ?? .empty
+        isShowingExportWizard = true
+    }
+
+    private func prepareExport(selection: BackupExportSelection) {
         guard isPreparingExport == false else { return }
         isPreparingExport = true
         Task {
@@ -717,10 +765,13 @@ struct DataSettingsView: View {
                     from: modelContext,
                     restTimer: restTimer,
                     darkMode: selectedAppearance == .dark,
-                    unitSystem: unitSystem
+                    unitSystem: unitSystem,
+                    selection: selection
                 )
                 exportURL = result.fileURL
+                exportDocument = TrameBackupFileDocument(data: result.data)
                 lastBackupExportTimestamp = result.exportDate.timeIntervalSince1970
+                isShowingExportWizard = false
             } catch {
                 showImportError("The backup could not be exported. \(error.localizedDescription)")
             }
@@ -788,6 +839,9 @@ private struct AdvancedSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var isShowingResetConfirmation = false
     @State private var isShowingTrainingSeedConfirmation = false
+    @State private var isShowingStrengthStabilitySeedConfirmation = false
+    @State private var strengthStabilitySeedAlertTitle: String?
+    @State private var strengthStabilitySeedAlertMessage: String?
 
     var body: some View {
         Form {
@@ -817,6 +871,14 @@ private struct AdvancedSettingsView: View {
                 }
                 .accessibilityIdentifier("settings-seed-two-years")
 
+                Button {
+                    isShowingStrengthStabilitySeedConfirmation = true
+                } label: {
+                    Label("Seed Strength & Stability rotation", systemImage: AppIcon.chart)
+                        .foregroundStyle(Color.trameText)
+                }
+                .accessibilityIdentifier("settings-seed-strength-stability")
+
                 Button(role: .destructive) {
                     isShowingResetConfirmation = true
                 } label: {
@@ -827,7 +889,7 @@ private struct AdvancedSettingsView: View {
             } header: {
                 Text("Development")
             } footer: {
-                Text("The seed replaces development data with two years of completed training. Reset removes workout history, saved workouts, training plans, and custom exercises, then restores the built-in exercise catalogue.")
+                Text("The two-year seed replaces development data with completed training history. The Strength & Stability seed adds a personal four-day rotation without clearing existing data. Reset removes workout history, saved workouts, training plans, and custom exercises, then restores the built-in exercise catalogue.")
             }
             #endif
         }
@@ -850,6 +912,26 @@ private struct AdvancedSettingsView: View {
         } message: {
             Text("This replaces the current development data with a realistic completed workout history. It cannot be undone.")
         }
+        .confirmationDialog("Seed Strength & Stability rotation?", isPresented: $isShowingStrengthStabilitySeedConfirmation, titleVisibility: .visible) {
+            Button("Seed rotation") {
+                seedStrengthStabilityRotation()
+            }
+        } message: {
+            Text("Adds or replaces the personal Strength & Stability repeating plan, templates, and mobility routines. Existing data outside this program is kept.")
+        }
+        .alert(strengthStabilitySeedAlertTitle ?? "", isPresented: Binding(
+            get: { strengthStabilitySeedAlertTitle != nil },
+            set: { isPresented in
+                if !isPresented {
+                    strengthStabilitySeedAlertTitle = nil
+                    strengthStabilitySeedAlertMessage = nil
+                }
+            }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(strengthStabilitySeedAlertMessage ?? "")
+        }
     }
 
     private func resetDevelopmentData() {
@@ -859,6 +941,19 @@ private struct AdvancedSettingsView: View {
         } catch {
             print("Failed to reset development data: \(error)")
         }
+    }
+
+    private func seedStrengthStabilityRotation() {
+#if DEBUG
+        do {
+            try StrengthStabilityProgramSeeder.seed(in: modelContext)
+            strengthStabilitySeedAlertTitle = "Strength & Stability seeded"
+            strengthStabilitySeedAlertMessage = "The four-session rotation, templates, and mobility routines are ready in your library."
+        } catch {
+            strengthStabilitySeedAlertTitle = "Couldn’t seed rotation"
+            strengthStabilitySeedAlertMessage = error.localizedDescription
+        }
+#endif
     }
 
     private func seedTwoYearsOfTraining() {

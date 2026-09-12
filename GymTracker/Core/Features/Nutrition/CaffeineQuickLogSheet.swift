@@ -174,7 +174,7 @@ struct CaffeineQuickLogSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<FoodItem> { !$0.isArchived }) private var foods: [FoodItem]
-    @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
+    @Query private var loggedMeals: [LoggedMeal]
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
 
@@ -187,11 +187,13 @@ struct CaffeineQuickLogSheet: View {
     @State private var exactMilligramsText = ""
     @State private var npnText = ""
     @State private var errorMessage: String?
+    let day: LocalDay
 
-    init() {
-        let todayKey = LocalDay.today.rawValue
+    init(day: LocalDay = .today) {
+        self.day = day
+        let key = day.rawValue
         _loggedMeals = Query(
-            filter: #Predicate<LoggedMeal> { $0.dayKey == todayKey },
+            filter: #Predicate<LoggedMeal> { $0.dayKey == key },
             sort: [SortDescriptor(\LoggedMeal.loggedAt, order: .reverse)]
         )
 
@@ -212,7 +214,7 @@ struct CaffeineQuickLogSheet: View {
         CaffeineGuidance.dailyLimit(ageBand: ageBand, bodyWeightKilograms: bodyWeightEntries.first.map { Double($0.kilograms) })
     }
     private var loggedTodayMilligrams: Double {
-        NutritionDaySummary.resolve(day: .today, meals: loggedMeals).totals.caffeineMilligrams
+        NutritionDaySummary.resolve(day: day, meals: loggedMeals).totals.caffeineMilligrams
     }
 
     private var exactMilligrams: Double? {
@@ -613,6 +615,7 @@ struct CaffeineQuickLogSheet: View {
             defaultMediumMilligrams: defaultMedium,
             sizedMilligrams: defaultSizeValue,
             sizeTitle: size.title,
+            day: day,
             using: modelContext
         ) != nil {
             dismiss()
@@ -693,7 +696,7 @@ struct CaffeineQuickLogSheet: View {
     }
 
     private func complete(food: FoodItem, portion: FoodPortion) {
-        if NutritionLoggingService.log(food: food, portion: portion, slot: .snack, using: modelContext) != nil {
+        if NutritionLoggingService.log(food: food, portion: portion, day: day, slot: .snack, using: modelContext) != nil {
             dismiss()
         } else {
             errorMessage = "Your selection is still here. Please try again."

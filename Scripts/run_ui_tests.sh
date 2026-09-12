@@ -32,6 +32,8 @@ FAST_TESTS=(
   testDiscardsActiveWorkout
   testCreatesCustomExercise
   testCreatesWorkoutTemplate
+  testNewWorkoutDirtyCancelAsksToKeepDraft
+  testEmptyActiveWorkoutCanAddStretch
   testCreatesPlanStartsRunAndLaunchesPlannedWorkout
   testPlanCalendarShowsDerivedStatesAndKeepsCompletedSessionsLocked
   testRelaunchRefreshesHomeWithTheSessionScheduledForToday

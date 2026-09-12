@@ -56,6 +56,7 @@ enum FixedProgramPathBuilder {
                 sessions: progress.map {
                     sessionProjection(
                         from: $0,
+                        in: run,
                         runID: run.id,
                         currentProgressID: currentProgress?.id,
                         today: today,
@@ -144,6 +145,7 @@ enum FixedProgramPathBuilder {
 
     private static func sessionProjection(
         from progress: PlanWorkoutProgress,
+        in run: PlanRun,
         runID: UUID,
         currentProgressID: UUID?,
         today: Date,
@@ -179,8 +181,8 @@ enum FixedProgramPathBuilder {
             originalScheduledDate: normalizedOriginalDate,
             lastRescheduledAt: progress.lastRescheduledAt,
             displayState: PlanCalendarBuilder.displayState(
-                status: progress.status,
-                scheduledDate: progress.scheduledDate,
+                for: progress,
+                in: run,
                 today: today,
                 calendar: calendar
             ),

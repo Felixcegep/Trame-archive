@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Builds a plan in one screen: name it, say how long it runs, pick the days.
+/// Builds a plan in one screen: name it, say how long it runs, then choose
+/// whether weekdays are pinned or the week's work can land on any days.
 ///
 /// The form used to open on Goal, Experience, Equipment and a deload toggle
 /// before reaching the schedule, then spend seven toggle rows and seven nested
@@ -23,6 +24,18 @@ struct PlanFormView: View {
         }
     }
 
+    enum DayPolicy: Hashable, CaseIterable {
+        case fixedDays
+        case flexibleWeek
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .fixedDays: "Fixed days"
+            case .flexibleWeek: "Flexible week"
+            }
+        }
+    }
+
     @Environment(\.dismiss) private var dismiss
 
     let templates: [WorkoutTemplate]
@@ -34,9 +47,9 @@ struct PlanFormView: View {
     @State private var durationWeeks = 4
     @State private var goal: PlanGoal = .generalStrength
     @State private var experienceLevel: PlanExperienceLevel = .beginner
+    @State private var dayPolicy: DayPolicy = .fixedDays
     @State private var selectedDayOffsets: Set<Int> = [0, 2, 4]
-    @State private var scheduleMode: PlanScheduleMode = .fixedWeekdays
-    @State private var scheduleIntervalDays = 2
+    @State private var slotTemplateIDs: [PersistentIdentifier] = []
     @State private var templateIDByDay: [Int: PersistentIdentifier] = [:]
     @State private var requiredEquipment: [EquipmentType] = []
     @State private var includesDeload = false
@@ -92,6 +105,11 @@ struct PlanFormView: View {
         .onChange(of: durationWeeks) { _, newDuration in
             deloadWeekIndex = min(deloadWeekIndex, max(0, newDuration - 1))
         }
+        .onChange(of: length) { _, newLength in
+            if newLength == .repeating {
+                syncSlotsFromSelectedDays()
+            }
+        }
     }
 }
 
@@ -138,41 +156,95 @@ private extension PlanFormView {
             if availableTemplates.isEmpty {
                 Text("Create a workout with at least one exercise before building a plan.")
                     .foregroundStyle(Color.trameSubdued)
-            } else {
-                WeekdayStrip(selection: daySelectionBinding)
-                    .listRowInsets(EdgeInsets(
-                        top: Spacing.m,
-                        leading: Spacing.l,
-                        bottom: Spacing.m,
-                        trailing: Spacing.l
-                    ))
-
-                ForEach(selectedDayOffsets.sorted(), id: \.self) { dayOffset in
-                    Picker(selection: templateBinding(for: dayOffset)) {
-                        ForEach(availableTemplates, id: \.persistentModelID) { template in
-                            VStack(alignment: .leading) {
-                                Text(template.name)
-                                Text(exerciseCountText(for: template))
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.trameSubdued)
-                            }
-                            .tag(Optional(template.persistentModelID))
-                        }
-                    } label: {
-                        Text(WeekdayStrip.shortName(for: dayOffset))
+            } else if length == .fixed {
+                Picker("Days", selection: $dayPolicy) {
+                    ForEach(DayPolicy.allCases, id: \.self) { policy in
+                        Text(policy.title).tag(policy)
                     }
-                    .pickerStyle(.navigationLink)
-                    .accessibilityIdentifier("plan-day-template-\(dayOffset)")
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("plan-day-policy")
+                .onChange(of: dayPolicy) { _, newPolicy in
+                    if newPolicy == .flexibleWeek {
+                        syncSlotsFromSelectedDays()
+                    }
                 }
 
-                if selectedDayOffsets.isEmpty {
-                    Text("Pick at least one day to train.")
+                if dayPolicy == .fixedDays {
+                    fixedDaysContent
+                } else {
+                    Text("Do the week's workouts on any days. Unused weekdays are not missed.")
                         .font(AppFont.footnote)
                         .foregroundStyle(Color.trameSubdued)
+                    orderedSlotContent(countLabel: "\(slotTemplateIDs.count) workouts this week")
                 }
+            } else {
+                orderedSlotContent(countLabel: "\(slotTemplateIDs.count) workouts in the rotation")
             }
         } header: {
-            TrameDomainSectionRule(title: "Training days", color: Color.trameStrength)
+            TrameDomainSectionRule(
+                title: length == .repeating || dayPolicy == .flexibleWeek ? "Workouts" : "Training days",
+                color: Color.trameStrength
+            )
+        }
+    }
+
+    @ViewBuilder
+    var fixedDaysContent: some View {
+        WeekdayStrip(selection: daySelectionBinding)
+            .listRowInsets(EdgeInsets(
+                top: Spacing.m,
+                leading: Spacing.l,
+                bottom: Spacing.m,
+                trailing: Spacing.l
+            ))
+
+        ForEach(selectedDayOffsets.sorted(), id: \.self) { dayOffset in
+            Picker(selection: templateBinding(for: dayOffset)) {
+                ForEach(availableTemplates, id: \.persistentModelID) { template in
+                    VStack(alignment: .leading) {
+                        Text(template.name)
+                        Text(exerciseCountText(for: template))
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                    .tag(Optional(template.persistentModelID))
+                }
+            } label: {
+                Text(WeekdayStrip.shortName(for: dayOffset))
+            }
+            .pickerStyle(.navigationLink)
+            .accessibilityIdentifier("plan-day-template-\(dayOffset)")
+        }
+
+        if selectedDayOffsets.isEmpty {
+            Text("Pick at least one day to train.")
+                .font(AppFont.footnote)
+                .foregroundStyle(Color.trameSubdued)
+        }
+    }
+
+    @ViewBuilder
+    func orderedSlotContent(countLabel: String) -> some View {
+        Stepper(countLabel, value: slotCountBinding, in: 1...7)
+            .accessibilityIdentifier("plan-slot-count")
+
+        ForEach(Array(slotTemplateIDs.enumerated()), id: \.offset) { index, _ in
+            Picker(selection: slotBinding(at: index)) {
+                ForEach(availableTemplates, id: \.persistentModelID) { template in
+                    VStack(alignment: .leading) {
+                        Text(template.name)
+                        Text(exerciseCountText(for: template))
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+                    .tag(Optional(template.persistentModelID))
+                }
+            } label: {
+                Text("Workout \(index + 1)")
+            }
+            .pickerStyle(.navigationLink)
+            .accessibilityIdentifier("plan-slot-template-\(index)")
         }
     }
 
@@ -202,18 +274,6 @@ private extension PlanFormView {
                 .accessibilityIdentifier("plan-equipment-picker")
 
                 if length == .fixed {
-                    Picker("Schedule", selection: $scheduleMode) {
-                        ForEach(PlanScheduleMode.allCases, id: \.self) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .accessibilityIdentifier("plan-schedule-mode")
-
-                    if scheduleMode == .everyNDays {
-                        Stepper("Every \(scheduleIntervalDays) days", value: $scheduleIntervalDays, in: 1...14)
-                            .accessibilityIdentifier("plan-schedule-interval")
-                    }
-
                     deloadControls
                 }
             }
@@ -272,8 +332,7 @@ private extension PlanFormView {
                     durationWeeks: durationWeeks,
                     dayAssignments: selectedDayAssignments,
                     deload: deloadConfiguration,
-                    scheduleMode: scheduleMode,
-                    scheduleIntervalDays: scheduleIntervalDays
+                    scheduleMode: dayPolicy == .flexibleWeek ? .flexibleWeek : .fixedWeekdays
                 )
             )
         case .repeating:
@@ -282,11 +341,9 @@ private extension PlanFormView {
         dismiss()
     }
 
-    /// Day order becomes rotation order: a Mon/Wed/Fri selection rotates through
-    /// those three workouts indefinitely, in that sequence.
     var repeatingPlan: RepeatingPlan {
-        let slots = selectedDayAssignments.enumerated().map { index, assignment in
-            RepeatingPlanSlot(orderIndex: index, workoutTemplate: assignment.template)
+        let slots = orderedSlotAssignments.enumerated().map { index, template in
+            RepeatingPlanSlot(orderIndex: index, workoutTemplate: template)
         }
         return RepeatingPlan(
             name: trimmedName,
@@ -304,12 +361,20 @@ private extension PlanFormView {
     /// them would be fragile and would treat merely opening the options section
     /// as an edit. These two are what a person would describe as "the work".
     var hasUnsavedWork: Bool {
-        !trimmedName.isEmpty || !templateIDByDay.isEmpty
+        !trimmedName.isEmpty || !templateIDByDay.isEmpty || !slotTemplateIDs.isEmpty
+    }
+
+    var usesOrderedSlots: Bool {
+        length == .repeating || dayPolicy == .flexibleWeek
     }
 
     var canSave: Bool {
-        !trimmedName.isEmpty
-            && !selectedDayOffsets.isEmpty
+        guard !trimmedName.isEmpty else { return false }
+        if usesOrderedSlots {
+            return !orderedSlotAssignments.isEmpty
+                && orderedSlotAssignments.count == slotTemplateIDs.count
+        }
+        return !selectedDayOffsets.isEmpty
             && selectedDayAssignments.count == selectedDayOffsets.count
     }
 }
@@ -328,7 +393,12 @@ private extension PlanFormView {
     }
 
     var selectedDayAssignments: [PlanCoordinator.DayAssignment] {
-        selectedDayOffsets.sorted().compactMap { dayOffset in
+        if length == .fixed, dayPolicy == .flexibleWeek {
+            return orderedSlotAssignments.enumerated().map { index, template in
+                PlanCoordinator.DayAssignment(dayOffset: index, template: template)
+            }
+        }
+        return selectedDayOffsets.sorted().compactMap { dayOffset in
             guard
                 let templateID = templateIDByDay[dayOffset],
                 let template = availableTemplates.first(where: { $0.persistentModelID == templateID })
@@ -336,6 +406,12 @@ private extension PlanFormView {
                 return nil
             }
             return PlanCoordinator.DayAssignment(dayOffset: dayOffset, template: template)
+        }
+    }
+
+    var orderedSlotAssignments: [WorkoutTemplate] {
+        slotTemplateIDs.compactMap { templateID in
+            availableTemplates.first(where: { $0.persistentModelID == templateID })
         }
     }
 
@@ -404,10 +480,60 @@ private extension PlanFormView {
         "\(template.templateExercises.count) exercises"
     }
 
+    var slotCountBinding: Binding<Int> {
+        Binding(
+            get: { slotTemplateIDs.count },
+            set: { newCount in
+                let count = min(7, max(1, newCount))
+                let fallback = availableTemplates.first?.persistentModelID
+                if count > slotTemplateIDs.count {
+                    let extra = (slotTemplateIDs.count..<count).compactMap { _ in
+                        slotTemplateIDs.last ?? fallback
+                    }
+                    slotTemplateIDs.append(contentsOf: extra)
+                } else if count < slotTemplateIDs.count {
+                    slotTemplateIDs.removeLast(slotTemplateIDs.count - count)
+                }
+            }
+        )
+    }
+
+    func slotBinding(at index: Int) -> Binding<PersistentIdentifier?> {
+        Binding(
+            get: {
+                guard slotTemplateIDs.indices.contains(index) else {
+                    return availableTemplates.first?.persistentModelID
+                }
+                return slotTemplateIDs[index]
+            },
+            set: { selectedID in
+                guard slotTemplateIDs.indices.contains(index), let selectedID else { return }
+                slotTemplateIDs[index] = selectedID
+            }
+        )
+    }
+
+    func syncSlotsFromSelectedDays() {
+        let fromDays = selectedDayOffsets.sorted().compactMap { templateIDByDay[$0] }
+        if fromDays.isEmpty {
+            if slotTemplateIDs.isEmpty, let first = availableTemplates.first?.persistentModelID {
+                slotTemplateIDs = Array(repeating: first, count: 3)
+            }
+        } else {
+            slotTemplateIDs = fromDays
+        }
+    }
+
     func applyInitialState() {
         if let firstTemplateID = availableTemplates.first?.persistentModelID {
             for dayOffset in selectedDayOffsets where templateIDByDay[dayOffset] == nil {
                 templateIDByDay[dayOffset] = firstTemplateID
+            }
+            if slotTemplateIDs.isEmpty {
+                slotTemplateIDs = selectedDayOffsets.sorted().compactMap { templateIDByDay[$0] }
+                if slotTemplateIDs.isEmpty {
+                    slotTemplateIDs = Array(repeating: firstTemplateID, count: 3)
+                }
             }
         }
         if requiredEquipment.isEmpty {

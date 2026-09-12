@@ -174,10 +174,9 @@ struct ProgramCatalogDetailView: View {
         }
         chips.append(String(localized: "\(record.durationWeeks) weeks"))
         if let payload, payload.scheduleMode == .sequential {
-            // Only the non-obvious mode is worth a chip. "Fixed weekdays" is
-            // what a plan is assumed to be; running in order regardless of the
-            // calendar is the thing that changes how a week feels.
             chips.append(String(localized: "In order, not on fixed days"))
+        } else if let payload, payload.scheduleMode == .flexibleWeek {
+            chips.append(String(localized: "Any days this week"))
         }
         return chips
     }

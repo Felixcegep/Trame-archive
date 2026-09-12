@@ -8,12 +8,17 @@
 import SwiftData
 import SwiftUI
 
-/// Builds a saved workout: name it, pick exercises, order them, pair them.
+/// Builds a saved workout: name it, pick exercises, order them, pair them,
+/// and optionally attach a warm-up or post-workout stretch.
 ///
 /// Supersets already existed in the plan editor and during a live session, but
 /// not here — so a workout you could improvise or prescribe could not be saved.
 /// Selection is an ordered list rather than a name set, because a superset is
 /// defined by contiguous position.
+///
+/// The live exercise catalogue is queried here rather than snapshotted by the
+/// presenter, so a custom exercise created from this sheet appears immediately
+/// and can be added without closing the draft.
 struct WorkoutTemplateFormView: View {
     /// Selection has to survive reordering and grouping, so each pick gets its
     /// own identity rather than being keyed by the exercise it points at.
@@ -36,9 +41,15 @@ struct WorkoutTemplateFormView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived })
+    private var availableExercises: [Exercise]
+    @Query(
+        filter: #Predicate<MobilityRoutine> { !$0.isArchived },
+        sort: \MobilityRoutine.name
+    )
+    private var mobilityRoutines: [MobilityRoutine]
 
-    let availableExercises: [Exercise]
-    let onSave: (String, [TemplateExercise]) -> Void
+    let onSave: (String, [TemplateExercise], MobilityRoutine?, MobilityRoutine?) -> Void
 
     @State private var name = ""
     @State private var selection: [Selection] = []
@@ -47,11 +58,22 @@ struct WorkoutTemplateFormView: View {
     @State private var filter = ExerciseFilterState()
     @State private var isCreatingExercise = false
     @State private var isShowingPersonalizedBuilder = false
+    @State private var isShowingDiscardConfirmation = false
+    @State private var preWorkoutRoutine: MobilityRoutine?
+    @State private var postWorkoutRoutine: MobilityRoutine?
+    @State private var mobilityPlacementToEdit: WorkoutMobilityPlacement?
+    @FocusState private var isNameFocused: Bool
+    @FocusState private var isSearchFocused: Bool
+
+    private var showsMobility: Bool {
+        FeatureFlags.current.isEnabled(.mobility)
+    }
 
     var body: some View {
         Form {
             Section {
                 TextField("Name", text: $name)
+                    .focused($isNameFocused)
                     .accessibilityIdentifier("template-name-field")
 
                 if FeatureFlags.current.isEnabled(.workoutGeneration) {
@@ -65,42 +87,87 @@ struct WorkoutTemplateFormView: View {
                         .font(AppFont.metadata)
                         .foregroundStyle(Color.trameSubdued)
                 }
+            } footer: {
+                if trimmedName.isEmpty && hasUnsavedWork {
+                    Text("Name this workout to save it.")
+                }
             }
 
             if !selection.isEmpty {
                 selectedSection
             }
 
+            if showsMobility {
+                mobilitySection
+            }
+
             exercisePickerSection
         }
         .scrollContentBackground(.hidden)
         .background(Color.trameCanvas)
-        .searchable(text: $searchText, prompt: "Search exercises")
+        .scrollDismissesKeyboard(.interactively)
         .navigationDestination(item: $detailExercise) { exercise in
             ExerciseView(exercise: ExerciseDetailSnapshot(exercise: exercise))
         }
         .navigationTitle("New Workout")
+        .navigationBarTitleDisplayMode(.inline)
         .tint(Color.trameStrength)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
-                    dismiss()
+                    if hasUnsavedWork {
+                        isShowingDiscardConfirmation = true
+                    } else {
+                        dismiss()
+                    }
                 }
             }
 
             ToolbarItem(placement: .confirmationAction) {
-                Button("Add") {
-                    onSave(trimmedName, templateExercises)
+                Button("Save") {
+                    onSave(
+                        trimmedName,
+                        templateExercises,
+                        preWorkoutRoutine,
+                        postWorkoutRoutine
+                    )
                     dismiss()
                 }
                 .accessibilityIdentifier("save-template")
                 .disabled(trimmedName.isEmpty)
             }
+
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    isNameFocused = false
+                    isSearchFocused = false
+                }
+                .accessibilityIdentifier("dismiss-template-search-keyboard")
+            }
+        }
+        // A named workout, a selected exercise, or a stretch is real work. The
+        // system search bar used to sit at the sheet's thumb edge, so a swipe
+        // meant to dismiss search wiped the draft. Block that, and confirm
+        // Cancel the same way the plan form does.
+        .interactiveDismissDisabled(hasUnsavedWork)
+        .presentationContentInteraction(.scrolls)
+        .alert(
+            "Discard this workout?",
+            isPresented: $isShowingDiscardConfirmation
+        ) {
+            Button("Discard workout", role: .destructive) { dismiss() }
+                .accessibilityIdentifier("confirm-discard-workout-template")
+            Button("Keep editing", role: .cancel) {}
+                .accessibilityIdentifier("keep-editing-workout-template")
+        } message: {
+            Text("The name, exercises, and stretches you have chosen will not be saved.")
         }
         .sheet(isPresented: $isCreatingExercise) {
             NavigationStack {
                 ExerciseFormView { exercise in
                     _ = LibraryService.createCustomExercise(exercise, using: modelContext)
+                    add(exercise)
                 }
             }
         }
@@ -109,6 +176,15 @@ struct WorkoutTemplateFormView: View {
                 availableExercises: availableExercises,
                 onApply: applyGeneratedDraft
             )
+        }
+        .sheet(item: $mobilityPlacementToEdit) { placement in
+            WorkoutMobilityRoutinePicker(
+                placement: placement,
+                routines: mobilityRoutines,
+                currentRoutine: routine(for: placement)
+            ) { routine in
+                setRoutine(routine, for: placement)
+            }
         }
     }
 }
@@ -186,6 +262,46 @@ private extension WorkoutTemplateFormView {
     }
 }
 
+// MARK: - Workout mobility
+
+private extension WorkoutTemplateFormView {
+    var mobilitySection: some View {
+        Section {
+            ForEach(WorkoutMobilityPlacement.allCases, id: \.self) { placement in
+                WorkoutMobilityLinkRow(
+                    placement: placement,
+                    routine: routine(for: placement),
+                    unavailableName: nil,
+                    isEditable: true
+                ) {
+                    mobilityPlacementToEdit = placement
+                }
+                .accessibilityIdentifier("template-form-\(placement.accessibilityIdentifier)")
+            }
+        } header: {
+            Text("Stretches")
+        } footer: {
+            Text("These run before or after future starts of this workout.")
+        }
+    }
+
+    func routine(for placement: WorkoutMobilityPlacement) -> MobilityRoutine? {
+        switch placement {
+        case .beforeWorkout: preWorkoutRoutine
+        case .afterWorkout: postWorkoutRoutine
+        }
+    }
+
+    func setRoutine(_ routine: MobilityRoutine?, for placement: WorkoutMobilityPlacement) {
+        switch placement {
+        case .beforeWorkout:
+            preWorkoutRoutine = routine
+        case .afterWorkout:
+            postWorkoutRoutine = routine
+        }
+    }
+}
+
 // MARK: - Exercise picker
 
 private extension WorkoutTemplateFormView {
@@ -206,6 +322,16 @@ private extension WorkoutTemplateFormView {
                     .accessibilityIdentifier("create-exercise-empty-state")
                 }
             } else {
+                exerciseSearchField
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(
+                        top: Spacing.s,
+                        leading: 0,
+                        bottom: Spacing.s,
+                        trailing: 0
+                    ))
+                    .listRowSeparator(.hidden)
+
                 ExerciseFilterControls(filter: $filter, resultCount: results.count)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
@@ -228,7 +354,7 @@ private extension WorkoutTemplateFormView {
                         ExerciseSelectionRow(
                             exercise: exercise,
                             isSelected: isSelected(exercise),
-                            onSelect: { toggle(exercise) },
+                            onSelect: { add(exercise) },
                             onShowDetail: { detailExercise = exercise }
                         )
                     }
@@ -237,6 +363,42 @@ private extension WorkoutTemplateFormView {
         } header: {
             Text("Exercises")
         }
+    }
+
+    var exerciseSearchField: some View {
+        HStack(spacing: Spacing.s) {
+            Image(systemName: AppIcon.search)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+                .accessibilityHidden(true)
+            TextField("Search exercises", text: $searchText)
+                .font(AppFont.bodyMedium)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .onSubmit { isSearchFocused = false }
+                .focused($isSearchFocused)
+                .accessibilityIdentifier("template-exercise-search")
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: AppIcon.failureCircle)
+                        .foregroundStyle(Color.trameSubdued)
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, Spacing.m)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -247,12 +409,11 @@ private extension WorkoutTemplateFormView {
         selection.contains { $0.exercise.id == exercise.id }
     }
 
-    func toggle(_ exercise: Exercise) {
-        if let index = selection.firstIndex(where: { $0.exercise.id == exercise.id }) {
-            remove(at: index)
-        } else {
-            selection.append(Selection(exercise: exercise, supersetGroupID: nil))
-        }
+    /// The catalogue only adds. Removal lives on the Selected row, where the
+    /// sets and pairing that would be lost are visible.
+    func add(_ exercise: Exercise) {
+        guard !isSelected(exercise) else { return }
+        selection.append(Selection(exercise: exercise, supersetGroupID: nil))
     }
 
     func applyGeneratedDraft(_ draft: ValidatedWorkoutDraft) {
@@ -335,6 +496,14 @@ private extension WorkoutTemplateFormView {
 private extension WorkoutTemplateFormView {
     var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Whether dismissing would lose something the lifter chose.
+    var hasUnsavedWork: Bool {
+        !trimmedName.isEmpty
+            || !selection.isEmpty
+            || preWorkoutRoutine != nil
+            || postWorkoutRoutine != nil
     }
 
     var filteredExercises: [Exercise] {

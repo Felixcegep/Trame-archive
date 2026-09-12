@@ -53,6 +53,7 @@ PERSISTENCE_CLASSES=(
   StoreExceptionBoundaryTests
   StoreRecoveryTests
   DataSafetyServiceTests
+  BackupExportSelectionTests
   BackupFieldCoverageTests
   StrengthBackupValidatorTests
   HistoricalIntegrityMatrixDigestTests

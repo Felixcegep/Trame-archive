@@ -169,8 +169,14 @@ struct FolderView: View {
                         LibraryService.createWorkoutCollection(name: name, templates: templates, using: modelContext)
                     }
                 case .workoutTemplate:
-                    WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, templateExercises in
-                        LibraryService.createWorkoutTemplate(name: name, templateExercises: templateExercises, using: modelContext)
+                    WorkoutTemplateFormView { name, templateExercises, preWorkout, postWorkout in
+                        LibraryService.createWorkoutTemplate(
+                            name: name,
+                            templateExercises: templateExercises,
+                            preWorkoutMobilityRoutine: preWorkout,
+                            postWorkoutMobilityRoutine: postWorkout,
+                            using: modelContext
+                        )
                     }
                 case .plan:
                     PlanFormView(

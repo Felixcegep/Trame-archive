@@ -340,7 +340,11 @@ enum ProgramMatchService {
             if (flexibility == .variable) == suitsFlexibleWeek {
                 score += Weight.scheduleStyle
                 if flexibility == .variable {
-                    reasons.append(.init(text: String(localized: "Places sessions in order, not on fixed days")))
+                    if candidate.scheduleMode == .flexibleWeek {
+                        reasons.append(.init(text: String(localized: "Lets you finish the week's work on any days")))
+                    } else {
+                        reasons.append(.init(text: String(localized: "Places sessions in order, not on fixed days")))
+                    }
                 }
             }
         }

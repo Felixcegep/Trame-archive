@@ -26,6 +26,7 @@ struct ProgressHubView: View {
 
     var onOpenPlan: ((UUID) -> Void)? = nil
     var onNavigate: (ProgressRoute) -> Void = { _ in }
+    var onOpenNutritionDay: ((LocalDay) -> Void)? = nil
 
     @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
     @State private var overviewState: ProgressOverviewState = .loading
@@ -777,6 +778,7 @@ struct MobilityHistoryView: View {
 
 struct NutritionHistoryView: View {
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var meals: [LoggedMeal]
+    var onOpenNutritionDay: ((LocalDay) -> Void)? = nil
 
     var body: some View {
         Group {
@@ -790,16 +792,25 @@ struct NutritionHistoryView: View {
                 List {
                 Section("Last 7 days") {
                     ForEach(daySummaries) { summary in
-                        HStack {
-                            Text(summary.day.rawValue)
-                            Spacer()
-                            Text("\(FoodLibraryService.format(summary.totals.calories)) kcal")
-                                .font(AppFont.subheadlineSemibold)
-                            Text("P \(FoodLibraryService.format(summary.totals.protein)) g")
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.trameSubdued)
+                        Button {
+                            onOpenNutritionDay?(summary.day)
+                        } label: {
+                            HStack {
+                                Text(summary.day.displayName())
+                                Spacer()
+                                Text("\(FoodLibraryService.format(summary.totals.calories)) kcal")
+                                    .font(AppFont.subheadlineSemibold)
+                                Text("P \(FoodLibraryService.format(summary.totals.protein)) g")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.trameSubdued)
+                            }
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .contentShape(Rectangle())
                         }
-                        .accessibilityLabel("\(summary.day.rawValue), \(FoodLibraryService.format(summary.totals.calories)) calories, \(FoodLibraryService.format(summary.totals.protein)) grams protein")
+                        .buttonStyle(.plain)
+                        .disabled(onOpenNutritionDay == nil)
+                        .accessibilityIdentifier("nutrition-history-day-\(summary.day.rawValue)")
+                        .accessibilityLabel("\(summary.day.displayName()), \(FoodLibraryService.format(summary.totals.calories)) calories, \(FoodLibraryService.format(summary.totals.protein)) grams protein")
                     }
                 }
 

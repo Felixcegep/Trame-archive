@@ -8,7 +8,7 @@ struct PlanCalendarView: View {
     @State private var selectedEntry: PlanCalendarEntry?
 
     private var weeks: [PlanCalendarWeek] {
-        PlanCalendarBuilder.weeks(for: run.orderedWorkoutProgress)
+        PlanCalendarBuilder.weeks(for: run)
     }
 
     var body: some View {

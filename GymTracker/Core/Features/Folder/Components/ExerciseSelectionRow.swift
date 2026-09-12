@@ -38,9 +38,10 @@ struct ExerciseSelectionRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(isSelected)
             .accessibilityIdentifier("template-exercise-\(exercise.name)")
-            .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
-            .accessibilityValue(isSelected ? "Selected" : "Not selected")
+            .accessibilityLabel(isSelected ? exercise.name : "Add \(exercise.name)")
+            .accessibilityValue(isSelected ? "Selected. Remove it from the Selected list." : "Not selected")
 
             Button(action: onShowDetail) {
                 Image(systemName: AppIcon.info)
