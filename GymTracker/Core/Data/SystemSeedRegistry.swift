@@ -322,6 +322,7 @@ enum ExerciseSystemSeedInstaller {
         destination.repCountingStyle = source.repCountingStyle
         destination.weightEntryStyle = source.weightEntryStyle
         destination.loadUnitCount = source.loadUnitCount
+        destination.sportDiscipline = source.sportDiscipline
         // isFavorite, isArchived, and isCustom are user-owned.
     }
 }

@@ -35,6 +35,7 @@ struct RestTakeoverView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .largeTitle) private var countdownPointSize: CGFloat = 88
+    @ScaledMetric(relativeTo: .largeTitle) private var compactCountdownPointSize: CGFloat = 56
 
     /// Trimming below this threshold could end rest without an explicit Skip.
     private let trimStep: TimeInterval = 15
@@ -45,14 +46,14 @@ struct RestTakeoverView: View {
             restHeader
 
             ScrollView {
-                VStack(spacing: Spacing.xxl) {
+                VStack(spacing: showsPostSetCapture ? Spacing.l : Spacing.xxl) {
                     timerField
                     justLoggedGroup
-                    nextUpGroup
                     effortCapture
+                    nextUpGroup
                 }
                 .padding(.horizontal, Spacing.screenInset)
-                .padding(.top, Spacing.xl)
+                .padding(.top, showsPostSetCapture ? Spacing.m : Spacing.xl)
                 .padding(.bottom, Spacing.xxl)
                 .frame(maxWidth: .infinity)
             }
@@ -106,10 +107,21 @@ struct RestTakeoverView: View {
 
     // MARK: - Time
 
+    /// After a logged set the rest screen also asks quality and effort. The
+    /// countdown stays the dominant object, but it has to share the canvas or
+    /// those questions fall below the fold between snatch attempts.
+    private var showsPostSetCapture: Bool {
+        viewModel.lastCompletedSetContext != nil
+    }
+
+    private var activeCountdownPointSize: CGFloat {
+        showsPostSetCapture ? compactCountdownPointSize : countdownPointSize
+    }
+
     private var timerField: some View {
         countdown
         .frame(maxWidth: .infinity)
-        .padding(.vertical, Spacing.xxl)
+        .padding(.vertical, showsPostSetCapture ? Spacing.s : Spacing.xxl)
     }
 
     @ViewBuilder
@@ -139,7 +151,7 @@ struct RestTakeoverView: View {
             }
 
             Text(clockText(remaining))
-                .font(AppFont.timer(scaledPointSize: countdownPointSize))
+                .font(AppFont.timer(scaledPointSize: activeCountdownPointSize))
                 .minimumScaleFactor(0.45)
                 .lineLimit(1)
                 .foregroundStyle(viewModel.isTimerPaused ? Color.trameSubdued : Color.trameText)
@@ -210,7 +222,9 @@ struct RestTakeoverView: View {
                     Spacer(minLength: 0)
                 }
 
-                if !viewModel.isRestReady {
+                olympicAttemptCapture(for: context)
+
+                if !viewModel.isRestReady && !showsPostSetCapture {
                     Text("Rest continues")
                         .font(AppFont.micro)
                         .tracking(0.7)
@@ -242,18 +256,32 @@ struct RestTakeoverView: View {
         return parts.isEmpty ? String(localized: "Completed") : parts.joined(separator: " ")
     }
 
+    @ViewBuilder
+    private func olympicAttemptCapture(for context: (entry: ExerciseEntry, set: ExerciseSet)) -> some View {
+        if !context.set.orderedComplexComponents.isEmpty {
+            ComplexComponentResultsView(
+                components: context.set.orderedComplexComponents,
+                onChange: {
+                    context.set.refreshDerivedOlympicQuality()
+                    viewModel.persistChanges()
+                }
+            )
+        } else if context.entry.usesOlympicAttemptLogging {
+            OlympicAttemptQualityCapture(set: context.set) {
+                viewModel.persistChanges()
+            }
+        }
+    }
+
     /// How hard the set that just ended felt, asked on the screen that already
     /// owns the moment after it.
     ///
     /// **Not a pop-up.** A dialog between the set and the timer delays the one
     /// thing on this screen that is genuinely time-sensitive, and adds a modal
     /// layer over a flow that already has one. Rest is dead time by definition
-    /// — the question costs nothing here, and the lifter can ignore it entirely
-    /// and let the clock run.
-    ///
-    /// Appears only when the exercise **prescribed** an effort target. Asking
-    /// on every accessory set trains people to dismiss it, and an effort log
-    /// nobody reads is worse than no effort log.
+    /// — the question costs nothing here, and the lifter can ignore it and let
+    /// the clock run. It is asked after every completed set so effort is a
+    /// habit, not a prescription-only extra.
     @ViewBuilder
     private var effortCapture: some View {
         if let set = viewModel.lastCompletedSetAwaitingEffort {
@@ -308,7 +336,10 @@ struct RestTakeoverView: View {
     }
 
     private var effortMeasure: EffortMeasure {
-        EffortMeasure(rawValue: UserDefaults.standard.string(forKey: DefaultsKey.effortMeasure) ?? "") ?? .rir
+        if viewModel.lastCompletedSetContext?.entry.usesOlympicAttemptLogging == true {
+            return .rpe
+        }
+        return EffortMeasure(rawValue: UserDefaults.standard.string(forKey: DefaultsKey.effortMeasure) ?? "") ?? .rir
     }
 
     private var effortRange: ClosedRange<Double> {
@@ -367,7 +398,7 @@ struct RestTakeoverView: View {
     @ViewBuilder
     private var nextUpGroup: some View {
         if let nextUp {
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: showsPostSetCapture ? Spacing.s : Spacing.m) {
                 Rectangle()
                     .fill(Color.trameSeparator)
                     .frame(height: 1)
@@ -388,7 +419,7 @@ struct RestTakeoverView: View {
                 }
 
                 Text(nextUp.exerciseName)
-                    .font(AppFont.stageTitle)
+                    .font(showsPostSetCapture ? AppFont.titleMedium : AppFont.stageTitle)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: Spacing.s) {
@@ -404,7 +435,7 @@ struct RestTakeoverView: View {
 
                 if let target = nextUp.target {
                     Text(target)
-                        .font(AppFont.metricLarge)
+                        .font(showsPostSetCapture ? AppFont.metricCompact : AppFont.metricLarge)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

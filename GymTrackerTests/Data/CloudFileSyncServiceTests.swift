@@ -162,4 +162,111 @@ final class CloudFileSyncServiceTests: XCTestCase {
         XCTAssertFalse(service.isLinked)
         XCTAssertEqual(service.lastOutcome, .unlinked)
     }
+
+    func testGoogleDriveKeepThisIPhoneWritesToClient() async throws {
+        let fake = FakeGoogleDriveAPIClient()
+        let fileID = "drive-file-1"
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let service = CloudFileSyncService(defaults: testDefaults, googleDrive: fake)
+        service.linkGoogleDrive(
+            fileID: fileID,
+            displayName: "TrameBackup.json",
+            accountEmail: "lifter@example.com"
+        )
+
+        let pushed = await service.sync(
+            from: context,
+            hasActiveWorkout: false,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric,
+            request: .keepThisIPhone
+        )
+        XCTAssertEqual(pushed, .pushed)
+        XCTAssertNotNil(fake.files[fileID])
+        XCTAssertFalse(fake.files[fileID]?.isEmpty ?? true)
+        XCTAssertEqual(service.linkedRecord?.googleDriveFileID, fileID)
+        XCTAssertNotNil(service.linkedRecord?.lastSyncedHash)
+    }
+
+    func testGoogleDriveDifferingBytesReportsConflict() async throws {
+        let fake = FakeGoogleDriveAPIClient()
+        let fileID = "drive-file-2"
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let service = CloudFileSyncService(defaults: testDefaults, googleDrive: fake)
+        service.linkGoogleDrive(
+            fileID: fileID,
+            displayName: "TrameBackup.json",
+            accountEmail: nil
+        )
+
+        let pushed = await service.sync(
+            from: context,
+            hasActiveWorkout: false,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric,
+            request: .keepThisIPhone
+        )
+        XCTAssertEqual(pushed, .pushed)
+
+        fake.files[fileID] = Data(#"{"version":1,"not":"local"}"#.utf8)
+
+        let outcome = await service.sync(
+            from: context,
+            hasActiveWorkout: false,
+            restTimer: 45,
+            darkMode: true,
+            unitSystem: .imperial,
+            request: .manual
+        )
+        XCTAssertEqual(outcome, .conflict)
+    }
+
+    func testAutoSyncDisabledWhenModeIsManual() {
+        let service = CloudFileSyncService(defaults: testDefaults)
+        service.linkGoogleDrive(
+            fileID: "drive-file-3",
+            displayName: "TrameBackup.json",
+            accountEmail: "lifter@example.com"
+        )
+        XCTAssertTrue(service.isLinked)
+        XCTAssertTrue(service.isAutoSyncEnabled)
+
+        service.setSyncMode(.manual)
+        XCTAssertEqual(service.linkedRecord?.syncMode, .manual)
+        XCTAssertFalse(service.isAutoSyncEnabled)
+        XCTAssertTrue(service.isLinked)
+    }
+}
+
+private final class FakeGoogleDriveAPIClient: GoogleDriveAPIClienting, @unchecked Sendable {
+    var files: [String: Data] = [:]
+    var email: String? = "lifter@example.com"
+
+    func findBackupFile() async throws -> GoogleDriveFile? {
+        guard let first = files.first else { return nil }
+        return GoogleDriveFile(id: first.key, name: "TrameBackup.json", md5Checksum: nil)
+    }
+
+    func createBackupFile(data: Data, name: String) async throws -> GoogleDriveFile {
+        let id = UUID().uuidString
+        files[id] = data
+        return GoogleDriveFile(id: id, name: name, md5Checksum: nil)
+    }
+
+    func downloadFile(id: String) async throws -> Data {
+        guard let data = files[id] else {
+            throw URLError(.fileDoesNotExist)
+        }
+        return data
+    }
+
+    func uploadFile(id: String, data: Data) async throws {
+        files[id] = data
+    }
+
+    func accountEmail() async throws -> String? {
+        email
+    }
 }

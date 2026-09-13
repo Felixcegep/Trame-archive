@@ -265,6 +265,30 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(replacementPlan.label.contains("Double Progression Builder"))
     }
 
+    func testActivePlanKeepsFreeWorkoutStartOnTodayAndTrain() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+
+        XCTAssertTrue(app.buttons["start-planned-workout"].waitForExistence(timeout: 5))
+        tapButton("today-start-free-workout", in: app)
+        XCTAssertTrue(app.navigationBars["Start workout"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["start-empty-workout"].waitForExistence(timeout: 5))
+        tapButton("Cancel", in: app)
+        XCTAssertTrue(app.navigationBars["Start workout"].waitForNonExistence(timeout: 5))
+
+        selectTab(.library, in: app)
+        XCTAssertTrue(app.buttons["current-plan-start-next"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["current-plan-start-free"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["current-plan-menu"].waitForExistence(timeout: 5))
+
+        tapButton("library-create", in: app)
+        tapButton("library-start-free-workout", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 8))
+    }
+
     func testPlanSearchNoMatchDoesNotShowLibraryOrInstallFailureEmptyStates() {
         let app = launchFreshApp()
         openPlans(.readyMade, in: app)
@@ -369,6 +393,53 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertFalse(app.descendants(matching: .any)["rest-running"].exists)
         XCTAssertTrue(app.buttons["rest-pill"].waitForExistence(timeout: 5))
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
+    }
+
+    func testOlympicRestAsksWhetherTheLiftWentWellAndHowHard() {
+        let app = launchFixture("active-olympic-rest")
+
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["olympic-quality-capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["olympic-quality-excellent"].exists)
+        XCTAssertTrue(app.buttons["olympic-quality-acceptable"].exists)
+        XCTAssertTrue(app.buttons["olympic-quality-missed"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["rest-effort-capture"].exists)
+
+        app.descendants(matching: .any)["rest-running"]
+            .buttons["olympic-quality-excellent"]
+            .tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["rest-running"]
+                .buttons["olympic-quality-excellent"]
+                .isSelected
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)["rest-running"]
+                .buttons["olympic-quality-missed"]
+                .isSelected
+        )
+    }
+
+    func testOlympicFinishListsMadeMissedAndMissingEffort() {
+        let app = launchFixture("active-olympic-finish")
+        navigateToWorkoutFinish(in: app)
+
+        let snatch = app.buttons["finish-breakdown-Snatch"]
+        XCTAssertTrue(snatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(snatch.label.contains("made"))
+        XCTAssertTrue(snatch.label.contains("missed"))
+        XCTAssertTrue(snatch.label.contains("Effort missing"))
+
+        let cleanAndJerk = app.buttons["finish-breakdown-Clean and Jerk"]
+        XCTAssertTrue(cleanAndJerk.waitForExistence(timeout: 5))
+        XCTAssertFalse(cleanAndJerk.label.contains("Effort missing"))
+    }
+
+    func testRestAlwaysAsksForEffortAfterACompletedSet() {
+        let app = launchFixture("active-rest-running")
+
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-effort-capture"].waitForExistence(timeout: 5))
     }
 
     // This is intentionally only the first phase of the reboot test. The
@@ -596,25 +667,53 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
                 .waitForExistence(timeout: 10)
         )
 
-        let firstMovement = app.descendants(matching: .any).matching(
+        let firstMovement = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "active-workout-mobility-insert-movement-")
         ).firstMatch
         XCTAssertTrue(firstMovement.waitForExistence(timeout: 10))
         firstMovement.tap()
 
+        XCTAssertTrue(
+            app.descendants(matching: .any)["active-workout-mobility-insert-picker"]
+                .waitForNonExistence(timeout: 10)
+        )
+
         let integratedStage = app.descendants(matching: .any)["active-workout-mobility-stage"]
         XCTAssertTrue(integratedStage.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["MOVEMENT"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["active-workout-title"].waitForExistence(timeout: 5)
+        )
         XCTAssertFalse(app.descendants(matching: .any)["standalone-mobility-stage"].exists)
         XCTAssertFalse(app.staticTexts["WARM-UP"].exists)
         XCTAssertFalse(app.staticTexts["COOLDOWN"].exists)
 
-        tapButton("linked-mobility-menu", in: app)
+        let stageMenu = app.descendants(matching: .any)["linked-mobility-menu"].firstMatch
+        if stageMenu.waitForExistence(timeout: 2) == false {
+            app.swipeUp()
+        }
+        tapControl("linked-mobility-menu", in: app)
         tapButton("stop-mobility-session", in: app)
         tapButton("Stop Session", in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.descendants(matching: .any)["active-workout-mobility-stage"].exists)
+    }
+
+    func testHipsFocusFiltersActiveStretchPicker() {
+        let app = launchFreshApp()
+        startEmptyWorkout(in: app)
+        tapControl("add-first-mobility-empty", in: app)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["active-workout-mobility-insert-picker"]
+                .waitForExistence(timeout: 10)
+        )
+
+        let hipsFilter = app.buttons["mobility-focus-Hips"]
+        XCTAssertTrue(hipsFilter.waitForExistence(timeout: 5))
+        hipsFilter.tap()
+
+        XCTAssertTrue(app.buttons["stretch-link-Couch Stretch"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Upper Trap Stretch"].exists)
     }
 
     func testMidWorkoutMobilityFixturePresentsLinkedStage() {
@@ -1116,6 +1215,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         )
         XCTAssertTrue(app.descendants(matching: .any)["settings-cloud-file-create"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["settings-cloud-file-open"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-cloud-file-google-drive"].exists)
 
         let exportButton = app.buttons["settings-export-data"]
         for _ in 0..<4 where exportButton.exists == false {
@@ -1230,7 +1330,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testCreatesCustomExercise() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
-        app.buttons["Create library item"].tap()
+        app.buttons["library-create"].tap()
         XCTAssertTrue(app.buttons["New Exercise"].waitForExistence(timeout: 5))
         app.buttons["New Exercise"].tap()
 
@@ -1246,7 +1346,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testCreatesWorkoutTemplate() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
-        tapButton("Create library item", in: app)
+        tapButton("library-create", in: app)
         XCTAssertTrue(app.buttons["New Workout"].waitForExistence(timeout: 5))
         app.buttons["New Workout"].tap()
 
@@ -1262,7 +1362,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testNewWorkoutDirtyCancelAsksToKeepDraft() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
-        tapButton("Create library item", in: app)
+        tapButton("library-create", in: app)
         XCTAssertTrue(app.buttons["New Workout"].waitForExistence(timeout: 5))
         app.buttons["New Workout"].tap()
 
@@ -1292,6 +1392,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         startEmptyWorkout(in: app)
         XCTAssertTrue(app.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["add-first-exercise-empty"].waitForExistence(timeout: 5))
         tapControl("add-first-mobility-empty", in: app)
         XCTAssertTrue(
             app.descendants(matching: .any)["active-workout-mobility-insert-picker"]

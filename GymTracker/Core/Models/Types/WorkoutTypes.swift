@@ -66,6 +66,17 @@ enum LiftQuality: String, Codable, CaseIterable, Hashable {
         case .missed: String(localized: "Missed")
         }
     }
+
+    /// Gym-floor labels for the three-choice attempt question. History and
+    /// inspect surfaces keep `title`; this is the Glance wording after a lift.
+    var gymFloorTitle: String {
+        switch self {
+        case .excellent: String(localized: "Well")
+        case .acceptable: String(localized: "Made")
+        case .technicallyPoor: String(localized: "Rough")
+        case .missed: String(localized: "Missed")
+        }
+    }
 }
 
 nonisolated enum WeightType: String, Codable, CaseIterable, Sendable {

@@ -73,6 +73,15 @@ struct SetRowSecondaryContent: View {
                 previousSetButton(previousSet)
             }
 
+            if exerciseSet.done,
+               exerciseEntry.usesOlympicAttemptLogging,
+               exerciseSet.orderedComplexComponents.isEmpty {
+                OlympicAttemptQualityCapture(set: exerciseSet) {
+                    viewModel.persistChanges()
+                }
+                .padding(.leading, 45)
+            }
+
             effortButton
         }
     }
@@ -138,6 +147,19 @@ struct SetRowSecondaryContent: View {
             .accessibilityLabel("\(effort.value), \(effort.meaning)")
             .accessibilityHint("Edit set details")
             .accessibilityIdentifier("\(effort.identifierPrefix)-badge-\(exerciseEntry.exercise.name)-\(index)")
+        } else if exerciseSet.done {
+            Button {
+                isShowingSetDetails = true
+            } label: {
+                Text(exerciseEntry.usesOlympicAttemptLogging ? "Add RPE" : "Add effort")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            .buttonStyle(.borderless)
+            .padding(.leading, 45)
+            .accessibilityLabel(exerciseEntry.usesOlympicAttemptLogging ? "Add RPE" : "Add effort")
+            .accessibilityHint("Opens set details to record how hard this set was")
+            .accessibilityIdentifier("add-effort-\(exerciseEntry.exercise.name)-\(index)")
         }
     }
 
@@ -180,7 +202,7 @@ struct SetRowSecondaryContent: View {
     }
 
     private func updateComplexComponentResults() {
-        exerciseSet.liftQuality = exerciseSet.orderedComplexComponents.contains(where: { $0.outcome == .missed }) ? .missed : nil
+        exerciseSet.refreshDerivedOlympicQuality()
         viewModel.persistChanges()
     }
 

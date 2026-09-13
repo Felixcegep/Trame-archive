@@ -104,7 +104,7 @@ struct ActiveWorkoutStageHeader: View {
                     Button {
                         onAddBlock()
                     } label: {
-                        Label("Add execution block", systemImage: AppIcon.relationship)
+                        Label("Group exercises", systemImage: AppIcon.relationship)
                     }
                     .accessibilityIdentifier("add-execution-block")
 

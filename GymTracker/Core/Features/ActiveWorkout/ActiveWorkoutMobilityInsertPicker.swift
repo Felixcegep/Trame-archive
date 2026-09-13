@@ -18,7 +18,10 @@ struct ActiveWorkoutMobilityInsertPicker: View {
     let onStartRoutine: (MobilityRoutine) -> Bool
 
     @State private var searchText = ""
+    @State private var routineSearchText = ""
+    @State private var filter = MobilityFilterState()
     @State private var isShowingRoutines = false
+    @FocusState private var isSearchFocused: Bool
 
     private static let preferredPurposes: Set<MobilityRoutinePurpose?> = [
         .development,
@@ -45,19 +48,21 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                 }
         }
         .accessibilityIdentifier("active-workout-mobility-insert-picker")
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("stretch-picker-screen", label: "Stretch picker")
+        }
     }
 
     @ViewBuilder
     private var movementContent: some View {
-        VStack(spacing: 0) {
-            Text("Adds one stretch after this exercise. Finish it, then continue to the next.")
-                .font(AppFont.caption)
-                .foregroundStyle(Color.trameSubdued)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.screenInset)
-                .padding(.top, Spacing.s)
-                .padding(.bottom, Spacing.s)
-                .accessibilityIdentifier("active-workout-mobility-insert-hint")
+        let results = visibleDefinitions
+
+        List {
+            Section {
+                MobilityFilterControls(filter: $filter, resultCount: results.count)
+            }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
             if selectableDefinitions.isEmpty {
                 ContentUnavailableView {
@@ -65,23 +70,52 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                 } description: {
                     Text("Create a movement in Mobility, then return here to add it between exercises.")
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 .accessibilityIdentifier("active-workout-mobility-insert-movements-empty")
+            } else if results.isEmpty {
+                pickerEmptyState
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("stretch-picker-no-results")
             } else {
-                movementList
-                    .searchable(text: $searchText, prompt: "Search stretches")
+                Section(resultsSectionTitle) {
+                    ForEach(results) { definition in
+                        movementRow(definition)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.visible)
+                            .listRowSeparatorTint(Color.trameSeparator)
+                    }
+                }
             }
-
+        }
+        .listStyle(.plain)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search by stretch or region"
+        )
+        .searchFocused($isSearchFocused)
+        .scrollDismissesKeyboard(.interactively)
+        .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .bottom) {
             if selectableRoutines.isEmpty == false {
                 Button {
+                    isSearchFocused = false
                     isShowingRoutines = true
                 } label: {
                     Text("Use a full routine instead")
-                        .font(AppFont.caption)
+                        .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.trameSubdued)
-                        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .center)
+                        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, Spacing.screenInset)
+                .padding(.vertical, Spacing.s)
+                .background(Color.trameSurface)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.trameSeparator).frame(height: 1)
+                }
                 .accessibilityHint("Opens a list of multi-movement routines.")
                 .accessibilityIdentifier("active-workout-mobility-insert-catalog")
             }
@@ -90,50 +124,18 @@ struct ActiveWorkoutMobilityInsertPicker: View {
 
     @ViewBuilder
     private var routineContent: some View {
-        VStack(spacing: 0) {
-            Text("Runs the whole routine now, then returns to the next exercise.")
-                .font(AppFont.caption)
-                .foregroundStyle(Color.trameSubdued)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.screenInset)
-                .padding(.vertical, Spacing.s)
-
+        List {
             if selectableRoutines.isEmpty {
                 ContentUnavailableView {
                     Label("No mobility routines", systemImage: AppIcon.mobility)
                 } description: {
                     Text("Create a routine in Mobility, then return here to run it mid-workout.")
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 .accessibilityIdentifier("active-workout-mobility-insert-routines-empty")
-            } else {
-                routineList
-                    .searchable(text: $searchText, prompt: "Search routines or movements")
-            }
-        }
-    }
-
-    private var movementList: some View {
-        List {
-            if visibleDefinitions.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .accessibilityIdentifier("active-workout-mobility-insert-movement-no-results")
-            } else {
-                Section(String(localized: "Stretches")) {
-                    ForEach(visibleDefinitions) { definition in
-                        movementRow(definition)
-                    }
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-    }
-
-    private var routineList: some View {
-        List {
-            if visibleRoutineGroups.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+            } else if visibleRoutineGroups.isEmpty {
+                ContentUnavailableView.search(text: routineSearchText)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .accessibilityIdentifier("active-workout-mobility-insert-routine-no-results")
@@ -142,50 +144,75 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                     Section(group.title) {
                         ForEach(group.routines) { routine in
                             routineRow(routine)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.visible)
+                                .listRowSeparatorTint(Color.trameSeparator)
                         }
                     }
                 }
             }
         }
+        .listStyle(.plain)
+        .searchable(
+            text: $routineSearchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search routines or movements"
+        )
+        .scrollDismissesKeyboard(.interactively)
         .scrollContentBackground(.hidden)
     }
 
+    private var resultsSectionTitle: String {
+        let isBrowsing = searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && filter.activeFilterCount == 0
+        return isBrowsing ? String(localized: "All stretches") : String(localized: "Results")
+    }
+
+    @ViewBuilder
+    private var pickerEmptyState: some View {
+        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            VStack(spacing: Spacing.m) {
+                ContentUnavailableView(
+                    "No matching stretches",
+                    systemImage: AppIcon.search,
+                    description: Text("Try another name or body region.")
+                )
+                if filter.activeFilterCount > 0 { clearFiltersButton }
+            }
+        } else if filter != MobilityFilterState() {
+            VStack(spacing: Spacing.m) {
+                ContentUnavailableView(
+                    "No stretches in these filters",
+                    systemImage: AppIcon.filters,
+                    description: Text("Clear a filter to see more stretches.")
+                )
+                clearFiltersButton
+            }
+        } else {
+            ContentUnavailableView(
+                "No mobility movements",
+                systemImage: AppIcon.mobility,
+                description: Text("Create a movement in Mobility, then return here to add it between exercises.")
+            )
+        }
+    }
+
+    private var clearFiltersButton: some View {
+        Button("Clear filters") { filter.clear() }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("clear-stretch-filters")
+    }
+
     private func movementRow(_ definition: MobilityDefinition) -> some View {
-        Button {
+        MobilityInsertSelectionRow(
+            definition: definition,
+            summary: movementSubtitle(for: definition)
+        ) {
+            isSearchFocused = false
             if onStartMovement(definition) {
                 dismiss()
             }
-        } label: {
-            HStack(alignment: .center, spacing: Spacing.m) {
-                Image(systemName: AppIcon.mobility)
-                    .foregroundStyle(Color.trameMobility)
-                    .frame(width: ComponentSize.minimumTouchTarget)
-
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(definition.name)
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.trameText)
-
-                    Text(movementSummary(for: definition))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.trameSubdued)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: Spacing.s)
-
-                Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.trameSubdued)
-                    .accessibilityHidden(true)
-            }
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(definition.name), \(movementSummary(for: definition))")
-        .accessibilityHint("Adds this stretch after the current exercise.")
-        .accessibilityIdentifier("active-workout-mobility-insert-movement-\(definition.id)")
     }
 
     private func routineRow(_ routine: MobilityRoutine) -> some View {
@@ -194,30 +221,28 @@ struct ActiveWorkoutMobilityInsertPicker: View {
                 dismiss()
             }
         } label: {
-            HStack(alignment: .center, spacing: Spacing.m) {
-                Image(systemName: routine.purpose.map(purposeIcon) ?? AppIcon.mobility)
-                    .foregroundStyle(Color.trameMobility)
-                    .frame(width: ComponentSize.minimumTouchTarget)
-
+            HStack(alignment: .center, spacing: Spacing.s) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(routine.name)
-                        .font(AppFont.subheadlineSemibold)
+                        .font(AppFont.body.weight(.semibold))
                         .foregroundStyle(Color.trameText)
-
+                        .multilineTextAlignment(.leading)
                     Text(WorkoutMobilityPresentation.routineSummary(for: routine))
-                        .font(AppFont.caption)
+                        .font(AppFont.metadata)
                         .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .layoutPriority(1)
 
                 Spacer(minLength: Spacing.s)
 
-                Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.trameSubdued)
+                Image(systemName: AppIcon.plus)
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(Color.trameMobility)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                     .accessibilityHidden(true)
             }
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(.vertical, Spacing.xs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -236,7 +261,7 @@ struct ActiveWorkoutMobilityInsertPicker: View {
 
     private var visibleDefinitions: [MobilityDefinition] {
         selectableDefinitions
-            .filter(matchesDefinitionSearch)
+            .filter { filter.matches($0, searchText: searchText) }
             .sorted {
                 $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
             }
@@ -260,15 +285,8 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         return groups
     }
 
-    private func matchesDefinitionSearch(_ definition: MobilityDefinition) -> Bool {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard query.isEmpty == false else { return true }
-        return definition.name.localizedCaseInsensitiveContains(query)
-            || (definition.instructions?.localizedCaseInsensitiveContains(query) ?? false)
-    }
-
     private func matchesRoutineSearch(_ routine: MobilityRoutine) -> Bool {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = routineSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.isEmpty == false else { return true }
         return routine.name.localizedCaseInsensitiveContains(query)
             || routine.orderedItems.contains {
@@ -289,12 +307,13 @@ struct ActiveWorkoutMobilityInsertPicker: View {
             ?? MobilityRoutinePurpose.displayOrder.count
     }
 
-    private func purposeIcon(_ purpose: MobilityRoutinePurpose) -> String {
-        switch purpose {
-        case .preparation: AppIcon.mobilityPurposePreparation
-        case .development: AppIcon.mobilityPurposeDevelopment
-        case .cooldown: AppIcon.mobilityPurposeCooldown
+    private func movementSubtitle(for definition: MobilityDefinition) -> String {
+        var parts: [String] = []
+        if let familyName = definition.family?.name, familyName.isEmpty == false {
+            parts.append(familyName)
         }
+        parts.append(movementSummary(for: definition))
+        return parts.joined(separator: WorkoutMobilityPresentation.separator)
     }
 
     private func movementSummary(for definition: MobilityDefinition) -> String {
@@ -316,5 +335,92 @@ struct ActiveWorkoutMobilityInsertPicker: View {
         let id: String
         let title: String
         let routines: [MobilityRoutine]
+    }
+}
+
+private struct MobilityInsertSelectionRow: View {
+    let definition: MobilityDefinition
+    let summary: String
+    let onAdd: () -> Void
+    @State private var isShowingDetails = false
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Spacing.s) {
+            Button(action: onAdd) {
+                HStack(alignment: .center, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(definition.name)
+                            .font(AppFont.body.weight(.semibold))
+                            .foregroundStyle(Color.trameText)
+                            .multilineTextAlignment(.leading)
+                        Text(summary)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .layoutPriority(1)
+
+                    Spacer(minLength: Spacing.s)
+
+                    Image(systemName: AppIcon.plus)
+                        .font(AppFont.headlineSemibold)
+                        .foregroundStyle(Color.trameMobility)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("active-workout-mobility-insert-movement-\(definition.id)")
+            .accessibilityLabel("Add \(definition.name), \(summary)")
+            .accessibilityHint("Adds this stretch after the current exercise.")
+
+            Button {
+                isShowingDetails = true
+            } label: {
+                Image(systemName: AppIcon.info)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameSubdued)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("stretch-link-\(definition.name)")
+            .accessibilityLabel("About \(definition.name)")
+        }
+        .padding(.vertical, Spacing.xs)
+        .navigationDestination(isPresented: $isShowingDetails) {
+            MobilityDefinitionInspectView(definition: definition, summary: summary)
+        }
+    }
+}
+
+private struct MobilityDefinitionInspectView: View {
+    let definition: MobilityDefinition
+    let summary: String
+
+    var body: some View {
+        List {
+            Section {
+                Text(summary)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .listRowBackground(Color.clear)
+            }
+
+            if let instructions = definition.instructions?.trimmingCharacters(in: .whitespacesAndNewlines),
+               instructions.isEmpty == false {
+                Section("Instructions") {
+                    Text(instructions)
+                        .font(AppFont.body)
+                        .foregroundStyle(Color.trameText)
+                        .listRowBackground(Color.clear)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.trameCanvas)
+        .navigationTitle(definition.name)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

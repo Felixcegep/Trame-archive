@@ -521,6 +521,15 @@ final class ExerciseSet {
         // Component outcomes must be recorded explicitly before parent
         // completion. Never turn an untouched lift into performed truth.
         repetitions = Float(complexComponents.reduce(0) { $0 + $1.performedRepetitions })
+        refreshDerivedOlympicQuality()
+        return .applied
+    }
+
+    /// Parent quality follows ordered component evidence. Safe to call while
+    /// the attempt is still open so the rest question and the set row stay in
+    /// sync before `done` is set.
+    func refreshDerivedOlympicQuality() {
+        guard !complexComponents.isEmpty else { return }
         switch olympicAttemptOutcome {
         case .made:
             liftQuality = complexComponents.allSatisfy { $0.liftQuality == .excellent }
@@ -533,7 +542,10 @@ final class ExerciseSet {
         case .notStarted, .skipped, nil:
             liftQuality = nil
         }
-        return .applied
+    }
+
+    var hasRecordedEffort: Bool {
+        rpe != nil || rir != nil
     }
 
     /// One result for the parent attempt, deterministically derived from its

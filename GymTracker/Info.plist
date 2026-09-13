@@ -14,7 +14,19 @@
 				<string>trame-garmin</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>felix.GymTracker.googledrive</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE</string>
+			</array>
+		</dict>
 	</array>
+	<key>GoogleDriveClientID</key>
+	<string>REPLACE.apps.googleusercontent.com</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>UISupportsDocumentBrowser</key>

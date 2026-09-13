@@ -436,6 +436,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("settings-data", in: app)
         let location = app.descendants(matching: .any)["settings-cloud-file-location"]
         XCTAssertTrue(location.waitForExistence(timeout: 5))
+        _ = app.descendants(matching: .any)["settings-cloud-file-sync-mode"].waitForExistence(timeout: 5)
         saveScreenshot("overview/04i_Settings_Cloud_File")
     }
 
@@ -632,6 +633,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let complex = launchFixture("active-complex-components")
         XCTAssertTrue(complex.staticTexts["Three-Position Snatch"].waitForExistence(timeout: 10))
         XCTAssertTrue(complex.buttons["complex-component-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(complex.buttons["complex-component-0-partial"].exists)
+        XCTAssertTrue(complex.buttons["complex-component-0-missed"].exists)
         XCTAssertTrue(complex.buttons["complex-component-1"].exists)
         XCTAssertTrue(complex.buttons["complex-component-2"].exists)
         saveScreenshot("mixed-workout/27b_Mixed_Complex_Component_Evidence")
@@ -665,6 +668,23 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04f_Settings_Beta_Feedback_Active_Logging")
     }
 
+    /// Isolated so a later set-entry assertion cannot block the builder capture.
+    func testCaptureExecutionBlockBuilderScreenshot() {
+        let inProgress = launchFixture("active-in-progress")
+        tapButton("active-workout-menu", in: inProgress)
+        let addBlock = inProgress.descendants(matching: .any)["add-execution-block"].firstMatch
+        if addBlock.waitForExistence(timeout: 3) {
+            addBlock.tap()
+        } else {
+            tapFirstAvailableButton(["Group exercises", "Add execution block"], in: inProgress)
+        }
+        XCTAssertTrue(inProgress.navigationBars["Group Exercises"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.buttons["create-execution-block"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["block-format-picker"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["block-exercise-Bench Press"].exists)
+        saveScreenshot("active-workout/07c_Execution_Block_Builder")
+    }
+
     /// One launch of "active-empty" plus one launch of "active-in-progress"
     /// drive every Active Workout overlay that fixture can reach through taps
     /// alone: the exercise picker, plate calculator, set details, the
@@ -678,8 +698,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureActiveWorkoutStatesScreenshots() {
         let empty = launchFixture("active-empty")
         XCTAssertTrue(empty.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 10))
-        XCTAssertTrue(empty.staticTexts["Add your first exercise"].waitForExistence(timeout: 2))
+        XCTAssertTrue(empty.staticTexts["Add an exercise or a stretch"].waitForExistence(timeout: 2))
         XCTAssertTrue(empty.buttons["add-first-exercise"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            empty.descendants(matching: .any)["add-first-exercise-empty"].waitForExistence(timeout: 5)
+        )
         XCTAssertTrue(
             empty.descendants(matching: .any)["add-first-mobility-empty"].waitForExistence(timeout: 5)
         )
@@ -698,6 +721,18 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/06_Add_Exercise_Sheet")
         tapButton("close-exercise-picker", in: inProgress)
         XCTAssertFalse(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 2))
+
+        tapButton("active-workout-menu", in: inProgress)
+        tapControl("add-execution-block", in: inProgress)
+        XCTAssertTrue(inProgress.navigationBars["Group Exercises"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.buttons["create-execution-block"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["block-format-picker"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["block-exercise-Bench Press"].exists)
+        saveScreenshot("active-workout/07c_Execution_Block_Builder")
+        tapButton("Cancel", in: inProgress)
+        XCTAssertTrue(inProgress.navigationBars["Group Exercises"].waitForNonExistence(timeout: 5))
+        dismissKeypadIfPresent(in: inProgress)
+
         // Plate calculation, set details, and the other per-set actions belong
         // to the set-entry panel, which opens when a value is selected.
         tapButton("weight-field-Bench Press-0", in: inProgress)
@@ -715,15 +750,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07b_Set_Details")
         tapButton("close-set-details", in: inProgress)
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForNonExistence(timeout: 5))
-        dismissKeypadIfPresent(in: inProgress)
-
-        tapButton("active-workout-menu", in: inProgress)
-        tapButton("add-execution-block", in: inProgress)
-        XCTAssertTrue(inProgress.navigationBars["Execution Block"].waitForExistence(timeout: 5))
-        XCTAssertTrue(inProgress.buttons["create-execution-block"].exists)
-        saveScreenshot("active-workout/07c_Execution_Block_Builder")
-        tapButton("Cancel", in: inProgress)
-        XCTAssertTrue(inProgress.navigationBars["Execution Block"].waitForNonExistence(timeout: 5))
         dismissKeypadIfPresent(in: inProgress)
 
         tapButton("active-workout-menu", in: inProgress)
@@ -751,6 +777,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let complexComponents = launchFixture("active-complex-components")
         XCTAssertTrue(complexComponents.staticTexts["Three-Position Snatch"].waitForExistence(timeout: 5))
         XCTAssertTrue(complexComponents.buttons["complex-component-0"].exists)
+        XCTAssertTrue(complexComponents.buttons["complex-component-0-partial"].exists)
+        XCTAssertTrue(complexComponents.buttons["complex-component-0-missed"].exists)
         XCTAssertTrue(complexComponents.buttons["complex-component-1"].exists)
         XCTAssertTrue(complexComponents.buttons["complex-component-2"].exists)
         saveScreenshot("active-workout/07f_Complex_Component_Results")
@@ -877,6 +905,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureRestScreenshots() {
         let app = launchFixture("active-rest-running")
         XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-effort-capture"].waitForExistence(timeout: 5))
         let pauseButton = app.buttons["Pause rest"]
         XCTAssertTrue(pauseButton.waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08_Rest_Countdown")
@@ -907,12 +936,31 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         rest.buttons["rest-pill"].tap()
         XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
         XCTAssertTrue(rest.descendants(matching: .any)["rest-just-logged"].exists)
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-effort-capture"].exists)
         saveScreenshot("active-workout/08u_Fresh_Rest_Transition")
 
-        let finish = launchFixture("active-partial-save")
+        let finish = launchFixture("active-olympic-finish")
         navigateToWorkoutFinish(in: finish)
         XCTAssertTrue(finish.descendants(matching: .any)["finish-summary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(finish.buttons["finish-breakdown-Snatch"].waitForExistence(timeout: 5))
+        XCTAssertTrue(finish.buttons["finish-breakdown-Clean and Jerk"].exists)
         saveScreenshot("active-workout/08v_Stage_Finish_Summary")
+    }
+
+    /// Olympic rest has to keep both gym-floor questions on canvas: whether
+    /// the attempt went well, and how hard it felt. Collapsing rest still
+    /// leaves those answers on the completed set row.
+    func testCaptureOlympicRestScreenshot() {
+        let app = launchFixture("active-olympic-rest")
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["olympic-quality-capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-effort-capture"].exists)
+        saveScreenshot("active-workout/08z_Olympic_Rest_Quality")
+
+        tapButton("collapse-rest-takeover", in: app)
+        XCTAssertTrue(app.buttons["add-effort-Snatch-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["olympic-quality-capture"].exists)
+        saveScreenshot("active-workout/08za_Olympic_Completed_Attempt")
     }
 
     /// Pale is the authored appearance and Dark is its low-light counterpart,
@@ -932,6 +980,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             additionalArguments: ["-appearance", "light"]
         )
         XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 10))
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-effort-capture"].waitForExistence(timeout: 5))
         XCTAssertTrue(rest.buttons["Pause rest"].waitForExistence(timeout: 10))
         saveScreenshot("active-workout/08_Rest_Countdown_Pale")
     }
@@ -945,6 +994,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             additionalArguments: ["-ui-testing-dynamic-type", "accessibility5"]
         )
         XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 10))
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-effort-capture"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08w_Rest_Countdown_AX5")
 
         let warmUp = launchFixture(
@@ -977,6 +1027,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07j_Complex_Readiness")
         tapButton("panel-complete-set", in: complex)
         XCTAssertTrue(complex.descendants(matching: .any)["panel-complex-components"].waitForExistence(timeout: 5))
+        XCTAssertTrue(complex.buttons["complex-component-0"].exists)
+        XCTAssertTrue(complex.buttons["complex-component-0-partial"].exists)
+        XCTAssertTrue(complex.buttons["complex-component-0-missed"].exists)
         saveScreenshot("active-workout/07k_Complex_Resolver")
     }
 
@@ -1483,6 +1536,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertFalse(
             app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Next · Today'")).firstMatch.exists
         )
+        XCTAssertTrue(app.buttons["today-start-free-workout"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01d_Home_Active_Plan")
 
         tapButton("today-reschedule-planned-workout", in: app)
@@ -1494,6 +1548,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.train, in: app)
         XCTAssertTrue(app.buttons["current-plan-card"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["current-plan-start-next"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["current-plan-start-free"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["current-plan-menu"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13a_Train_Current_Plan")
 
         tapButton("current-plan-weekly-review", in: app)
@@ -1843,7 +1899,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFreshApp(additionalArguments: ["-ui-testing-plan-deload"])
         selectTab(.library, in: app)
 
-        tapButton("Create library item", in: app)
+        tapButton("library-create", in: app)
         // Target the stable accessibility identifier rather than the visible
         // label, which has already been renamed once ("New Program" ->
         // "New Training Plan") and silently broke this capture.
@@ -1936,7 +1992,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureProgramDefinitionAndCatalogScreenshots() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
-        tapButton("Create library item", in: app)
+        tapButton("library-create", in: app)
         tapButton("new-program-definition", in: app)
 
         let name = app.textFields["definition-name-field"]

@@ -18,6 +18,12 @@ struct MobilitySessionView: View {
     /// timer, pager rail). This view only renders the movement itself so the
     /// stretch can sit between exercises instead of replacing the workout.
     let embedsInWorkoutPager: Bool
+    /// Pager arrows on the embedded command bar. Unused when this view owns
+    /// the cover (warm-up, cooldown, standalone).
+    let pagerCanGoBack: Bool
+    let pagerCanGoForward: Bool
+    let onPagerBack: (() -> Void)?
+    let onPagerForward: (() -> Void)?
     let onFinished: () -> Void
     @Query(
         filter: #Predicate<MobilitySession> { $0.statusRaw != "active" },
@@ -45,17 +51,27 @@ struct MobilitySessionView: View {
     @State private var isShowingStopConfirmation = false
     @State private var error: ValidationIssue?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     init(
         session: MobilitySession,
         linkedWorkoutName: String? = nil,
         linkedWorkoutStartTime: Date? = nil,
         embedsInWorkoutPager: Bool = false,
+        pagerCanGoBack: Bool = false,
+        pagerCanGoForward: Bool = false,
+        onPagerBack: (() -> Void)? = nil,
+        onPagerForward: (() -> Void)? = nil,
         onFinished: @escaping () -> Void
     ) {
         self.session = session
         self.linkedWorkoutName = linkedWorkoutName
         self.linkedWorkoutStartTime = linkedWorkoutStartTime
         self.embedsInWorkoutPager = embedsInWorkoutPager
+        self.pagerCanGoBack = pagerCanGoBack
+        self.pagerCanGoForward = pagerCanGoForward
+        self.onPagerBack = onPagerBack
+        self.onPagerForward = onPagerForward
         self.onFinished = onFinished
     }
 
@@ -126,22 +142,24 @@ struct MobilitySessionView: View {
         evidenceByResultID: [UUID: MobilityResultEvidence]
     ) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                if embedsInWorkoutPager && isLinkedWorkoutStage {
-                    embeddedPagerChrome
-                } else if isLinkedWorkoutStage {
+            VStack(alignment: .leading, spacing: embedsInWorkoutPager ? Spacing.l : Spacing.xl) {
+                if isLinkedWorkoutStage && embedsInWorkoutPager == false {
                     linkedWorkoutChrome
-                } else {
+                } else if isLinkedWorkoutStage == false {
                     progressHeader
                 }
                 if let current = session.currentEntry {
                     activeMovementRow(current, evidenceByResultID: evidenceByResultID)
                 }
-                routineDisclosure
+                if embedsInWorkoutPager == false || session.entries.count > 1 {
+                    routineDisclosure
+                }
             }
             .padding(.horizontal, Spacing.screenInset)
-            .padding(.vertical, Spacing.l)
+            .padding(.top, Spacing.l)
+            .padding(.bottom, embedsInWorkoutPager ? Spacing.xxxl : Spacing.l)
         }
+        .scrollIndicators(embedsInWorkoutPager ? .hidden : .automatic)
     }
 
     private var isLinkedWorkoutStage: Bool {
@@ -149,13 +167,307 @@ struct MobilitySessionView: View {
     }
 
     /// Compact hero used when the stretch is a page in the Active Workout
-    /// pager. The workout header already shows name, timer, and position; the
-    /// movement name stays on the entry itself so it is not repeated.
-    private var embeddedPagerChrome: some View {
-        HStack(alignment: .center, spacing: Spacing.s) {
-            mobilityStagePosition
+    /// pager. The workout header already shows name, timer, and position; this
+    /// matches the exercise page's title slot, metric strip, and action rail.
+    private func embeddedMovementSection(
+        _ entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            embeddedHero(entry, evidenceByResultID: evidenceByResultID)
+            embeddedGlanceMetrics(entry)
+            embeddedActionRail(entry)
+            embeddedInstructions(entry)
+            resultInputs(entry)
+        }
+        .accessibilityIdentifier("active-workout-mobility-stage")
+    }
+
+    private func embeddedHero(
+        _ entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text(linkedStageLabel)
+                .font(AppFont.micro)
+                .tracking(0.55)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.trameMobilityText)
+
+            Text(entry.definitionNameSnapshot)
+                .font(AppFont.stageTitle)
+                .foregroundStyle(Color.trameText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if entry.side != .none {
+                Text(entry.side.displayName)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+
+            if let context = prescriptionContext(
+                for: entry,
+                evidenceByResultID: evidenceByResultID
+            ) {
+                Text(context)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+
+            embeddedPreviousLine(entry, evidenceByResultID: evidenceByResultID)
+        }
+    }
+
+    @ViewBuilder
+    private func embeddedPreviousLine(
+        _ entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
+        if let result = entry.orderedResults.first,
+           let previous = previousResult(
+            for: result,
+            matching: entry,
+            evidenceByResultID: evidenceByResultID
+           ) {
+            Label(
+                previousResultLabel(previous, side: result.side, trackingType: entry.trackingType),
+                systemImage: AppIcon.history
+            )
+            .font(AppFont.caption)
+            .foregroundStyle(Color.trameSubdued)
+        } else {
+            Label("No previous session", systemImage: AppIcon.history)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+        }
+    }
+
+    @ViewBuilder
+    private func embeddedInstructions(_ entry: MobilityEntry) -> some View {
+        if let instructions = entry.instructionsSnapshot, !instructions.isEmpty {
+            DisclosureGroup {
+                Text(instructions)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Spacing.s)
+            } label: {
+                Text("Instructions")
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            .tint(Color.trameSubdued)
+        }
+        if let blockContext = blockContextLabel(for: entry) {
+            Label(blockContext, systemImage: AppIcon.mobility)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.trameSubdued)
+                .accessibilityIdentifier("mobility-block-context")
+        }
+    }
+
+    @ViewBuilder
+    private func embeddedGlanceMetrics(_ entry: MobilityEntry) -> some View {
+        if let phase = entry.currentPhaseResult {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                embeddedHoldMetrics(
+                    elapsedSeconds: elapsedSeconds(for: entry),
+                    targetSeconds: phase.prescribedDurationSeconds,
+                    isPaused: entry.isTimerPaused,
+                    movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)",
+                    caption: phase.phaseType.title.uppercased()
+                )
+            }
+        } else if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                embeddedHoldMetrics(
+                    elapsedSeconds: elapsedSeconds(for: entry),
+                    targetSeconds: target,
+                    isPaused: entry.isTimerPaused,
+                    movementName: entry.definitionNameSnapshot,
+                    caption: String(localized: "HOLD")
+                )
+            }
+        } else if let target = entry.targetRepetitions {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("REPS")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    Text("\(target)")
+                        .font(AppFont.metricHero)
+                        .foregroundStyle(Color.trameText)
+                    Text("REPS")
+                        .font(AppFont.micro)
+                        .tracking(0.6)
+                        .foregroundStyle(Color.trameMobilityText)
+                        .textCase(.uppercase)
+                }
+                .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+            }
+            .padding(.vertical, Spacing.s)
+        }
+    }
+
+    private func embeddedHoldMetrics(
+        elapsedSeconds: Int,
+        targetSeconds: Int,
+        isPaused: Bool,
+        movementName: String,
+        caption: String
+    ) -> some View {
+        let hasReachedTarget = elapsedSeconds >= targetSeconds
+        let progress = targetSeconds > 0
+            ? min(1, Double(elapsedSeconds) / Double(targetSeconds))
+            : 0
+
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            Text(caption)
+                .font(AppFont.micro)
+                .tracking(0.8)
+                .foregroundStyle(Color.trameSubdued)
+
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxl) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    Text("\(elapsedSeconds)")
+                        .font(AppFont.metricHero)
+                        .foregroundStyle(Color.trameText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                    Text("sec")
+                        .font(AppFont.micro)
+                        .tracking(0.6)
+                        .foregroundStyle(Color.trameMobilityText)
+                        .textCase(.uppercase)
+                }
+                .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                    Text("\(targetSeconds)")
+                        .font(AppFont.metricHero)
+                        .foregroundStyle(Color.trameText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                    Text("target")
+                        .font(AppFont.micro)
+                        .tracking(0.6)
+                        .foregroundStyle(Color.trameSubdued)
+                        .textCase(.uppercase)
+                }
+                .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+
+                if hasReachedTarget && !isPaused {
+                    Image(systemName: AppIcon.checkmarkCircle)
+                        .font(AppFont.titleSmall)
+                        .foregroundStyle(Color.trameCompleted)
+                        .accessibilityLabel("Target reached")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: Radius.icon, style: .continuous)
+                        .fill(Color.trameSeparator)
+                        .frame(height: 3)
+                    RoundedRectangle(cornerRadius: Radius.icon, style: .continuous)
+                        .fill(hasReachedTarget ? Color.trameCompleted : Color.trameMobility)
+                        .frame(width: geo.size.width * progress, height: 3)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            }
+            .frame(height: 3)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: progress)
+            .accessibilityHidden(true)
+        }
+        .padding(.vertical, Spacing.s)
+        .gymFeedback(.timedTargetReached, trigger: hasReachedTarget) { _, reached in
+            reached && !isPaused
+        }
+        .onChange(of: hasReachedTarget) { _, reached in
+            guard reached, !isPaused else { return }
+            GymAnnouncement.post(
+                String(localized: "Target duration reached for \(movementName).")
+            )
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            Text(
+                isPaused
+                    ? String(localized: "Paused at \(elapsedSeconds) seconds")
+                    : hasReachedTarget
+                        ? String(localized: "Target reached, \(elapsedSeconds) seconds")
+                        : String(localized: "\(elapsedSeconds) of \(targetSeconds) seconds")
+            )
+        )
+    }
+
+    private func embeddedActionRail(_ entry: MobilityEntry) -> some View {
+        HStack(spacing: Spacing.s) {
+            if entry.trackingType == .duration || entry.isPhaseDriven {
+                Button {
+                    entry.isTimerPaused ? resumeTimer() : pauseTimer()
+                } label: {
+                    Label(
+                        entry.isTimerPaused ? "Resume" : "Pause",
+                        systemImage: entry.isTimerPaused ? AppIcon.play : AppIcon.pause
+                    )
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .padding(.horizontal, Spacing.s)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityIdentifier(entry.isTimerPaused ? "resume-mobility-timer" : "pause-mobility-timer")
+            }
+
+            Menu {
+                if session.currentEntry?.isPhaseDriven == true {
+                    Button("Save partial phase", action: savePartialCurrentPhase)
+                        .accessibilityIdentifier("save-partial-mobility-phase")
+                    Button("Skip phase", action: skipCurrentPhase)
+                        .accessibilityIdentifier("skip-mobility-phase")
+                } else {
+                    Button("Save partial", action: savePartialCurrent)
+                        .accessibilityIdentifier("save-partial-mobility-movement")
+                    Button("Skip movement", action: skipCurrent)
+                        .accessibilityIdentifier("skip-mobility-movement")
+                }
+
+                if MobilitySessionService.canUndo(in: session, using: modelContext) {
+                    Button("Undo last", action: undoLatestCompletion)
+                        .accessibilityIdentifier("undo-mobility-completion")
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        isShowingStopConfirmation = true
+                    } label: {
+                        Text(session.entries.count <= 1 ? "Stop mobility" : "Stop mobility stage")
+                            .accessibilityIdentifier("stop-mobility-session")
+                    }
+                }
+            } label: {
+                Label("More", systemImage: AppIcon.ellipsis)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .padding(.horizontal, Spacing.s)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Workout stage actions")
+            .accessibilityIdentifier("linked-mobility-menu")
+
             Spacer(minLength: 0)
-            linkedStageMenu
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
         }
     }
 
@@ -295,11 +607,15 @@ struct MobilitySessionView: View {
         _ loopEntry: MobilityEntry,
         evidenceByResultID: [UUID: MobilityResultEvidence]
     ) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xl) {
-            currentEntry(loopEntry, evidenceByResultID: evidenceByResultID)
-            resultInputs(loopEntry)
-            if loopEntry.isPhaseDriven == false {
-                previousPerformance(loopEntry, evidenceByResultID: evidenceByResultID)
+        if embedsInWorkoutPager {
+            embeddedMovementSection(loopEntry, evidenceByResultID: evidenceByResultID)
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                currentEntry(loopEntry, evidenceByResultID: evidenceByResultID)
+                resultInputs(loopEntry)
+                if loopEntry.isPhaseDriven == false {
+                    previousPerformance(loopEntry, evidenceByResultID: evidenceByResultID)
+                }
             }
         }
     }
@@ -637,7 +953,14 @@ struct MobilitySessionView: View {
 
     private func phaseResultInput(_ phase: MobilityPhaseResult) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameDomainSectionRule(title: "PHASE RESULT", color: .trameMobility)
+            if embedsInWorkoutPager {
+                Text("RESULT")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
+            } else {
+                TrameDomainSectionRule(title: "PHASE RESULT", color: .trameMobility)
+            }
 
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text(phase.side == .none ? phase.phaseType.title : phase.side.displayName)
@@ -684,7 +1007,14 @@ struct MobilitySessionView: View {
 
     private func legacyResultInputs(_ entry: MobilityEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameDomainSectionRule(title: "RESULT", color: .trameMobility)
+            if embedsInWorkoutPager {
+                Text("RESULT")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameSubdued)
+            } else {
+                TrameDomainSectionRule(title: "RESULT", color: .trameMobility)
+            }
 
             ForEach(entry.orderedResults) { result in
                 VStack(alignment: .leading, spacing: Spacing.s) {
@@ -780,10 +1110,14 @@ struct MobilitySessionView: View {
     }
 
     private var actions: some View {
-        VStack(spacing: Spacing.m) {
-            executionControls
+        VStack(spacing: embedsInWorkoutPager ? Spacing.s : Spacing.m) {
+            if embedsInWorkoutPager == false {
+                executionControls
+            }
             if let stop = currentStopSignal {
                 stopSensationContent(stop)
+            } else if embedsInWorkoutPager {
+                embeddedCommandBar
             } else if session.currentEntry?.isPhaseDriven == true {
                 phaseActions
             } else {
@@ -791,12 +1125,69 @@ struct MobilitySessionView: View {
             }
         }
         .padding(.horizontal, Spacing.screenInset)
-        .padding(.vertical, Spacing.m)
+        .padding(.top, Spacing.s)
+        .padding(.bottom, Spacing.m)
         .background(Color.trameSurface)
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.trameSeparator)
                 .frame(height: 1)
+        }
+    }
+
+    private var embeddedCommandBar: some View {
+        Group {
+            if session.currentEntry?.isPhaseDriven == true {
+                embeddedPrimaryButton(
+                    title: Text("Complete phase"),
+                    identifier: "complete-mobility-phase",
+                    action: completeCurrentPhase
+                )
+            } else {
+                embeddedPrimaryButton(
+                    title: Text("Complete movement"),
+                    identifier: "complete-mobility-movement",
+                    action: completeCurrent
+                )
+            }
+        }
+    }
+
+    private func embeddedPrimaryButton(
+        title: Text,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: Spacing.m) {
+            ActiveWorkoutPagerArrow(
+                systemImage: AppIcon.chevronLeft,
+                label: "Previous exercise",
+                identifier: "stage-previous",
+                isEnabled: pagerCanGoBack,
+                action: { onPagerBack?() }
+            )
+
+            Button(action: action) {
+                HStack(spacing: Spacing.m) {
+                    title
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: Spacing.s)
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.subheadlineSemibold)
+                        .accessibilityHidden(true)
+                }
+            }
+            .buttonStyle(.tramePrimaryAction)
+            .accessibilityIdentifier(identifier)
+
+            ActiveWorkoutPagerArrow(
+                systemImage: AppIcon.chevronRight,
+                label: "Next exercise",
+                identifier: "stage-next",
+                isEnabled: pagerCanGoForward,
+                action: { onPagerForward?() }
+            )
         }
     }
 

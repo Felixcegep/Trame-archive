@@ -14,17 +14,17 @@ enum WorkoutExecutionBlockError: LocalizedError, Equatable {
         case .completedWorkoutMutation(let operation):
             return WorkoutMutationError.completedWorkoutMutation(operation).errorDescription
         case .emptyBlock:
-            return "An execution block needs at least one exercise."
+            return "Choose at least one exercise."
         case .duplicateEntry:
-            return "An exercise can appear only once in an execution block."
+            return "An exercise can appear only once in a group."
         case .entryAlreadyBelongsToBlock:
-            return "Remove the exercise from its current execution block before assigning it to another one."
+            return "That exercise is already in another group."
         case .invalidConfiguration(let message):
             return message
         case .invalidComponentCount(let kind, let count):
-            return "\(kind.rawValue) requires a different number of exercises (received \(count))."
+            return "\(kind.exerciseSelectionHint) (selected \(count))."
         case .entryDoesNotBelongToWorkout:
-            return "Every block exercise must belong to this workout."
+            return "Every grouped exercise must belong to this workout."
         }
     }
 }

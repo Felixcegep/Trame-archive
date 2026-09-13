@@ -24,8 +24,8 @@ struct ActiveWorkoutCommandBar: View {
         case startNextSet
         /// This page is finished and there is work further along.
         case nextExercise
-        /// The workout has no exercises yet. This is the session's first and
-        /// only meaningful action, so it belongs in the fixed primary slot.
+        /// The workout has no exercises yet. Adding a lift stays in the
+        /// one-handed primary slot; Stretch is a peer action on the empty page.
         case addExercise
         /// Nothing to offer — a page with no sets, or the terminal review page,
         /// whose one action (Finish) is a session exit and lives in the header.
@@ -56,7 +56,7 @@ struct ActiveWorkoutCommandBar: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            arrowButton(
+            ActiveWorkoutPagerArrow(
                 systemImage: AppIcon.chevronLeft,
                 label: "Previous exercise",
                 identifier: "stage-previous",
@@ -66,7 +66,7 @@ struct ActiveWorkoutCommandBar: View {
 
             primarySlot
 
-            arrowButton(
+            ActiveWorkoutPagerArrow(
                 systemImage: AppIcon.chevronRight,
                 label: "Next exercise",
                 identifier: "stage-next",
@@ -244,14 +244,16 @@ struct ActiveWorkoutRestPill: View {
     }
 }
 
-private extension ActiveWorkoutCommandBar {
-    func arrowButton(
-        systemImage: String,
-        label: LocalizedStringKey,
-        identifier: String,
-        isEnabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
+/// Shared pager arrows so a stretch page and an exercise page turn with the
+/// same control, in the same place, at the same size.
+struct ActiveWorkoutPagerArrow: View {
+    let systemImage: String
+    let label: LocalizedStringKey
+    let identifier: String
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(AppFont.subheadlineBold)
@@ -264,5 +266,4 @@ private extension ActiveWorkoutCommandBar {
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
     }
-
 }

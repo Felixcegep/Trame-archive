@@ -606,7 +606,7 @@ struct RootView: View {
 
     private func syncLinkedCloudFileIfNeeded() {
         if AppLaunchArguments.current.contains("-ui-testing") { return }
-        guard CloudFileSyncService.shared.isLinked else { return }
+        guard CloudFileSyncService.shared.isAutoSyncEnabled else { return }
         let restTimer = UserDefaults.standard.integer(forKey: DefaultsKey.restTimer)
         let unitSystem = UserDefaults.standard.unitSystem
         let hasActiveWorkout = workoutVM.hasActiveWorkout

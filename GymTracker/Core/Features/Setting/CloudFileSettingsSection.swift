@@ -8,10 +8,12 @@ struct CloudFileSettingsSection: View {
     let isBusy: Bool
     let onCreate: () -> Void
     let onOpen: () -> Void
+    let onLinkGoogleDrive: () -> Void
     let onSyncNow: () -> Void
     let onUnlink: () -> Void
     let onKeepThisIPhone: () -> Void
     let onUseCloudFile: () -> Void
+    let onSyncModeChange: (CloudFileSyncMode) -> Void
 
     @State private var isConfirmingUnlink = false
     @State private var isShowingConflict = false
@@ -39,6 +41,18 @@ struct CloudFileSettingsSection: View {
                 }
                 .accessibilityIdentifier("settings-cloud-file-name")
 
+                if let email = record.googleDriveAccountEmail, email.isEmpty == false {
+                    LabeledContent {
+                        Text(email)
+                    } label: {
+                        Label(
+                            String(localized: "Account"),
+                            systemImage: AppIcon.backup
+                        )
+                    }
+                    .accessibilityIdentifier("settings-cloud-file-account")
+                }
+
                 LabeledContent {
                     Text(statusText)
                 } label: {
@@ -48,6 +62,23 @@ struct CloudFileSettingsSection: View {
                     )
                 }
                 .accessibilityIdentifier("settings-cloud-file-status")
+
+                Picker(selection: Binding(
+                    get: { record.syncMode },
+                    set: onSyncModeChange
+                )) {
+                    ForEach(CloudFileSyncMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                } label: {
+                    Label(
+                        String(localized: "Sync"),
+                        systemImage: AppIcon.cloudFile
+                    )
+                }
+                .pickerStyle(.menu)
+                .disabled(isBusy || service.isSyncing)
+                .accessibilityIdentifier("settings-cloud-file-sync-mode")
 
                 Button {
                     onSyncNow()
@@ -92,6 +123,17 @@ struct CloudFileSettingsSection: View {
                 }
                 .disabled(isBusy || service.isSyncing)
                 .accessibilityIdentifier("settings-cloud-file-open")
+
+                Button {
+                    onLinkGoogleDrive()
+                } label: {
+                    Label(
+                        String(localized: "Google Drive"),
+                        systemImage: AppIcon.backup
+                    )
+                }
+                .disabled(isBusy || service.isSyncing)
+                .accessibilityIdentifier("settings-cloud-file-google-drive")
             }
         }
         .confirmationDialog(

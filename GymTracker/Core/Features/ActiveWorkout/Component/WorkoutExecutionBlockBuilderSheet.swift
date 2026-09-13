@@ -9,6 +9,8 @@ struct WorkoutExecutionBlockBuilderSheet: View {
 
     let workout: Workout
     let blockToEdit: WorkoutExecutionBlock?
+    let availableExercises: [Exercise]
+    let onAddExercise: ((Exercise) -> Void)?
     let onPersist: () -> Void
 
     @State private var kind: ExerciseBlockKind = .circuit
@@ -28,24 +30,44 @@ struct WorkoutExecutionBlockBuilderSheet: View {
     @State private var restSeconds = ""
     @State private var advancedExpanded = false
     @State private var validationMessage: String?
+    @State private var isShowingExercisePicker = false
 
     init(
         workout: Workout,
         blockToEdit: WorkoutExecutionBlock? = nil,
+        availableExercises: [Exercise] = [],
+        onAddExercise: ((Exercise) -> Void)? = nil,
         onPersist: @escaping () -> Void
     ) {
         self.workout = workout
         self.blockToEdit = blockToEdit
+        self.availableExercises = availableExercises
+        self.onAddExercise = onAddExercise
         self.onPersist = onPersist
 
         let editingBlockID = blockToEdit?.id
-        _kind = State(initialValue: blockToEdit?.kind ?? .circuit)
-        // A brand-new block starts with nothing selected; only an existing
-        // block pre-fills its current members. Filtering by a nil id would
-        // otherwise pre-select every unassigned exercise.
-        _selectedEntryIDs = State(initialValue: editingBlockID == nil ? [] : Set(workout.orderedExercises
-            .filter { $0.executionBlockID == editingBlockID }
-            .map(\.persistentModelID)))
+        let initialKind = blockToEdit?.kind ?? .circuit
+        _kind = State(initialValue: initialKind)
+        let members = workout.orderedExercises.filter {
+            $0.executionBlockID == editingBlockID
+        }
+        let available = workout.orderedExercises.filter {
+            $0.executionBlockID == nil || $0.executionBlockID == editingBlockID
+        }
+        // A brand-new block starts with nothing selected unless there is
+        // exactly one eligible exercise and the format accepts it. Filtering
+        // by a nil id would otherwise pre-select every unassigned exercise.
+        if editingBlockID != nil {
+            _selectedEntryIDs = State(initialValue: Set(members.map(\.persistentModelID)))
+        } else if ExecutionBlockAuthoring.shouldPreselectSingleAvailableExercise(
+            isEditing: false,
+            availableCount: available.count,
+            kind: initialKind
+        ) {
+            _selectedEntryIDs = State(initialValue: Set(available.map(\.persistentModelID)))
+        } else {
+            _selectedEntryIDs = State(initialValue: [])
+        }
         _name = State(initialValue: blockToEdit?.name ?? "")
         _targetRounds = State(initialValue: blockToEdit?.targetRounds.map(String.init) ?? "")
         _clockMode = State(initialValue: blockToEdit?.clockMode ?? .none)
@@ -61,7 +83,9 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         _restSeconds = State(initialValue: blockToEdit?.restSeconds.map(String.init) ?? "")
         // Reveal advanced options up front only when an existing block already
         // uses one of them, so the default authoring view stays uncluttered.
-        _advancedExpanded = State(initialValue: blockToEdit.map { $0.isSharedLoad || $0.restSeconds != nil } ?? false)
+        _advancedExpanded = State(initialValue: blockToEdit.map {
+            $0.isSharedLoad || $0.restSeconds != nil || ($0.name?.isEmpty == false)
+        } ?? false)
     }
 
     private var availableEntries: [ExerciseEntry] {
@@ -70,44 +94,79 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         }
     }
 
+    private var assignedElsewhere: [ExerciseEntry] {
+        workout.orderedExercises.filter {
+            $0.executionBlockID != nil && $0.executionBlockID != blockToEdit?.id
+        }
+    }
+
     private var selectedEntries: [ExerciseEntry] {
         availableEntries.filter { selectedEntryIDs.contains($0.persistentModelID) }
     }
 
+    private var canSave: Bool {
+        ExecutionBlockAuthoring.meetsExerciseRequirement(selectedEntries.count, kind: kind)
+    }
+
+    private var saveDisabledReason: String? {
+        ExecutionBlockAuthoring.saveDisabledReason(
+            kind: kind,
+            selectedCount: selectedEntries.count,
+            availableCount: availableEntries.count,
+            sessionExerciseCount: workout.orderedExercises.count
+        )
+    }
+
+    private var canAddExercise: Bool {
+        onAddExercise != nil
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.l) {
-                    configurationSection
-                    exerciseSelectionSection
-
-                    if let validationMessage {
-                        TrameColorField(
-                            fill: Color.trameDestructive,
-                            ink: Color.trameDestructiveInk,
-                            border: Color.trameDestructive
-                        ) {
-                            Label(validationMessage, systemImage: AppIcon.info)
-                            .font(AppFont.captionBold)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Spacing.m)
-                        }
+            Form {
+                exerciseSection
+                formatSection
+                if kind == .ladder {
+                    ladderSection
+                }
+                if kind.isTimed {
+                    timedSection
+                }
+                advancedSection
+                if let validationMessage {
+                    Section {
+                        Text(validationMessage)
+                            .font(AppFont.body)
+                            .foregroundStyle(Color.trameDestructiveText)
                             .accessibilityIdentifier("execution-block-validation")
+                    } header: {
+                        TrameDomainSectionRule(title: "Needs attention", color: Color.trameAttention)
                     }
                 }
-                .padding(Spacing.xl)
             }
+            .scrollContentBackground(.hidden)
             .background(Color.trameCanvas)
-            .navigationTitle("Execution Block")
+            .navigationTitle(blockToEdit == nil ? "Group Exercises" : "Edit Group")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(blockToEdit == nil ? "Add block" : "Save", action: saveBlock)
-                        .disabled(selectedEntries.isEmpty)
+                    Button(blockToEdit == nil ? "Add group" : "Save", action: saveBlock)
+                        .disabled(!canSave)
                         .accessibilityIdentifier("create-execution-block")
+                        .accessibilityHint(saveDisabledReason ?? "")
+                }
+            }
+            .sheet(isPresented: $isShowingExercisePicker) {
+                NavigationStack {
+                    ExerciseLibraryView(
+                        isSelectingExercise: true,
+                        availableExercises: availableExercises,
+                        addedExerciseIDs: Set(workout.orderedExercises.map(\.exercise.id)),
+                        onSelect: addExerciseFromPicker
+                    )
                 }
             }
         }
@@ -116,78 +175,131 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         }
     }
 
-    private var configurationSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            sectionTitle("FORMAT", detail: "How this block is performed")
+    private var exerciseSection: some View {
+        Section {
+            if workout.orderedExercises.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Text("No exercises yet")
+                        .font(AppFont.body)
+                        .foregroundStyle(Color.trameText)
+                    Text("Add exercises to this workout, then select the ones that run together.")
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("block-exercises-empty")
+            }
 
-            Picker("Format", selection: $kind) {
-                ForEach(ExerciseBlockKind.allCases, id: \.self) { format in
-                    Text(format.title).tag(format)
+            ForEach(availableEntries, id: \.persistentModelID) { entry in
+                exerciseToggle(entry)
+            }
+
+            ForEach(assignedElsewhere, id: \.persistentModelID) { entry in
+                groupedExerciseRow(entry)
+            }
+
+            if canAddExercise {
+                Button {
+                    isShowingExercisePicker = true
+                } label: {
+                    Label("Add exercise", systemImage: AppIcon.plus)
+                }
+                .accessibilityIdentifier("block-add-exercise")
+            }
+        } header: {
+            TrameDomainSectionRule(title: "Exercises", color: Color.trameStrength)
+        } footer: {
+            Text(exerciseFooter)
+                .accessibilityIdentifier("block-selected-count")
+        }
+    }
+
+    private var exerciseFooter: String {
+        if workout.orderedExercises.isEmpty {
+            return String(localized: "A group needs exercises from this workout.")
+        }
+        if availableEntries.isEmpty {
+            return String(localized: "Each exercise can only belong to one group.")
+        }
+        return ExecutionBlockAuthoring.selectionStatus(kind: kind, selected: selectedEntries.count)
+    }
+
+    private var formatSection: some View {
+        Section {
+            NavigationLink {
+                ExecutionBlockFormatPicker(kind: $kind)
+            } label: {
+                HStack {
+                    Text("Format")
+                        .foregroundStyle(Color.trameText)
+                    Spacer(minLength: Spacing.m)
+                    Text(kind.title)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
-            .pickerStyle(.menu)
             .accessibilityIdentifier("block-format-picker")
 
             Text(kind.summary)
-                .font(AppFont.caption)
+                .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("block-format-summary")
 
-            TextField("Name this block (optional)", text: $name)
-                .textFieldStyle(.roundedBorder)
-
             if kind.supportsRounds {
-                numericField("Target rounds (optional)", text: $targetRounds)
+                TextField("Rounds (optional)", text: $targetRounds)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("block-target-rounds")
             }
-
-            if kind == .ladder {
-                ladderFields
-            }
-
-            if kind.isTimed {
-                timedFormatFields
-            }
-
-            advancedOptions
+        } header: {
+            TrameDomainSectionRule(title: "How they run", color: Color.trameCompetition)
         }
-        .padding(Spacing.l)
-        .background(Color.trameSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
-    private var ladderFields: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+    private var ladderSection: some View {
+        Section {
             Picker("Repetition pattern", selection: $repetitionScheme) {
                 Text(BlockRepetitionScheme.ascendingLadder.title).tag(BlockRepetitionScheme.ascendingLadder)
                 Text(BlockRepetitionScheme.descendingLadder.title).tag(BlockRepetitionScheme.descendingLadder)
             }
-            .pickerStyle(.menu)
-            numericField("Starting repetitions", text: $repetitionStart)
-            numericField("Ending repetitions", text: $repetitionEnd)
-            numericField("Step", text: $repetitionStep)
+            TextField("Starting repetitions", text: $repetitionStart)
+                .keyboardType(.numberPad)
+            TextField("Ending repetitions", text: $repetitionEnd)
+                .keyboardType(.numberPad)
+            TextField("Step", text: $repetitionStep)
+                .keyboardType(.numberPad)
+        } header: {
+            TrameDomainSectionRule(title: "Ladder", color: Color.trameAttention)
         }
     }
 
-    private var timedFormatFields: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+    private var timedSection: some View {
+        Section {
+            if kind.requiresInterval {
+                TextField("Interval (seconds)", text: $intervalSeconds)
+                    .keyboardType(.numberPad)
+            }
+            TextField(
+                kind.requiresTimeCap ? "Time cap (minutes)" : "Time cap (minutes, optional)",
+                text: $timeCapMinutes
+            )
+            .keyboardType(.numberPad)
+        } header: {
+            TrameDomainSectionRule(title: "Clock", color: Color.trameAttention)
+        } footer: {
             if !clockDescription.isEmpty {
                 Label(clockDescription, systemImage: AppIcon.timer)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.trameSubdued)
             }
-            if kind.requiresInterval {
-                numericField("Interval (seconds)", text: $intervalSeconds)
-            }
-            numericField(kind.requiresTimeCap ? "Time cap (minutes)" : "Time cap (minutes, optional)", text: $timeCapMinutes)
         }
     }
 
-    private var advancedOptions: some View {
-        DisclosureGroup(isExpanded: $advancedExpanded) {
-            VStack(alignment: .leading, spacing: Spacing.m) {
+    private var advancedSection: some View {
+        Section {
+            DisclosureGroup(isExpanded: $advancedExpanded) {
+                TextField("Name (optional)", text: $name)
                 Toggle("Use a shared load", isOn: $isSharedLoad)
-                numericField("Rest after each round (seconds)", text: $restSeconds)
+                TextField("Rest after each round (seconds)", text: $restSeconds)
+                    .keyboardType(.numberPad)
 
                 if !kind.isTimed {
                     Picker("Clock", selection: $clockMode) {
@@ -195,16 +307,18 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                             Text(mode.title).tag(mode)
                         }
                     }
-                    .pickerStyle(.menu)
 
                     if clockMode == .countdown {
-                        numericField("Duration (minutes)", text: $durationMinutes)
+                        TextField("Duration (minutes)", text: $durationMinutes)
+                            .keyboardType(.numberPad)
                     }
                     if clockMode != .none {
-                        numericField("Time cap (minutes, optional)", text: $timeCapMinutes)
+                        TextField("Time cap (minutes, optional)", text: $timeCapMinutes)
+                            .keyboardType(.numberPad)
                     }
                     if clockMode == .repeatingInterval {
-                        numericField("Interval (seconds)", text: $intervalSeconds)
+                        TextField("Interval (seconds)", text: $intervalSeconds)
+                            .keyboardType(.numberPad)
                     }
                 }
 
@@ -213,87 +327,81 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                         Text(kind.title).tag(kind)
                     }
                 }
-                .pickerStyle(.menu)
+            } label: {
+                Text("Advanced options")
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameText)
+                    .accessibilityIdentifier("block-advanced-options")
             }
-            .padding(.top, Spacing.s)
-        } label: {
-            Text("Advanced options")
-                .font(AppFont.body)
-                .foregroundStyle(Color.trameText)
-                // Identifier on the label only — a group-level identifier would
-                // propagate to the disclosure's children.
-                .accessibilityIdentifier("block-advanced-options")
+            .tint(Color.trameActionDeep)
         }
-        .tint(Color.trameActionDeep)
+    }
+
+    private func exerciseToggle(_ entry: ExerciseEntry) -> some View {
+        let isSelected = selectedEntryIDs.contains(entry.persistentModelID)
+        return Button {
+            toggle(entry)
+        } label: {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
+                    .foregroundStyle(isSelected ? Color.trameActionDeep : Color.trameSubdued)
+                    .accessibilityHidden(true)
+                Text(entry.occurrenceDisplayName)
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameText)
+                Spacer(minLength: 0)
+            }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(entry.occurrenceDisplayName)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityHint(kind.exerciseSelectionHint)
+        .accessibilityIdentifier("block-exercise-\(entry.occurrenceDisplayName)")
+    }
+
+    private func groupedExerciseRow(_ entry: ExerciseEntry) -> some View {
+        let subtitle = groupedSubtitle(for: entry)
+        return HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.lock)
+                .foregroundStyle(Color.trameSubdued)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(entry.occurrenceDisplayName)
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameText)
+                Text(subtitle)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(entry.occurrenceDisplayName)
+        .accessibilityValue(subtitle)
+        .accessibilityIdentifier("block-exercise-grouped-\(entry.occurrenceDisplayName)")
+    }
+
+    private func groupedSubtitle(for entry: ExerciseEntry) -> String {
+        guard let blockID = entry.executionBlockID,
+              let block = workout.orderedExecutionBlocks.first(where: { $0.id == blockID })
+        else {
+            return String(localized: "Already grouped")
+        }
+        return ExecutionBlockAuthoring.groupedSubtitle(blockName: block.name, kindTitle: block.kind.title)
     }
 
     private var clockDescription: String {
         switch kind {
-        case .amrap: "Counts up until the time cap."
-        case .forTime: "Counts up until you finish."
-        case .emom: "Repeats every interval until the cap."
-        case .interval: "Repeats the interval throughout."
+        case .amrap: String(localized: "Counts up until the time cap.")
+        case .forTime: String(localized: "Counts up until you finish.")
+        case .emom: String(localized: "Repeats every interval until the cap.")
+        case .interval: String(localized: "Repeats the interval throughout.")
         default: ""
         }
-    }
-
-    private var exerciseSelectionSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(alignment: .firstTextBaseline) {
-                sectionTitle("EXERCISES", detail: kind.exerciseSelectionHint)
-                Spacer(minLength: Spacing.m)
-                if !availableEntries.isEmpty {
-                    Text("\(selectedEntries.count) selected")
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(selectedEntries.isEmpty ? Color.trameSubdued : Color.trameActionDeep)
-                        .accessibilityIdentifier("block-selected-count")
-                }
-            }
-
-            if availableEntries.isEmpty {
-                Text("All session exercises already belong to a block.")
-                    .font(AppFont.body)
-                    .foregroundStyle(Color.trameSubdued)
-            } else {
-                ForEach(availableEntries, id: \.persistentModelID) { entry in
-                    Button {
-                        toggle(entry)
-                    } label: {
-                        HStack(spacing: Spacing.m) {
-                            Image(systemName: selectedEntryIDs.contains(entry.persistentModelID) ? AppIcon.checkmarkCircle : AppIcon.circle)
-                                .foregroundStyle(selectedEntryIDs.contains(entry.persistentModelID) ? Color.trameActionDeep : Color.trameSubdued)
-                            Text(entry.occurrenceDisplayName)
-                                .font(AppFont.body)
-                                .foregroundStyle(Color.trameText)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(Spacing.m)
-                        .background(selectedEntryIDs.contains(entry.persistentModelID) ? Color.trameCurrent : Color.trameRow)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(selectedEntryIDs.contains(entry.persistentModelID) ? "Remove" : "Add") \(entry.occurrenceDisplayName)")
-                }
-            }
-        }
-    }
-
-    private func sectionTitle(_ title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(title)
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.trameSubdued)
-            Text(detail)
-                .font(AppFont.caption)
-                .foregroundStyle(Color.trameSubdued)
-        }
-    }
-
-    private func numericField(_ title: String, text: Binding<String>) -> some View {
-        TextField(title, text: text)
-            .keyboardType(.numberPad)
-            .textFieldStyle(.roundedBorder)
     }
 
     private func toggle(_ entry: ExerciseEntry) {
@@ -301,6 +409,14 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             selectedEntryIDs.remove(entry.persistentModelID)
         } else {
             selectedEntryIDs.insert(entry.persistentModelID)
+        }
+    }
+
+    private func addExerciseFromPicker(_ exercise: Exercise) {
+        let before = Set(workout.orderedExercises.map(\.persistentModelID))
+        onAddExercise?(exercise)
+        if let added = workout.orderedExercises.first(where: { !before.contains($0.persistentModelID) }) {
+            selectedEntryIDs.insert(added.persistentModelID)
         }
     }
 
@@ -374,6 +490,67 @@ struct WorkoutExecutionBlockBuilderSheet: View {
             dismiss()
         } catch {
             validationMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct ExecutionBlockFormatPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var kind: ExerciseBlockKind
+
+    var body: some View {
+        List {
+            ForEach(ExecutionBlockAuthoring.FormatFamily.allCases, id: \.self) { family in
+                Section {
+                    ForEach(family.kinds, id: \.self) { format in
+                        Button {
+                            kind = format
+                            dismiss()
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(format.title)
+                                        .font(AppFont.body)
+                                        .foregroundStyle(Color.trameText)
+                                    Text(format.summary)
+                                        .font(AppFont.metadata)
+                                        .foregroundStyle(Color.trameSubdued)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: Spacing.s)
+                                if format == kind {
+                                    Image(systemName: AppIcon.checkmark)
+                                        .foregroundStyle(Color.trameActionDeep)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(format == kind ? [.isSelected] : [])
+                        .accessibilityIdentifier("block-format-\(format.rawValue)")
+                    }
+                } header: {
+                    formatFamilyHeader(family)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.trameCanvas)
+        .navigationTitle("Format")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func formatFamilyHeader(_ family: ExecutionBlockAuthoring.FormatFamily) -> some View {
+        switch family {
+        case .pairing:
+            TrameDomainSectionRule(title: "Pairing", color: Color.trameStrength)
+        case .timed:
+            TrameDomainSectionRule(title: "Timed", color: Color.trameAttention)
+        case .sequence:
+            TrameDomainSectionRule(title: "Sequence", color: Color.trameCompetition)
         }
     }
 }

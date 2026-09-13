@@ -632,7 +632,7 @@ struct WorkoutSaveView: View {
         activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
         let shouldDismissTraining = onWorkoutSaved(workoutID)
         navigationPath.removeAll()
-        if CloudFileSyncService.shared.isLinked,
+        if CloudFileSyncService.shared.isAutoSyncEnabled,
            AppLaunchArguments.current.contains("-ui-testing") == false {
             let restTimer = UserDefaults.standard.integer(forKey: DefaultsKey.restTimer)
             let unitSystem = UserDefaults.standard.unitSystem

@@ -88,7 +88,7 @@ nonisolated enum ExerciseBlockKind: String, Codable, CaseIterable {
         case .pairedSet: "Choose exactly two exercises."
         case .triset: "Choose exactly three exercises."
         case .giantSet: "Choose four or more exercises."
-        default: "Choose the exercises that belong to this block."
+        default: "Choose the exercises that run together."
         }
     }
 }

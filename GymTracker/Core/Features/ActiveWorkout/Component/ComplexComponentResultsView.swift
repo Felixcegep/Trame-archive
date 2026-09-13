@@ -6,8 +6,8 @@ struct ComplexComponentResultsView: View {
     let onChange: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("COMPLEX")
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("COMPONENTS")
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(Color.trameSubdued)
 
@@ -24,54 +24,69 @@ private struct ComplexComponentResultRow: View {
     @Bindable var component: ComplexComponentResult
     let onChange: () -> Void
 
+    private static let outcomes: [ComplexComponentOutcome] = [.completed, .partial, .missed]
+
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.s) {
                 Text(component.exerciseNameSnapshot)
                     .font(AppFont.footnoteMedium)
                     .foregroundStyle(Color.trameText)
                 Text("×\(component.prescribedRepetitions)")
                     .font(AppFont.caption)
                     .foregroundStyle(Color.trameSubdued)
+                Spacer(minLength: Spacing.s)
+                Menu {
+                    Button("Skipped") { update(.skipped) }
+                    Button("Clear", role: .destructive) { update(.notStarted) }
+                } label: {
+                    Image(systemName: AppIcon.ellipsis)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.trameSubdued)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                }
+                .accessibilityLabel("More outcomes for \(component.exerciseNameSnapshot)")
+                .accessibilityIdentifier("complex-component-more-\(component.orderIndex)")
             }
 
-            Spacer(minLength: Spacing.s)
-
-            Menu {
-                Button("Made") { update(.completed) }
-                Button("Partial") { update(.partial) }
-                Button("Missed") { update(.missed) }
-                Button("Skipped") { update(.skipped) }
-                Button("Clear", role: .destructive) { update(.notStarted) }
-            } label: {
-                Label(component.outcome.title, systemImage: icon)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(color)
-                    .frame(minHeight: 44)
+            HStack(spacing: Spacing.s) {
+                ForEach(Self.outcomes, id: \.self) { outcome in
+                    outcomeButton(outcome)
+                }
             }
-            .accessibilityLabel("\(component.exerciseNameSnapshot), \(component.prescribedRepetitions) prescribed repetitions")
-            .accessibilityValue(component.outcome.title)
-            .accessibilityHint("Choose the component outcome")
-            .accessibilityIdentifier("complex-component-\(component.orderIndex)")
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(component.exerciseNameSnapshot), \(component.prescribedRepetitions) prescribed repetitions")
+        .accessibilityValue(component.outcome.title)
     }
 
-    private var icon: String {
-        switch component.outcome {
-        case .notStarted: AppIcon.circle
-        case .completed: AppIcon.checkmarkCircle
-        case .partial: AppIcon.timer
-        case .missed: AppIcon.failureCircle
-        case .skipped: AppIcon.skip
+    private func outcomeButton(_ outcome: ComplexComponentOutcome) -> some View {
+        let isSelected = component.outcome == outcome
+        return Button {
+            update(outcome)
+        } label: {
+            Text(outcome.title)
+                .font(AppFont.footnoteMedium)
+                .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                .background(isSelected ? Color.trameCurrent : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(
+                            isSelected ? Color.trameActionOutline : Color.trameSeparator,
+                            lineWidth: 1
+                        )
+                }
         }
-    }
-
-    private var color: Color {
-        switch component.outcome {
-        case .completed: Color.trameCompleted
-        case .missed: Color.trameDestructiveText
-        case .notStarted, .partial, .skipped: Color.trameSubdued
-        }
+        .buttonStyle(.gymPress)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint("Choose the component outcome")
+        .accessibilityIdentifier(
+            outcome == .completed
+                ? "complex-component-\(component.orderIndex)"
+                : "complex-component-\(component.orderIndex)-\(outcome.rawValue)"
+        )
     }
 
     private func update(_ outcome: ComplexComponentOutcome) {

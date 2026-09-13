@@ -188,70 +188,75 @@ struct PlanDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    if !plan.isArchived {
-                        Button("Edit") {
-                            isShowingEditor = true
+                    Section {
+                        if !plan.isArchived {
+                            Button("Edit") {
+                                isShowingEditor = true
+                            }
+                            .accessibilityIdentifier("edit-plan")
                         }
-                        .accessibilityIdentifier("edit-plan")
-                    }
 
-                    Button {
-                        renameText = plan.name
-                        isShowingRenamePrompt = true
-                    } label: {
-                        Label("Rename", systemImage: AppIcon.edit)
-                    }
-                    .accessibilityIdentifier("rename-plan")
-
-                    Button {
-                        do {
-                            try WorkoutPlanArchiveService.duplicate(plan, using: modelContext)
-                            lifecycleFeedback = "Plan duplicated."
-                        } catch {
-                            lifecycleFeedback = "Could not duplicate the plan."
+                        Button {
+                            renameText = plan.name
+                            isShowingRenamePrompt = true
+                        } label: {
+                            Label("Rename", systemImage: AppIcon.edit)
                         }
-                    } label: {
-                        Label("Duplicate", systemImage: AppIcon.duplicate)
-                    }
-                    .accessibilityIdentifier("duplicate-plan")
+                        .accessibilityIdentifier("rename-plan")
 
-                    Divider()
-
-                    if let run = activeRun {
-                        Button("Pause this plan") {
-                            PlanCoordinator.pause(run, using: modelContext)
-                        }
-                        Button("End this plan run", role: .destructive) {
-                            isShowingArchiveConfirmation = true
-                        }
-                    } else if pausedRun != nil || testDayRun != nil {
-                        Button("End this plan run", role: .destructive) {
-                            isShowingArchiveConfirmation = true
-                        }
-                    }
-
-                    Divider()
-
-                    if plan.isArchived {
                         Button {
                             do {
-                                try WorkoutPlanArchiveService.restore(plan, using: modelContext)
-                                lifecycleFeedback = "Plan restored."
+                                try WorkoutPlanArchiveService.duplicate(plan, using: modelContext)
+                                lifecycleFeedback = "Plan duplicated."
                             } catch {
-                                lifecycleFeedback = "Could not restore the plan."
+                                lifecycleFeedback = "Could not duplicate the plan."
                             }
                         } label: {
-                            Label("Restore", systemImage: AppIcon.restore)
+                            Label("Duplicate", systemImage: AppIcon.duplicate)
                         }
-                        .accessibilityIdentifier("restore-plan")
+                        .accessibilityIdentifier("duplicate-plan")
                     }
 
-                    Button(role: .destructive) {
-                        isShowingDeleteConfirmation = true
-                    } label: {
-                        Label(plan.isArchived ? "Delete" : "Delete", systemImage: AppIcon.trash)
+                    if activeRun != nil || pausedRun != nil || testDayRun != nil {
+                        Section {
+                            if let run = activeRun {
+                                Button {
+                                    PlanCoordinator.pause(run, using: modelContext)
+                                } label: {
+                                    Label("Pause plan", systemImage: AppIcon.pause)
+                                }
+                                .accessibilityIdentifier("pause-plan")
+                            }
+
+                            Button("Stop following", role: .destructive) {
+                                isShowingArchiveConfirmation = true
+                            }
+                            .accessibilityIdentifier("stop-following-plan")
+                        }
                     }
-                    .accessibilityIdentifier("delete-plan")
+
+                    Section {
+                        if plan.isArchived {
+                            Button {
+                                do {
+                                    try WorkoutPlanArchiveService.restore(plan, using: modelContext)
+                                    lifecycleFeedback = "Plan restored."
+                                } catch {
+                                    lifecycleFeedback = "Could not restore the plan."
+                                }
+                            } label: {
+                                Label("Restore", systemImage: AppIcon.restore)
+                            }
+                            .accessibilityIdentifier("restore-plan")
+                        }
+
+                        Button(role: .destructive) {
+                            isShowingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: AppIcon.trash)
+                        }
+                        .accessibilityIdentifier("delete-plan")
+                    }
                 } label: {
                     Image(systemName: AppIcon.options)
                         .accessibilityLabel("Plan options")
@@ -347,16 +352,17 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            "End this plan run?",
+            "Stop following this plan?",
             isPresented: $isShowingArchiveConfirmation,
             titleVisibility: .visible
         ) {
-            Button("End Plan Run", role: .destructive) {
+            Button("Stop Following", role: .destructive) {
                 guard let run = currentRun else { return }
                 PlanCoordinator.archive(run, using: modelContext)
             }
+            .accessibilityIdentifier("confirm-stop-following-plan")
         } message: {
-            Text("This run will end, but the plan, its progress, and completed workouts remain available. You can start a new run later.")
+            Text("Your completed workouts stay in history. You can start the plan again later.")
         }
     }
 

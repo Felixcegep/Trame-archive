@@ -49,6 +49,68 @@ final class CloudFileLinkStoreTests: XCTestCase {
             syncedAt.timeIntervalSince1970,
             accuracy: 0.001
         )
+        XCTAssertNil(loaded?.googleDriveFileID)
+        XCTAssertNil(loaded?.googleDriveAccountEmail)
+        XCTAssertEqual(loaded?.syncMode, .automatic)
+        XCTAssertEqual(loaded?.usesGoogleDriveAPI, false)
+    }
+
+    func testGoogleDriveFieldsRoundTrip() {
+        let store = CloudFileLinkStore(defaults: testDefaults)
+        let record = CloudFileLinkRecord(
+            bookmarkData: Data(),
+            displayName: "TrameBackup.json",
+            locationKind: .googleDrive,
+            lastSyncedHash: "drive-hash",
+            lastSyncedAt: Date(timeIntervalSince1970: 1_760_000_000),
+            googleDriveFileID: "file-123",
+            googleDriveAccountEmail: "lifter@example.com",
+            syncMode: .manual
+        )
+
+        store.save(record)
+        let loaded = store.load()
+        XCTAssertEqual(loaded?.googleDriveFileID, "file-123")
+        XCTAssertEqual(loaded?.googleDriveAccountEmail, "lifter@example.com")
+        XCTAssertEqual(loaded?.syncMode, .manual)
+        XCTAssertEqual(loaded?.usesGoogleDriveAPI, true)
+        XCTAssertEqual(loaded?.bookmarkData, Data())
+    }
+
+    func testLegacyJSONDecodesAsAutomaticWithNilDriveIDs() throws {
+        struct LegacyRecord: Encodable {
+            var bookmarkData: Data
+            var displayName: String
+            var locationKind: CloudFileLocationKind
+            var lastSyncedHash: String?
+            var lastSyncedAt: Date?
+        }
+
+        let syncedAt = Date(timeIntervalSince1970: 1_760_000_000)
+        let data = try JSONEncoder().encode(
+            LegacyRecord(
+                bookmarkData: Data("bookmark-bytes".utf8),
+                displayName: "Trame Backup.json",
+                locationKind: .iCloudDrive,
+                lastSyncedHash: "abc123",
+                lastSyncedAt: syncedAt
+            )
+        )
+
+        let decoded = try JSONDecoder().decode(CloudFileLinkRecord.self, from: data)
+        XCTAssertEqual(decoded.bookmarkData, Data("bookmark-bytes".utf8))
+        XCTAssertEqual(decoded.displayName, "Trame Backup.json")
+        XCTAssertEqual(decoded.locationKind, .iCloudDrive)
+        XCTAssertEqual(decoded.lastSyncedHash, "abc123")
+        XCTAssertEqual(
+            decoded.lastSyncedAt?.timeIntervalSince1970 ?? -1,
+            syncedAt.timeIntervalSince1970,
+            accuracy: 0.001
+        )
+        XCTAssertNil(decoded.googleDriveFileID)
+        XCTAssertNil(decoded.googleDriveAccountEmail)
+        XCTAssertEqual(decoded.syncMode, .automatic)
+        XCTAssertFalse(decoded.usesGoogleDriveAPI)
     }
 
     func testClearRemovesRecord() {

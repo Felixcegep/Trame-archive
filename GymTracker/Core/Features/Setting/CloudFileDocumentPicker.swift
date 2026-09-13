@@ -2,9 +2,8 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// System Files picker so iCloud Drive and Google Drive (and other providers)
-/// share one path. Create exports a temporary backup; Open links an existing
-/// JSON in place.
+/// System Files picker for iCloud Drive (and other File Providers). Google Drive
+/// signs in through the Drive API instead of this picker.
 struct CloudFileDocumentPicker: UIViewControllerRepresentable {
     enum Mode {
         case create(URL)

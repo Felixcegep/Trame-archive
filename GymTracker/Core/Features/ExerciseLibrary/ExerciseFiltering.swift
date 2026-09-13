@@ -533,6 +533,7 @@ private struct ExerciseFiltersSheet: View {
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
+    var accent: Color = Color.trameStrength
     let onTap: () -> Void
 
     var body: some View {
@@ -544,7 +545,7 @@ struct FilterChip: View {
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(isSelected ? Color.trameStrength : Color.trameSeparator)
+                        .fill(isSelected ? accent : Color.trameSeparator)
                         .frame(height: isSelected ? 2 : 1)
                 }
                 .contentShape(Rectangle())

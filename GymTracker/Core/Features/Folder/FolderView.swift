@@ -6,8 +6,8 @@ import SwiftUI
 /// This screen used to stack a CREATE card (duplicating the `+` button), a
 /// five-row BROWSE list that gave "Ready-Made Plans", "My Plans" and "Rotations"
 /// equal billing as three separate ways to do one job, and every saved workout
-/// inline below. Plans are now one door, saved workouts live behind another, and
-/// creation happens in exactly one place.
+/// inline below. Plans are now one door, saved workouts live behind another,
+/// and the trailing menu starts a free workout or creates a library item.
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
@@ -58,6 +58,7 @@ struct FolderView: View {
                         onChoosePlan: { onOpenRoute(.plans) },
                         onStartPlannedWorkout: onStartPlannedWorkout,
                         onStartRepeatingWorkout: onStartRepeatingWorkout,
+                        onStartFreeWorkout: onStartFreeWorkout,
                         onResumePlan: onResumePlan,
                         onPauseRepeatingPlan: onPauseRepeatingPlan,
                         onResumeRepeatingPlan: onResumeRepeatingPlan,
@@ -111,6 +112,15 @@ struct FolderView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
+                        onStartFreeWorkout()
+                    } label: {
+                        Label("Start a free workout", systemImage: AppIcon.play)
+                    }
+                    .accessibilityIdentifier("library-start-free-workout")
+
+                    Divider()
+
+                    Button {
                         activeSheet = .workoutTemplate
                     } label: {
                         Label("New Workout", systemImage: AppIcon.routine)
@@ -148,7 +158,7 @@ struct FolderView: View {
                         Label("New Folder", systemImage: "folder.badge.plus")
                     }
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: AppIcon.plus)
                         .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.trameText)
                         .frame(
@@ -157,7 +167,7 @@ struct FolderView: View {
                         )
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Create library item")
+                .accessibilityLabel("Start or create")
                 .accessibilityIdentifier("library-create")
             }
         }

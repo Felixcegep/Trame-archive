@@ -32,6 +32,7 @@ final class CloudFileSyncService {
     private let linkStore: CloudFileLinkStore
     private let dataSafety: DataSafetyService
     private let fileManager: FileManager
+    private let googleDrive: (any GoogleDriveAPIClienting)?
 
     private(set) var isSyncing = false
     private(set) var lastOutcome: Outcome = .unlinked
@@ -40,12 +41,14 @@ final class CloudFileSyncService {
 
     init(
         defaults: UserDefaults = .standard,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        googleDrive: (any GoogleDriveAPIClienting)? = nil
     ) {
         self.defaults = defaults
         self.linkStore = CloudFileLinkStore(defaults: defaults)
         self.dataSafety = DataSafetyService(defaults: defaults, fileManager: fileManager)
         self.fileManager = fileManager
+        self.googleDrive = googleDrive
         linkedRecord = linkStore.load()
         if linkedRecord == nil {
             lastOutcome = .unlinked
@@ -54,12 +57,31 @@ final class CloudFileSyncService {
 
     var isLinked: Bool { linkedRecord != nil }
 
+    var isAutoSyncEnabled: Bool {
+        guard let linkedRecord else { return false }
+        return linkedRecord.syncMode == .automatic
+    }
+
+    private var resolvedGoogleDrive: any GoogleDriveAPIClienting {
+        googleDrive ?? GoogleDriveAPIClient.shared
+    }
+
+    func setSyncMode(_ mode: CloudFileSyncMode) {
+        guard var record = linkedRecord ?? linkStore.load() else { return }
+        record.syncMode = mode
+        persist(record)
+    }
+
     func unlink() {
+        let shouldSignOut = linkedRecord?.usesGoogleDriveAPI == true
         linkStore.clear()
         linkedRecord = nil
         lastOutcome = .unlinked
         lastErrorMessage = nil
         isSyncing = false
+        if shouldSignOut {
+            GoogleDriveOAuthClient.shared.signOut()
+        }
     }
 
     /// Remembers the Files location. Does not read or write the file yet.
@@ -75,6 +97,28 @@ final class CloudFileSyncService {
         linkStore.save(record)
         linkedRecord = record
         lastErrorMessage = nil
+    }
+
+    func linkGoogleDrive(
+        fileID: String,
+        displayName: String,
+        accountEmail: String?,
+        lastSyncedHash: String? = nil
+    ) {
+        let record = CloudFileLinkRecord(
+            bookmarkData: Data(),
+            displayName: displayName,
+            locationKind: .googleDrive,
+            lastSyncedHash: lastSyncedHash,
+            lastSyncedAt: lastSyncedHash == nil ? nil : .now,
+            googleDriveFileID: fileID,
+            googleDriveAccountEmail: accountEmail
+        )
+        persist(record)
+        lastErrorMessage = nil
+        if lastSyncedHash != nil {
+            lastOutcome = .pushed
+        }
     }
 
     func sync(
@@ -125,7 +169,6 @@ final class CloudFileSyncService {
         request: Request
     ) async throws -> Outcome {
         guard var record = linkStore.load() else { return .unlinked }
-        let url = try CloudFileBookmark.resolve(record.bookmarkData)
 
         let snapshot = try await makeSnapshot(
             from: context,
@@ -136,13 +179,7 @@ final class CloudFileSyncService {
         let localData = try BackupArchiveFileWriter.encode(snapshot)
         let localHash = CloudFileContentHash.sha256Hex(localData)
 
-        let remoteData: Data?
-        if CloudFileIO.fileExists(url) {
-            let data = try CloudFileIO.read(from: url)
-            remoteData = data.isEmpty ? nil : data
-        } else {
-            remoteData = nil
-        }
+        let remoteData = try await readRemoteData(from: record)
         let remoteHash = remoteData.map(CloudFileContentHash.sha256Hex)
 
         var decision = CloudFileReconciler.decide(
@@ -167,7 +204,7 @@ final class CloudFileSyncService {
             persist(record)
             return .inSync
         case .push:
-            try CloudFileIO.write(localData, to: url)
+            try await writeRemote(localData, to: record)
             dataSafety.recordExportSuccess()
             record.lastSyncedHash = localHash
             record.lastSyncedAt = .now
@@ -175,7 +212,7 @@ final class CloudFileSyncService {
             return .pushed
         case .pull:
             guard let remoteData else {
-                try CloudFileIO.write(localData, to: url)
+                try await writeRemote(localData, to: record)
                 record.lastSyncedHash = localHash
                 record.lastSyncedAt = .now
                 persist(record)
@@ -193,6 +230,54 @@ final class CloudFileSyncService {
         case .conflict:
             return .conflict
         }
+    }
+
+    private func readRemoteData(from record: CloudFileLinkRecord) async throws -> Data? {
+        if record.usesGoogleDriveAPI {
+            guard let fileID = record.googleDriveFileID else { return nil }
+            do {
+                let data = try await resolvedGoogleDrive.downloadFile(id: fileID)
+                return data.isEmpty ? nil : data
+            } catch {
+                if Self.isMissingRemoteFile(error) {
+                    return nil
+                }
+                throw error
+            }
+        }
+
+        let url = try CloudFileBookmark.resolve(record.bookmarkData)
+        if CloudFileIO.fileExists(url) {
+            let data = try CloudFileIO.read(from: url)
+            return data.isEmpty ? nil : data
+        }
+        return nil
+    }
+
+    private func writeRemote(_ data: Data, to record: CloudFileLinkRecord) async throws {
+        if record.usesGoogleDriveAPI {
+            guard let fileID = record.googleDriveFileID, fileID.isEmpty == false else {
+                throw CloudFileIO.AccessError.writeFailed(
+                    String(localized: "The cloud file could not be saved.")
+                )
+            }
+            try await resolvedGoogleDrive.uploadFile(id: fileID, data: data)
+            return
+        }
+
+        let url = try CloudFileBookmark.resolve(record.bookmarkData)
+        try CloudFileIO.write(data, to: url)
+    }
+
+    private static func isMissingRemoteFile(_ error: Error) -> Bool {
+        if let apiError = error as? GoogleDriveAPIError,
+           case .httpFailure(let status, _) = apiError {
+            return status == 404
+        }
+        if let urlError = error as? URLError {
+            return urlError.code == .fileDoesNotExist
+        }
+        return false
     }
 
     private func pull(

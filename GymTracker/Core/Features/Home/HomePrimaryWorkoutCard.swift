@@ -30,13 +30,13 @@ struct HomePrimaryWorkoutCard: View {
             .accessibilityHint(cardHint)
             .accessibilityIdentifier(cardAccessibilityIdentifier)
 
-            if showsSavedWorkoutsFooter {
+            if showsSecondaryStartFooter {
                 Divider()
                     .overlay(Color.trameSeparator)
 
                 Button(action: onOpenSavedWorkouts) {
                     HStack(spacing: Spacing.m) {
-                        Text("Saved workouts")
+                        Text(secondaryStartFooterTitle)
                             .font(AppFont.bodyMedium)
                             .foregroundStyle(Color.trameText)
 
@@ -51,8 +51,8 @@ struct HomePrimaryWorkoutCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.gymPress)
-                .accessibilityHint("Opens your saved workouts.")
-                .accessibilityIdentifier("today-open-saved-workouts")
+                .accessibilityHint(secondaryStartFooterHint)
+                .accessibilityIdentifier(secondaryStartFooterIdentifier)
             }
 
             scheduleActions
@@ -202,8 +202,28 @@ struct HomePrimaryWorkoutCard: View {
         summary.kind != .free
     }
 
-    private var showsSavedWorkoutsFooter: Bool {
-        summary.kind == .free
+    private var showsSecondaryStartFooter: Bool {
+        switch summary.kind {
+        case .free, .planned, .repeating:
+            true
+        case .active, .guidedConflict, .unavailable:
+            false
+        }
+    }
+
+    private var secondaryStartFooterTitle: LocalizedStringKey {
+        summary.kind == .free ? "Saved workouts" : "Start a free workout"
+    }
+
+    private var secondaryStartFooterIdentifier: String {
+        summary.kind == .free ? "today-open-saved-workouts" : "today-start-free-workout"
+    }
+
+    private var secondaryStartFooterHint: String {
+        if summary.kind == .free {
+            return String(localized: "Opens your saved workouts.")
+        }
+        return String(localized: "Opens unplanned workouts you can start without changing your plan.")
     }
 
     private var showsSemanticRail: Bool {

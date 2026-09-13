@@ -379,7 +379,7 @@ enum CatalogMetadataInstaller {
     private static func makeExercise(from resource: ExerciseCatalogResource) -> Exercise {
         let force = resource.forceType.flatMap(ForceType.init(rawValue:))
         let patterns = resource.movementPatterns.map { enumValue(MovementPattern.self, raw: $0, fallback: .other) }
-        return Exercise(
+        let exercise = Exercise(
             name: resource.name,
             primaryMuscles: resource.primaryMuscles.compactMap(Muscle.init(rawValue:)),
             secondaryMuscles: resource.secondaryMuscles.compactMap(Muscle.init(rawValue:)),
@@ -393,6 +393,8 @@ enum CatalogMetadataInstaller {
             difficulty: enumValue(Difficulty.self, raw: resource.difficulty, fallback: .beginner),
             tags: resource.tags
         )
+        exercise.sportDiscipline = resolvedSportDiscipline(for: resource)
+        return exercise
     }
 
     @discardableResult
@@ -465,7 +467,26 @@ enum CatalogMetadataInstaller {
             exercise.tags = resource.tags
             changed = true
         }
+        if let discipline = resolvedSportDiscipline(for: resource),
+           exercise.sportDiscipline != discipline {
+            exercise.sportDiscipline = discipline
+            changed = true
+        }
         return changed
+    }
+
+    /// Authored JSON discipline wins. Olympic-tagged lifts without that field
+    /// still resolve to weightlifting so logging can ask made/missed/quality.
+    private static func resolvedSportDiscipline(for resource: ExerciseCatalogResource) -> SportDiscipline? {
+        if let raw = resource.sportDiscipline?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty,
+           let discipline = SportDiscipline(rawValue: raw) {
+            return discipline
+        }
+        if resource.tags.contains(where: { $0.caseInsensitiveCompare("olympic-weightlifting") == .orderedSame }) {
+            return .olympicWeightlifting
+        }
+        return nil
     }
 
     private static func mobilityFamily(

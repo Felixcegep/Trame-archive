@@ -15,6 +15,8 @@ enum UITestFixture: String {
     case activeRestRunning = "active-rest-running"
     case activeRestPaused = "active-rest-paused"
     case activeRestReady = "active-rest-ready"
+    case activeOlympicRest = "active-olympic-rest"
+    case activeOlympicFinish = "active-olympic-finish"
     case activeDraft = "active-draft"
     case activeAllTrackingTypes = "active-all-tracking-types"
     case activeLoadingStyles = "active-loading-styles"
@@ -118,6 +120,10 @@ enum UITestFixture: String {
             try makeRestWorkout(state: .paused, using: context)
         case .activeRestReady:
             try makeRestWorkout(state: .ready, using: context)
+        case .activeOlympicRest:
+            try makeOlympicRestWorkout(using: context)
+        case .activeOlympicFinish:
+            try makeOlympicFinishWorkout(using: context)
         case .activeDraft:
             try makeActiveDraftWorkout(using: context)
         case .activeAllTrackingTypes:
@@ -555,6 +561,72 @@ enum UITestFixture: String {
 
         context.insert(workout)
         try context.save()
+    }
+
+    /// Snatch just logged, quality and RPE unanswered, rest running. This is
+    /// the gym-floor canvas after an Olympic attempt: did it go, and how hard.
+    private static func makeOlympicRestWorkout(using context: ModelContext) throws {
+        let entry = try olympicAttemptEntry(named: "Snatch", using: context)
+        guard let first = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        first.done = true
+        first.repetitions = 1
+        first.weight = 90
+        first.rpe = nil
+        first.rir = nil
+        first.liftQuality = nil
+
+        let workout = Workout(name: "Snatch session")
+        workout.startTime = Date.now.addingTimeInterval(-90)
+        workout.exercises = [entry]
+        workout.restEndDate = Date.now.addingTimeInterval(90)
+        context.insert(workout)
+        try context.save()
+    }
+
+    /// Completed snatch attempts with mixed quality plus an unfinished clean
+    /// and jerk, so the finish page can show done vs remaining work.
+    private static func makeOlympicFinishWorkout(using context: ModelContext) throws {
+        let snatch = try olympicAttemptEntry(named: "Snatch", using: context)
+        let sets = snatch.orderedSets
+        guard sets.count >= 3 else { throw FixtureError.invalidPlan }
+        sets[0].done = true
+        sets[0].weight = 90
+        sets[0].liftQuality = .excellent
+        sets[0].rpe = 8
+        sets[1].done = true
+        sets[1].weight = 95
+        sets[1].liftQuality = .missed
+        sets[2].done = true
+        sets[2].weight = 100
+        sets[2].liftQuality = nil
+        sets[2].rpe = nil
+        sets[2].rir = nil
+
+        let cleanAndJerk = try olympicAttemptEntry(named: "Clean and Jerk", orderIndex: 1, using: context)
+        try makeActiveWorkout(exercises: [snatch, cleanAndJerk], using: context)
+    }
+
+    private static func olympicAttemptEntry(
+        named name: String,
+        orderIndex: Int = 0,
+        using context: ModelContext
+    ) throws -> ExerciseEntry {
+        let entry = ExerciseEntry(
+            from: try exercise(named: name, using: context),
+            orderIndex: orderIndex,
+            usedMetric: .metric
+        )
+        entry.sportDisciplineSnapshotRaw = SportDiscipline.olympicWeightlifting.rawValue
+        entry.prescribedRestSeconds = 150
+        for set in entry.orderedSets {
+            set.repetitions = 1
+            set.prescribedRepetitions = 1
+            set.weight = 90
+            set.weightType = .kg
+            set.rpe = nil
+            set.rir = nil
+        }
+        return entry
     }
 
     private static func makeLoadingStyleWorkout(using context: ModelContext) throws {

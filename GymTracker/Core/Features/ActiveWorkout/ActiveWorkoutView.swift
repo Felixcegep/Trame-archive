@@ -197,8 +197,20 @@ struct ActiveWorkoutView: View {
             ActiveWorkoutMobilityInsertPicker(
                 definitions: mobilityDefinitions,
                 routines: mobilityRoutines,
-                onStartMovement: startInsertedMobilityMovement,
-                onStartRoutine: startInsertedMobilityRoutine
+                onStartMovement: { definition in
+                    let started = startInsertedMobilityMovement(definition)
+                    if started {
+                        isShowingMobilityInsertPicker = false
+                    }
+                    return started
+                },
+                onStartRoutine: { routine in
+                    let started = startInsertedMobilityRoutine(routine)
+                    if started {
+                        isShowingMobilityInsertPicker = false
+                    }
+                    return started
+                }
             )
         }
         .confirmationDialog(
@@ -239,14 +251,23 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $isShowingExecutionBlockBuilder) {
             if let workout = viewModel.activeWorkout {
-                WorkoutExecutionBlockBuilderSheet(workout: workout) {
+                WorkoutExecutionBlockBuilderSheet(
+                    workout: workout,
+                    availableExercises: exerciseTemplates,
+                    onAddExercise: addExerciseFromPicker
+                ) {
                     viewModel.persistChanges()
                 }
             }
         }
         .sheet(item: $executionBlockToEdit) { block in
             if let workout = viewModel.activeWorkout {
-                WorkoutExecutionBlockBuilderSheet(workout: workout, blockToEdit: block) {
+                WorkoutExecutionBlockBuilderSheet(
+                    workout: workout,
+                    blockToEdit: block,
+                    availableExercises: exerciseTemplates,
+                    onAddExercise: addExerciseFromPicker
+                ) {
                     viewModel.persistChanges()
                 }
             }
@@ -307,76 +328,78 @@ struct ActiveWorkoutView: View {
     private func stage(for workout: Workout) -> some View {
         let pages = WorkoutStagePlan.pages(for: workout, mobilityStage: midWorkoutMobilityStage)
 
-        return VStack(spacing: 0) {
-            ActiveWorkoutStageHeader(
-                workout: workout,
-                pages: pages,
-                selection: $selection,
-                mobilityStageName: midWorkoutMobilityStage?.name,
-                onMinimize: minimizeWorkout,
-                onDiscard: { isShowingDiscardConfirmation = true },
-                onAddExercise: { isShowingExercisePicker = true },
-                onAddBlock: { isShowingExecutionBlockBuilder = true },
-                onAddMobility: FeatureFlags.current.isEnabled(.mobility)
-                    ? { isShowingMobilityInsertPicker = true }
-                    : nil,
-                isFinishEnabled: canFinish(workout),
-                onFinish: finishWorkout
-            )
-
-            saveFailureBanner
-
-            activeDailyMaximumBanner(for: workout)
-
-            pager(for: workout, pages: pages)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if selection.isMobility {
-                EmptyView()
-            } else if coordinator.focus == nil {
-                ActiveWorkoutCommandBar(
-                    primaryAction: primaryAction(for: workout),
-                    logSetValues: logSetValues(for: workout),
-                    restEndDate: viewModel.timerPause,
-                    isRestPaused: viewModel.isTimerPaused,
-                    pausedRemaining: viewModel.pausedTimeRemaining,
-                    canGoBack: canGo(-1, in: pages),
-                    canGoForward: canGo(1, in: pages),
-                    onBack: { turnPage(-1, in: pages) },
-                    onForward: { turnPage(1, in: pages) },
-                    onPrimary: { performPrimaryAction(for: workout, pages: pages) }
+        return ZStack {
+            VStack(spacing: 0) {
+                ActiveWorkoutStageHeader(
+                    workout: workout,
+                    pages: pages,
+                    selection: $selection,
+                    mobilityStageName: midWorkoutMobilityStage?.name,
+                    onMinimize: minimizeWorkout,
+                    onDiscard: { isShowingDiscardConfirmation = true },
+                    onAddExercise: { isShowingExercisePicker = true },
+                    onAddBlock: { isShowingExecutionBlockBuilder = true },
+                    onAddMobility: FeatureFlags.current.isEnabled(.mobility)
+                        ? { isShowingMobilityInsertPicker = true }
+                        : nil,
+                    isFinishEnabled: canFinish(workout),
+                    onFinish: finishWorkout
                 )
-            } else {
-                VStack(spacing: Spacing.s) {
-                    if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
-                        ActiveWorkoutRestPill(
-                            restEndDate: viewModel.timerPause,
-                            isRestPaused: viewModel.isTimerPaused,
-                            pausedRemaining: viewModel.pausedTimeRemaining
-                        ) {
-                            coordinator.focus = nil
-                            withAnimation(reduceMotion ? nil : AppMotion.layout) {
-                                isRestExpanded = true
-                            }
-                        }
-                        .padding(.horizontal, Spacing.screenInset)
-                    }
 
-                    // SwiftUI's keyboard avoidance lifts this bottom safe-area
-                    // inset above the keypad, so the panel rides on top of it
-                    // without manual height math.
-                    SetInputAccessoryPanel(
-                        viewModel: viewModel,
-                        coordinator: coordinator,
-                        unitSystem: unitSystem,
-                        onSetCompleted: { exercise in
-                            advanceStage(after: exercise, in: workout)
-                        }
+                saveFailureBanner
+
+                activeDailyMaximumBanner(for: workout)
+
+                pager(for: workout, pages: pages)
+            }
+            .safeAreaInset(edge: .bottom) {
+                if selection.isMobility {
+                    EmptyView()
+                } else if coordinator.focus == nil {
+                    ActiveWorkoutCommandBar(
+                        primaryAction: primaryAction(for: workout),
+                        logSetValues: logSetValues(for: workout),
+                        restEndDate: viewModel.timerPause,
+                        isRestPaused: viewModel.isTimerPaused,
+                        pausedRemaining: viewModel.pausedTimeRemaining,
+                        canGoBack: canGo(-1, in: pages),
+                        canGoForward: canGo(1, in: pages),
+                        onBack: { turnPage(-1, in: pages) },
+                        onForward: { turnPage(1, in: pages) },
+                        onPrimary: { performPrimaryAction(for: workout, pages: pages) }
                     )
+                } else {
+                    VStack(spacing: Spacing.s) {
+                        if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
+                            ActiveWorkoutRestPill(
+                                restEndDate: viewModel.timerPause,
+                                isRestPaused: viewModel.isTimerPaused,
+                                pausedRemaining: viewModel.pausedTimeRemaining
+                            ) {
+                                coordinator.focus = nil
+                                withAnimation(reduceMotion ? nil : AppMotion.layout) {
+                                    isRestExpanded = true
+                                }
+                            }
+                            .padding(.horizontal, Spacing.screenInset)
+                        }
+
+                        // SwiftUI's keyboard avoidance lifts this bottom safe-area
+                        // inset above the keypad, so the panel rides on top of it
+                        // without manual height math.
+                        SetInputAccessoryPanel(
+                            viewModel: viewModel,
+                            coordinator: coordinator,
+                            unitSystem: unitSystem,
+                            onSetCompleted: { exercise in
+                                advanceStage(after: exercise, in: workout)
+                            }
+                        )
+                    }
                 }
             }
-        }
-        .overlay {
+            .accessibilityHidden(isShowingRestTakeover)
+
             if isShowingRestTakeover {
                 RestTakeoverView(
                     viewModel: viewModel,
@@ -540,7 +563,7 @@ struct ActiveWorkoutView: View {
         // One page at a time. A `TabView`/paging scroll keeps off-screen
         // exercises in the hit-test tree, so tapping the current weight can
         // select a field two stages back and then follow that focus.
-        stagePage(selection, workout: workout)
+        stagePage(selection, workout: workout, pages: pages)
             .id(selection)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -557,7 +580,11 @@ struct ActiveWorkoutView: View {
     }
 
     @ViewBuilder
-    private func stagePage(_ page: WorkoutStagePage, workout: Workout) -> some View {
+    private func stagePage(
+        _ page: WorkoutStagePage,
+        workout: Workout,
+        pages: [WorkoutStagePage]
+    ) -> some View {
         if page.isFinish {
             StageFinishPage(
                 workout: workout,
@@ -567,6 +594,7 @@ struct ActiveWorkoutView: View {
                     _ = workout.updateElapsedDuration(duration)
                     viewModel.persistChanges()
                 },
+                onAddExercise: { isShowingExercisePicker = true },
                 onAddMobility: FeatureFlags.current.isEnabled(.mobility)
                     ? { isShowingMobilityInsertPicker = true }
                     : nil
@@ -577,6 +605,10 @@ struct ActiveWorkoutView: View {
                 linkedWorkoutName: linkedWorkoutName,
                 linkedWorkoutStartTime: linkedWorkoutStartTime,
                 embedsInWorkoutPager: true,
+                pagerCanGoBack: canGo(-1, in: pages),
+                pagerCanGoForward: canGo(1, in: pages),
+                onPagerBack: { turnPage(-1, in: pages) },
+                onPagerForward: { turnPage(1, in: pages) },
                 onFinished: onFinishLinkedMobility
             )
         } else {
@@ -888,9 +920,10 @@ struct ActiveWorkoutView: View {
                let maximum = set.prescribedRepRangeMaximum {
                 parts.append("\(minimum)–\(maximum) reps")
             } else if let reps = set.prescribedRepetitions {
-                parts.append("\(reps) reps")
+                parts.append(reps == 1 ? String(localized: "1 rep") : String(localized: "\(reps) reps"))
             } else if set.repetitions > 0 {
-                parts.append("\(Formatters.formatFloat(set.repetitions)) reps")
+                let reps = set.repetitions
+                parts.append(reps == 1 ? String(localized: "1 rep") : "\(Formatters.formatFloat(reps)) reps")
             }
         }
         if trackingType.usesWeight {

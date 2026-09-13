@@ -594,32 +594,16 @@ class ActiveWorkoutViewModel {
         return UnitConversion.weight(latest.value, from: latest.unit, to: unit)
     }
 
-    /// The set the lifter just finished, when its effort is worth asking about.
-    ///
-    /// Returns `nil` — and so hides the question entirely — unless the exercise
-    /// actually prescribed an effort target. Asking after every accessory set
-    /// trains people to ignore the control, and an effort log nobody fills in
-    /// honestly is worse than no effort log at all.
+    /// The set the lifter just finished. Effort is always worth asking on
+    /// rest: the clock is already running, the question is one slider, and
+    /// skipping it remains allowed. Olympic attempts also ask whether the
+    /// movement went well on the same screen.
     ///
     /// Deliberately *not* gated on the value being unset: a lifter who drags the
     /// slider and then changes their mind must be able to drag it back, so the
     /// card stays for the whole rest once it has appeared.
     var lastCompletedSetAwaitingEffort: ExerciseSet? {
-        guard let workout = workoutVM.activeWorkout else { return nil }
-
-        let completed = workout.orderedExercises
-            .flatMap { entry -> [(ExerciseEntry, ExerciseSet)] in
-                entry.orderedSets.filter(\.done).map { (entry, $0) }
-            }
-
-        guard let (entry, set) = completed.last else { return nil }
-        // The prescription can live on either the set snapshot or the entry,
-        // depending on whether it came from a template or a plan.
-        let prescribesEffort = set.prescribedRPE != nil
-            || set.prescribedRIR != nil
-            || entry.prescribedRPE != nil
-            || entry.prescribedRIR != nil
-        return prescribesEffort ? set : nil
+        lastCompletedSetContext?.set
     }
 
     /// The performed set immediately preceding the active rest period. This is

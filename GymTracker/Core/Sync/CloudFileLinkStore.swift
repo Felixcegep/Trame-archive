@@ -1,5 +1,17 @@
 import Foundation
 
+nonisolated enum CloudFileSyncMode: String, Codable, CaseIterable, Sendable {
+    case manual
+    case automatic
+
+    var title: String {
+        switch self {
+        case .manual: String(localized: "Manual")
+        case .automatic: String(localized: "Automatic")
+        }
+    }
+}
+
 /// Installation-local record of the linked cloud file. The bookmark is not
 /// user training data: a restored backup must not silently take over another
 /// device's Files location, so this record is excluded from `BackupDTO`.
@@ -9,6 +21,54 @@ nonisolated struct CloudFileLinkRecord: Codable, Equatable, Sendable {
     var locationKind: CloudFileLocationKind
     var lastSyncedHash: String?
     var lastSyncedAt: Date?
+    var googleDriveFileID: String?
+    var googleDriveAccountEmail: String?
+    var syncMode: CloudFileSyncMode
+
+    var usesGoogleDriveAPI: Bool { googleDriveFileID?.isEmpty == false }
+
+    enum CodingKeys: String, CodingKey {
+        case bookmarkData
+        case displayName
+        case locationKind
+        case lastSyncedHash
+        case lastSyncedAt
+        case googleDriveFileID
+        case googleDriveAccountEmail
+        case syncMode
+    }
+
+    init(
+        bookmarkData: Data,
+        displayName: String,
+        locationKind: CloudFileLocationKind,
+        lastSyncedHash: String? = nil,
+        lastSyncedAt: Date? = nil,
+        googleDriveFileID: String? = nil,
+        googleDriveAccountEmail: String? = nil,
+        syncMode: CloudFileSyncMode = .automatic
+    ) {
+        self.bookmarkData = bookmarkData
+        self.displayName = displayName
+        self.locationKind = locationKind
+        self.lastSyncedHash = lastSyncedHash
+        self.lastSyncedAt = lastSyncedAt
+        self.googleDriveFileID = googleDriveFileID
+        self.googleDriveAccountEmail = googleDriveAccountEmail
+        self.syncMode = syncMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bookmarkData = try container.decode(Data.self, forKey: .bookmarkData)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        locationKind = try container.decode(CloudFileLocationKind.self, forKey: .locationKind)
+        lastSyncedHash = try container.decodeIfPresent(String.self, forKey: .lastSyncedHash)
+        lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
+        googleDriveFileID = try container.decodeIfPresent(String.self, forKey: .googleDriveFileID)
+        googleDriveAccountEmail = try container.decodeIfPresent(String.self, forKey: .googleDriveAccountEmail)
+        syncMode = try container.decodeIfPresent(CloudFileSyncMode.self, forKey: .syncMode) ?? .automatic
+    }
 }
 
 nonisolated struct CloudFileLinkStore {

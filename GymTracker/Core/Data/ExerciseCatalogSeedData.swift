@@ -127,6 +127,7 @@ enum ExerciseCatalogSeedData {
             ex.frenchName = frenchName
             ex.searchAliases = searchAliases
             ex.sportDiscipline = sportDiscipline
+                ?? (tags.contains("olympic-weightlifting") ? .olympicWeightlifting : nil)
             ex.strongmanEventFamily = strongmanEventFamily
             ex.strongmanImplementProfile = strongmanImplementProfile
             return ex

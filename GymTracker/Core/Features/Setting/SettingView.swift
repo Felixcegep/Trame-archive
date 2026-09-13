@@ -8,6 +8,7 @@
 import AppIntents
 import SwiftData
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 import UserNotifications
 
@@ -637,10 +638,12 @@ struct DataSettingsView: View {
                     isBusy: isPreparingExport || isCreatingCloudFile,
                     onCreate: beginCreateCloudFile,
                     onOpen: beginOpenCloudFile,
+                    onLinkGoogleDrive: beginLinkGoogleDrive,
                     onSyncNow: { syncCloudFile(.manual) },
                     onUnlink: unlinkCloudFile,
                     onKeepThisIPhone: { syncCloudFile(.keepThisIPhone) },
-                    onUseCloudFile: { syncCloudFile(.useCloudFile) }
+                    onUseCloudFile: { syncCloudFile(.useCloudFile) },
+                    onSyncModeChange: { cloudFileSync.setSyncMode($0) }
                 )
             } header: {
                 Text("Cloud file")
@@ -778,9 +781,9 @@ struct DataSettingsView: View {
 
     private var cloudFileFooter: String {
         if cloudFileSync.isLinked {
-            return String(localized: "This iPhone stays the working copy and works offline. iCloud Drive and Google Drive both use Files.")
+            return String(localized: "This iPhone stays the working copy and works offline. Automatic updates the cloud file after a saved workout and when the app is opened. Manual waits for Sync now.")
         }
-        return String(localized: "Pick iCloud Drive or Google Drive in Files. This iPhone stays the working copy and works offline. The file is what other iPhones open.")
+        return String(localized: "Pick iCloud Drive in Files, or link Google Drive with your Google account. This iPhone stays the working copy and works offline. The file is what other iPhones open.")
     }
 
     private var dataSafetyMetadata: DataSafetyMetadata {
@@ -825,6 +828,71 @@ struct DataSettingsView: View {
         cloudFilePickerIsCreate = false
         cloudFilePickerMode = .open
         isShowingCloudFilePicker = true
+    }
+
+    private func beginLinkGoogleDrive() {
+        if AppLaunchArguments.current.contains("-ui-testing") { return }
+        guard GoogleDriveOAuthConfig.isConfigured else {
+            showImportError(String(localized: "Google Drive is not configured on this build."))
+            return
+        }
+        guard isCreatingCloudFile == false else { return }
+        isCreatingCloudFile = true
+        Task {
+            defer { isCreatingCloudFile = false }
+            do {
+                let credentials = try await GoogleDriveOAuthClient.shared.signIn(from: keyWindow)
+                let accountEmail: String?
+                if let existingEmail = credentials.accountEmail, existingEmail.isEmpty == false {
+                    accountEmail = existingEmail
+                } else {
+                    accountEmail = try? await GoogleDriveAPIClient.shared.accountEmail()
+                }
+                if let existing = try await GoogleDriveAPIClient.shared.findBackupFile() {
+                    let displayName = existing.name.isEmpty
+                        ? GoogleDriveOAuthConfig.backupFileName
+                        : existing.name
+                    cloudFileSync.linkGoogleDrive(
+                        fileID: existing.id,
+                        displayName: displayName,
+                        accountEmail: accountEmail
+                    )
+                    syncCloudFile(.manual)
+                } else {
+                    let snapshot = try BackupDTO.create(
+                        from: modelContext,
+                        restTimer: restTimer,
+                        darkMode: selectedAppearance == .dark,
+                        unitSystem: unitSystem
+                    )
+                    let data = try BackupArchiveFileWriter.encode(snapshot)
+                    let created = try await GoogleDriveAPIClient.shared.createBackupFile(
+                        data: data,
+                        name: GoogleDriveOAuthConfig.backupFileName
+                    )
+                    let displayName = created.name.isEmpty
+                        ? GoogleDriveOAuthConfig.backupFileName
+                        : created.name
+                    cloudFileSync.linkGoogleDrive(
+                        fileID: created.id,
+                        displayName: displayName,
+                        accountEmail: accountEmail,
+                        lastSyncedHash: CloudFileContentHash.sha256Hex(data)
+                    )
+                    DataSafetyService.recordExportSuccess()
+                    lastBackupExportTimestamp = Date.now.timeIntervalSince1970
+                }
+            } catch {
+                showImportError(error.localizedDescription)
+            }
+        }
+    }
+
+    private var keyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
     }
 
     private func handlePickedCloudFile(_ url: URL) {

@@ -43,6 +43,7 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
     let imageURL: String?
     let liftosaurURL: String?
     let liftosaurSlug: String?
+    let sportDiscipline: String?
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -67,6 +68,7 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         case imageURL = "imageurl"
         case liftosaurURL = "liftosaururl"
         case liftosaurSlug = "liftosaurslug"
+        case sportDiscipline = "sportdiscipline"
     }
 
     init(from decoder: Decoder) throws {
@@ -104,6 +106,7 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL)
         liftosaurURL = try c.decodeIfPresent(String.self, forKey: .liftosaurURL)
         liftosaurSlug = try c.decodeIfPresent(String.self, forKey: .liftosaurSlug)
+        sportDiscipline = try c.decodeIfPresent(String.self, forKey: .sportDiscipline)
     }
 }
 
@@ -375,7 +378,8 @@ nonisolated enum CatalogResourceDecoder {
             anatomicalTargetMuscles: value.anatomicalTargetMuscles, anatomicalSynergistMuscles: value.anatomicalSynergistMuscles,
             description: value.description, instructions: value.instructions, videoURL: value.videoURL,
             videoEmbedURL: value.videoEmbedURL, videoThumbnail: value.videoThumbnail, imageURL: value.imageURL,
-            liftosaurURL: value.liftosaurURL, liftosaurSlug: value.liftosaurSlug
+            liftosaurURL: value.liftosaurURL, liftosaurSlug: value.liftosaurSlug,
+            sportDiscipline: value.sportDiscipline
         )
     }
 
@@ -441,7 +445,8 @@ private extension ExerciseCatalogResource {
         resistanceType: String?, movementPattern: String?, movementPatterns: [String] = [], forceType: String?, difficulty: String?, tags: [String], primaryMuscles: [String],
         secondaryMuscles: [String], muscleGroups: [String], anatomicalTargetMuscles: [String], anatomicalSynergistMuscles: [String],
         description: String?, instructions: [ExerciseInstructionResource], videoURL: String?, videoEmbedURL: String?, videoThumbnail: String?,
-        imageURL: String?, liftosaurURL: String?, liftosaurSlug: String?
+        imageURL: String?, liftosaurURL: String?, liftosaurSlug: String?,
+        sportDiscipline: String? = nil
     ) {
         self.name = name; self.stableKey = stableKey; self.sources = sources; self.category = category
         self.trackingType = trackingType; self.equipment = equipment; self.resistanceType = resistanceType
@@ -452,6 +457,7 @@ private extension ExerciseCatalogResource {
         self.description = description; self.instructions = instructions; self.videoURL = videoURL
         self.videoEmbedURL = videoEmbedURL; self.videoThumbnail = videoThumbnail; self.imageURL = imageURL
         self.liftosaurURL = liftosaurURL; self.liftosaurSlug = liftosaurSlug
+        self.sportDiscipline = sportDiscipline
     }
 }
 

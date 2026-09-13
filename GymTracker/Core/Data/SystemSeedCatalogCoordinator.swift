@@ -29,7 +29,10 @@ enum SystemSeedCatalogCoordinator {
     // protein powder, and repair incomplete v1 seeded recipes that skipped
     // unmatched ingredients.
     // 23: add Chest-Supported Row Machine to the strength catalogue.
-    static let contentVersion = 23
+    // 24: author Olympic weightlifting as `sportDiscipline` on tagged lifts so
+    // Active Workout can ask made/missed/quality instead of treating Snatch
+    // and Clean & Jerk as generic strength.
+    static let contentVersion = 24
 
     private static let retiredBundledProgramKeys: Set<String> = [
         "powerlifting-volume-intensity",

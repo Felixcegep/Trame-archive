@@ -108,13 +108,13 @@ tests_for_scene() {
     mobility-assessment) echo "MobilityAssessmentUITests/testCaptureMobilityHubCards MobilityAssessmentUITests/testCaptureAssessmentFlow MobilityAssessmentUITests/testCaptureAssessmentLandingAndHistoryDetail" ;;
     mobility-profile) echo "MobilityAssessmentUITests/testCaptureMobilityAssessmentProfileScreenshot" ;;
     nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureTodayCompleteTourScreenshots testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackAndCatalogScreenshots testCapturePhotoEstimateReviewScreenshot" ;;
-    active) echo "testCaptureActiveWorkoutStatesScreenshots testCaptureDecisionAwareSubstitutionScreenshots testCaptureDurationTimerScreenshots" ;;
+    active) echo "testCaptureExecutionBlockBuilderScreenshot testCaptureActiveWorkoutStatesScreenshots testCaptureDecisionAwareSubstitutionScreenshots testCaptureDurationTimerScreenshots" ;;
     active-panels) echo "testCaptureActiveWorkoutPanelAndGroupingStates testCaptureWorkoutPreparationLargeDetent" ;;
     active-gaps) echo "testCaptureRemainingActiveWorkoutCatalogStates" ;;
     active-appearance) echo "testCaptureActiveWorkoutPaleAppearanceScreenshots" ;;
     active-accessibility) echo "testCaptureActiveWorkoutAccessibilitySizeScreenshots" ;;
     keyboards) echo "testCaptureEveryActiveWorkoutKeypad" ;;
-    rest) echo "testCaptureRestScreenshots testCaptureStageTransitionScreenshots" ;;
+    rest) echo "testCaptureRestScreenshots testCaptureStageTransitionScreenshots testCaptureOlympicRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
     recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRestScreenshots testCaptureProgressionReceiptWhyScreenshot" ;;
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
@@ -161,7 +161,7 @@ files_for_scene() {
     active-appearance) echo "active-workout/08_Active_Workout_With_Set_Pale.png active-workout/08_Rest_Countdown_Pale.png" ;;
     active-accessibility) echo "active-workout/08w_Rest_Countdown_AX5.png active-workout/07l_Warmup_Expanded_AX5.png" ;;
     keyboards) echo "keyboards/01_Weight_And_Reps_Reps.png keyboards/02_Weight_And_Reps_Weight.png keyboards/03_Reps_Only.png keyboards/04_Weighted_Bodyweight_Reps.png keyboards/05_Weighted_Bodyweight_Weight.png keyboards/06_Assisted_Bodyweight_Reps.png keyboards/07_Assisted_Bodyweight_Assistance.png keyboards/08_Duration.png keyboards/09_Duration_And_Distance_Duration.png keyboards/10_Duration_And_Distance_Distance.png keyboards/11_Calories.png" ;;
-    rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png active-workout/08u_Fresh_Rest_Transition.png active-workout/08v_Stage_Finish_Summary.png" ;;
+    rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png active-workout/08u_Fresh_Rest_Transition.png active-workout/08v_Stage_Finish_Summary.png active-workout/08z_Olympic_Rest_Quality.png active-workout/08za_Olympic_Completed_Attempt.png" ;;
     history) echo "history/10_History_With_Workout.png history/10b_Expanded_Records.png history/11_History_Detail.png" ;;
     recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png progression/10h_Progression_Receipt.png progression/10g_Progression_Receipt_Why.png" ;;
     t36) echo "overview/00_Welcome.png overview/00b_Storage_Unavailable.png overview/02e_Route_Unavailable.png active-workout/08s_Guided_Source_Error.png active-workout/08t_Mobility_Link_Error.png review/09c_Save_Failure_Alert.png active-workout/08q_Warmup_Preparation_Dialog.png active-workout/08r_Cooldown_Stage.png active-workout/08x_Mid_Workout_Mobility_Picker.png active-workout/08y_Mid_Workout_Mobility_Stage.png history/03b_Progress_Trends_Frequency.png history/03c_Progress_Trends_Exercise_Selected.png nutrition/20b_Food_Library.png nutrition/20c_Meal_Template_Library.png nutrition/20d_Repeat_Meal_Sheet.png overview/02f_Archived_Exercises_Empty.png overview/02g_Workout_Collection_Detail.png" ;;

@@ -142,6 +142,75 @@ final class ExerciseEntry {
     var strongmanEventFamilySnapshot: StrongmanEventFamily? {
         strongmanEventFamilySnapshotRaw.flatMap(StrongmanEventFamily.init(rawValue:))
     }
+
+    /// Olympic weightlifting snapshots collect made/missed/quality evidence.
+    /// Complexes still log component outcomes even when the parent entry was
+    /// not classified Olympic — the sequence itself is the authored attempt.
+    var usesOlympicAttemptLogging: Bool {
+        sportDisciplineSnapshot == .olympicWeightlifting
+            || orderedSets.contains { !$0.complexComponents.isEmpty }
+    }
+
+    /// Glance summary for the finish page: made/missed counts from completed
+    /// attempts. Missing quality stays missing rather than counting as made.
+    var olympicAttemptSummary: String? {
+        guard usesOlympicAttemptLogging else { return nil }
+        let doneSets = orderedSets.filter(\.done)
+        guard !doneSets.isEmpty else { return nil }
+
+        var made = 0
+        var partial = 0
+        var missed = 0
+        var unanswered = 0
+        for set in doneSets {
+            if let outcome = set.olympicAttemptOutcome {
+                switch outcome {
+                case .made: made += 1
+                case .partial: partial += 1
+                case .missed: missed += 1
+                case .notStarted, .skipped: unanswered += 1
+                }
+            } else if let quality = set.liftQuality {
+                switch quality {
+                case .excellent, .acceptable: made += 1
+                case .technicallyPoor: partial += 1
+                case .missed: missed += 1
+                }
+            } else {
+                unanswered += 1
+            }
+        }
+
+        var parts: [String] = []
+        if made > 0 {
+            parts.append(String(localized: "\(made) made"))
+        }
+        if partial > 0 {
+            parts.append(String(localized: "\(partial) partial"))
+        }
+        if missed > 0 {
+            parts.append(String(localized: "\(missed) missed"))
+        }
+        if unanswered > 0 {
+            parts.append(String(localized: "\(unanswered) unrated"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    var hasUnansweredOlympicQuality: Bool {
+        guard usesOlympicAttemptLogging else { return false }
+        return orderedSets.contains { set in
+            guard set.done else { return false }
+            if !set.complexComponents.isEmpty {
+                return set.olympicAttemptOutcome == .notStarted
+            }
+            return set.liftQuality == nil
+        }
+    }
+
+    var hasUnansweredEffort: Bool {
+        orderedSets.contains { $0.done && !$0.hasRecordedEffort }
+    }
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
 

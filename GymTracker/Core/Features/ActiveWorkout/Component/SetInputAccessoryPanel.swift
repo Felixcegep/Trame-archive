@@ -1324,8 +1324,7 @@ struct SetInputAccessoryPanel: View {
             ComplexComponentResultsView(
                 components: set.orderedComplexComponents,
                 onChange: {
-                    set.liftQuality = set.orderedComplexComponents
-                        .contains { $0.outcome == .missed } ? .missed : nil
+                    set.refreshDerivedOlympicQuality()
                     viewModel.persistChanges()
                     // The refusal has been answered. Retiring it here stops the
                     // banner from still demanding outcomes that now all exist.

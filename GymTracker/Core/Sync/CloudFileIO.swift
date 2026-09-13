@@ -1,8 +1,8 @@
 import Foundation
 
-/// Coordinated read/write of the linked portable-backup file. iCloud Drive and
-/// Google Drive File Providers both require `NSFileCoordinator`; uncoordinated
-/// writes corrupt the provider's copy.
+/// Coordinated read/write of the linked portable-backup file for Files
+/// destinations (iCloud Drive and leftover File Providers). Google Drive's
+/// recommended path is Drive REST, not this coordinator.
 nonisolated enum CloudFileIO {
     enum AccessError: LocalizedError, Equatable {
         case coordinationFailed(String)

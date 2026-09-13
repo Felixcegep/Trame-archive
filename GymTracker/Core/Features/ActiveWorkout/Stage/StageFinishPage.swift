@@ -17,6 +17,9 @@ struct StageFinishPage: View {
     let blockers: [String]
     let onJumpToPage: (WorkoutStagePage) -> Void
     let onAdjustDuration: (TimeInterval) -> Void
+    /// Opens the exercise library from the empty-session chooser. The command
+    /// bar keeps the same action for one-handed reach.
+    let onAddExercise: () -> Void
     /// Starts a mid-session stretch from the empty-session page. Nil when
     /// mobility is unavailable; the command bar still adds the first exercise.
     let onAddMobility: (() -> Void)?
@@ -26,12 +29,14 @@ struct StageFinishPage: View {
         blockers: [String],
         onJumpToPage: @escaping (WorkoutStagePage) -> Void,
         onAdjustDuration: @escaping (TimeInterval) -> Void,
+        onAddExercise: @escaping () -> Void,
         onAddMobility: (() -> Void)? = nil
     ) {
         self.workout = workout
         self.blockers = blockers
         self.onJumpToPage = onJumpToPage
         self.onAdjustDuration = onAdjustDuration
+        self.onAddExercise = onAddExercise
         self.onAddMobility = onAddMobility
     }
 
@@ -94,39 +99,117 @@ struct StageFinishPage: View {
                 .font(AppFont.eyebrow)
                 .tracking(0.9)
                 .foregroundStyle(Color.trameSubdued)
-            Text("Add your first exercise")
+            Text(emptyWorkoutTitle)
                 .font(AppFont.stageTitle)
                 .foregroundStyle(Color.trameText)
-                .accessibilityAddTraits(.isHeader)
-            Text(emptyWorkoutGuidance)
-                .font(AppFont.body)
-                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
 
-            if let onAddMobility {
-                Button(action: onAddMobility) {
-                    Label("Add stretch", systemImage: AppIcon.mobility)
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.trameMobility)
-                        .frame(
-                            minHeight: ComponentSize.minimumTouchTarget,
-                            alignment: .leading
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Adds a stretch after this exercise.")
-                .accessibilityIdentifier("add-first-mobility-empty")
+            if onAddMobility == nil {
+                Text("Add exercises as you go. Reorder from More.")
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                emptyWorkoutChooser
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("empty-workout-state")
     }
 
-    private var emptyWorkoutGuidance: LocalizedStringKey {
+    private var emptyWorkoutTitle: LocalizedStringKey {
         onAddMobility == nil
-            ? "Add exercises as you go. Reorder from More."
-            : "Add exercises as you go. A stretch sits between them."
+            ? "Add your first exercise"
+            : "Add an exercise or a stretch"
+    }
+
+    /// Two first actions as an Open Group. Strength and mobility stay siblings
+    /// rather than a primary lift plus a leftover stretch link.
+    private var emptyWorkoutChooser: some View {
+        VStack(spacing: 0) {
+            emptyWorkoutChoice(
+                title: "Exercise",
+                icon: AppIcon.exercise,
+                rail: Color.trameStrength,
+                identifier: "add-first-exercise-empty",
+                accessibilityLabel: "Add exercise",
+                hint: "Opens the exercise library for this workout.",
+                action: onAddExercise
+            )
+
+            if let onAddMobility {
+                emptyWorkoutChoice(
+                    title: "Stretch",
+                    icon: AppIcon.mobility,
+                    rail: Color.trameMobility,
+                    identifier: "add-first-mobility-empty",
+                    accessibilityLabel: "Add stretch",
+                    hint: "Adds a stretch to this workout.",
+                    action: onAddMobility
+                )
+            }
+        }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("empty-workout-chooser")
+    }
+
+    private func emptyWorkoutChoice(
+        title: LocalizedStringKey,
+        icon: String,
+        rail: Color,
+        identifier: String,
+        accessibilityLabel: LocalizedStringKey,
+        hint: LocalizedStringKey,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: icon)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameText)
+                    .frame(width: 26)
+                    .accessibilityHidden(true)
+
+                Text(title)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameText)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.plus)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, Spacing.md)
+            .padding(.leading, Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(rail)
+                    .frame(width: 4)
+                    .accessibilityHidden(true)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityHint(Text(hint))
+        .accessibilityIdentifier(identifier)
     }
 
     private var summaryCard: some View {
@@ -220,10 +303,19 @@ struct StageFinishPage: View {
                             .font(AppFont.subheadline)
                             .foregroundStyle(isComplete ? Color.trameCompleted : Color.trameSubdued)
 
-                        Text(entry.occurrenceDisplayName)
-                            .font(AppFont.subheadline)
-                            .foregroundStyle(Color.trameText)
-                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(entry.occurrenceDisplayName)
+                                .font(AppFont.subheadline)
+                                .foregroundStyle(Color.trameText)
+                                .lineLimit(1)
+
+                            if let summary = finishRowSummary(for: entry) {
+                                Text(summary)
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.trameSubdued)
+                                    .lineLimit(2)
+                            }
+                        }
 
                         Spacer(minLength: Spacing.s)
 
@@ -240,11 +332,30 @@ struct StageFinishPage: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
-                    Text("\(entry.occurrenceDisplayName), \(completed) of \(total) sets logged")
+                    Text(finishAccessibilityLabel(entry: entry, completed: completed, total: total))
                 )
                 .accessibilityHint(Text("Go to this exercise"))
                 .accessibilityIdentifier("finish-breakdown-\(entry.exercise.name)")
             }
         }
+    }
+
+    private func finishRowSummary(for entry: ExerciseEntry) -> String? {
+        var parts: [String] = []
+        if let olympic = entry.olympicAttemptSummary {
+            parts.append(olympic)
+        }
+        if entry.hasUnansweredEffort {
+            parts.append(String(localized: "Effort missing"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func finishAccessibilityLabel(entry: ExerciseEntry, completed: Int, total: Int) -> String {
+        var label = String(localized: "\(entry.occurrenceDisplayName), \(completed) of \(total) sets logged")
+        if let summary = finishRowSummary(for: entry) {
+            label += ", \(summary)"
+        }
+        return label
     }
 }
