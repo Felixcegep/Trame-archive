@@ -317,6 +317,8 @@ enum ExerciseSystemSeedInstaller {
         destination.variationFamilyID = source.variationFamilyID
         destination.difficulty = source.difficulty
         destination.tags = source.tags
+        destination.frenchName = source.frenchName
+        destination.searchAliases = source.searchAliases
         destination.isPlateLoaded = source.isPlateLoaded
         destination.laterality = source.laterality
         destination.repCountingStyle = source.repCountingStyle

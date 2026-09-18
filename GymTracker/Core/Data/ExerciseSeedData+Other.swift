@@ -7,20 +7,26 @@ import Foundation
 
 extension ExerciseSeedData {
     static func otherTemplates() -> [Exercise] {
-        [
-            Exercise(
-                name: "Copenhagen Plank",
-                primaryMuscles: [.adductors],
-                secondaryMuscles: [.obliques, .gluteMedius],
-                trackingType: .duration,
-                equipmentType: .bodyweight,
-                resistanceType: .bodyweight,
-                movementPattern: .antiLateralFlexion,
-                forceType: .staticHold,
-                mechanics: .compound,
-                difficulty: .intermediate,
-                tags: ["hip-health"]
-            ),
+        var copenhagenPlank = Exercise(
+            name: "Copenhagen Plank",
+            primaryMuscles: [.adductors],
+            secondaryMuscles: [.obliques, .gluteMedius],
+            trackingType: .duration,
+            equipmentType: .bodyweight,
+            resistanceType: .bodyweight,
+            movementPattern: .antiLateralFlexion,
+            forceType: .staticHold,
+            mechanics: .compound,
+            difficulty: .intermediate,
+            tags: ["hip-health", "adductors", "core"],
+            laterality: .unilateral,
+            repCountingStyle: .perSide
+        )
+        copenhagenPlank.frenchName = "Planche de Copenhague"
+        copenhagenPlank.searchAliases = ["copenhagen adduction", "adductor plank", "planche de copenhague", "copenhague"]
+
+        return [
+            copenhagenPlank,
             Exercise(
                 name: "Crunch",
                 primaryMuscles: [.rectusAbdominis],

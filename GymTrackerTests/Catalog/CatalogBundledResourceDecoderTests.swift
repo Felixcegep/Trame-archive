@@ -6,9 +6,9 @@ final class CatalogBundledResourceDecoderTests: XCTestCase {
     func testBundledCatalogsDecodeExpectedCounts() throws {
         let catalog = try CatalogResourceDecoder.decodeBundled()
 
-        XCTAssertEqual(catalog.exercises.count, 471)
+        XCTAssertEqual(catalog.exercises.count, 474)
         XCTAssertEqual(catalog.mobilityDefinitions.count, 255)
-        XCTAssertEqual(catalog.programs.count, 82)
+        XCTAssertEqual(catalog.programs.count, 78)
         XCTAssertEqual(catalog.programs.first?.stableKey, "the5314b")
     }
 

@@ -68,9 +68,20 @@ final class OlympicAttemptLoggingTests: XCTestCase {
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let snatch = try XCTUnwrap(exercises.first { $0.name == "Snatch" })
+        let clean = try XCTUnwrap(exercises.first { $0.name == "Clean" })
         let cleanAndJerk = try XCTUnwrap(exercises.first { $0.name == "Clean and Jerk" })
+        let muscleClean = try XCTUnwrap(exercises.first { $0.name == "Muscle Clean" })
+        let copenhagen = try XCTUnwrap(exercises.first { $0.name == "Copenhagen Plank" })
         XCTAssertEqual(snatch.sportDiscipline, .olympicWeightlifting)
+        XCTAssertEqual(snatch.frenchName, "Arraché")
+        XCTAssertEqual(clean.sportDiscipline, .olympicWeightlifting)
+        XCTAssertEqual(clean.frenchName, "Épaulé")
         XCTAssertEqual(cleanAndJerk.sportDiscipline, .olympicWeightlifting)
+        XCTAssertEqual(cleanAndJerk.frenchName, "Épaulé-jeté")
+        XCTAssertEqual(muscleClean.sportDiscipline, .olympicWeightlifting)
+        XCTAssertEqual(copenhagen.frenchName, "Planche de Copenhague")
+        XCTAssertEqual(copenhagen.laterality, .unilateral)
+        XCTAssertNotEqual(copenhagen.sportDiscipline, .olympicWeightlifting)
     }
 
     private func makeFixture(prescribedRPE: Double?) throws -> Fixture {

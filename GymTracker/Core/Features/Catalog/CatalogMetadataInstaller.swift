@@ -394,6 +394,13 @@ enum CatalogMetadataInstaller {
             tags: resource.tags
         )
         exercise.sportDiscipline = resolvedSportDiscipline(for: resource)
+        if let frenchName = nilIfEmpty(resource.frenchName) {
+            exercise.frenchName = frenchName
+        }
+        exercise.searchAliases = resource.searchAliases
+        if let rawLaterality = nilIfEmpty(resource.laterality) {
+            exercise.laterality = enumValue(Laterality.self, raw: rawLaterality, fallback: .bilateral)
+        }
         return exercise
     }
 
@@ -471,6 +478,21 @@ enum CatalogMetadataInstaller {
            exercise.sportDiscipline != discipline {
             exercise.sportDiscipline = discipline
             changed = true
+        }
+        if let frenchName = nilIfEmpty(resource.frenchName), exercise.frenchName != frenchName {
+            exercise.frenchName = frenchName
+            changed = true
+        }
+        if !resource.searchAliases.isEmpty && exercise.searchAliases != resource.searchAliases {
+            exercise.searchAliases = resource.searchAliases
+            changed = true
+        }
+        if let rawLaterality = nilIfEmpty(resource.laterality) {
+            let laterality = enumValue(Laterality.self, raw: rawLaterality, fallback: .bilateral)
+            if exercise.laterality != laterality {
+                exercise.laterality = laterality
+                changed = true
+            }
         }
         return changed
     }

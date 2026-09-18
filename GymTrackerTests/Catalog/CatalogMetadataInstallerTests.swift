@@ -13,11 +13,11 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let first = try CatalogMetadataInstaller.seedDefinitions(catalog, in: context, registry: registry)
         try context.save()
 
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 471)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 255)
-        XCTAssertEqual(first.inserted, 726)
+        XCTAssertEqual(first.inserted, 729)
         XCTAssertEqual(first.updated, 0)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 726)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 729)
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let archHang = try XCTUnwrap(exercises.first { $0.name == "Arch Hang" })
@@ -31,8 +31,8 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let second = try CatalogMetadataInstaller.seedDefinitions(catalog, in: context, registry: secondRegistry)
         XCTAssertEqual(second.inserted, 0)
         XCTAssertEqual(second.updated, 0)
-        XCTAssertEqual(second.unchanged, 726)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 471)
+        XCTAssertEqual(second.unchanged, 729)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 255)
     }
 
@@ -226,7 +226,7 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let executable = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
         let discovery = try context.fetch(FetchDescriptor<ProgramDiscoverySeed>())
         XCTAssertEqual(executable.count, 21)
-        XCTAssertEqual(discovery.count, 61)
+        XCTAssertEqual(discovery.count, 57)
         XCTAssertTrue(discovery.allSatisfy { !$0.isRunnable })
         XCTAssertTrue(discovery.allSatisfy { $0.compatibilityStatus == .incompleteRecovery })
         XCTAssertEqual(

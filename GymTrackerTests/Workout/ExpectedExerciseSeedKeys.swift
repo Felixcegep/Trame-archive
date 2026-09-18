@@ -30,11 +30,14 @@ exercise.barbell-curl
 exercise.barbell-hip-thrust
 exercise.barbell-row
 exercise.barbell-shrug
+exercise.behind-the-neck-jerk
 exercise.belt-squat
 exercise.bench-press
 exercise.bikeerg
 exercise.bird-dog
+exercise.block-clean
 exercise.block-pull
+exercise.block-snatch
 exercise.board-press
 exercise.bodyweight-squat
 exercise.box-jump
@@ -58,6 +61,7 @@ exercise.chest-fly
 exercise.chin--up
 exercise.circus-dumbbell-press
 exercise.clamshell
+exercise.clean
 exercise.clean-and-jerk
 exercise.clean-deadlift
 exercise.clean-high-pull
@@ -105,11 +109,14 @@ exercise.hammer-curl
 exercise.handstand-push--up
 exercise.hang-clean
 exercise.hang-clean--plus--front-squat--plus--jerk
+exercise.hang-power-clean
+exercise.hang-power-snatch
 exercise.hang-snatch
 exercise.hang-snatch--plus--overhead-squat
 exercise.hanging-knee-raise
 exercise.hanging-leg-raise
 exercise.high--bar-back-squat
+exercise.high--hang-clean
 exercise.high--hang-snatch
 exercise.high--to--low-cable-fly
 exercise.hip-abduction-machine
@@ -124,6 +131,7 @@ exercise.incline-ring-row
 exercise.incline-walk
 exercise.jefferson-curl
 exercise.jerk
+exercise.jerk-balance
 exercise.jerk-dip
 exercise.jerk-drive
 exercise.jerk-from-rack
@@ -157,6 +165,7 @@ exercise.medicine--ball-rotational-throw
 exercise.medicine-ball-chest-pass
 exercise.military-press
 exercise.muscle--up
+exercise.muscle-clean
 exercise.muscle-snatch
 exercise.neutral--grip-pull--up
 exercise.no--contact-clean
@@ -190,6 +199,7 @@ exercise.preacher-curl
 exercise.pseudo-planche-push--up
 exercise.pull-up
 exercise.push--up
+exercise.push-jerk
 exercise.push-press
 exercise.rack-pull
 exercise.rear-delt-fly
@@ -230,6 +240,7 @@ exercise.smith-machine-bench-press
 exercise.smith-machine-overhead-press
 exercise.snatch
 exercise.snatch-balance
+exercise.snatch-deadlift
 exercise.snatch-high-pull
 exercise.snatch-pull
 exercise.snatch-push-press

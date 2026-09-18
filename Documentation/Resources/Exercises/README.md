@@ -4,10 +4,10 @@ This directory contains the master unified exercise catalog, structured database
 
 ## 📊 Catalog Overview
 
-- **Total Unique Exercises**: 471
-- **Exercises in BOTH (`["trame", "liftosaur"]`)**: 84
-- **Trame Core Exercises (`["trame"]`)**: 167
-- **Liftosaur Extended Exercises (`["liftosaur"]`)**: 220
+- **Total Unique Exercises**: 474
+- **Exercises in BOTH (`["trame", "liftosaur"]`)**: 240
+- **Trame Core Exercises (`["trame"]`)**: 21
+- **Liftosaur Extended Exercises (`["liftosaur"]`)**: 213
 - **Integrity**: 100% Unique canonical names and deterministic `seed_key` identifiers (`exercise.<slug>`).
 
 ---

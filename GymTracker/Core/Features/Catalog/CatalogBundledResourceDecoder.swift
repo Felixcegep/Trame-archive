@@ -44,6 +44,9 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
     let liftosaurURL: String?
     let liftosaurSlug: String?
     let sportDiscipline: String?
+    let frenchName: String?
+    let searchAliases: [String]
+    let laterality: String?
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -69,6 +72,9 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         case liftosaurURL = "liftosaururl"
         case liftosaurSlug = "liftosaurslug"
         case sportDiscipline = "sportdiscipline"
+        case frenchName = "frenchname"
+        case searchAliases = "searchaliases"
+        case laterality
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +113,9 @@ nonisolated struct ExerciseCatalogResource: Codable, Equatable, Sendable {
         liftosaurURL = try c.decodeIfPresent(String.self, forKey: .liftosaurURL)
         liftosaurSlug = try c.decodeIfPresent(String.self, forKey: .liftosaurSlug)
         sportDiscipline = try c.decodeIfPresent(String.self, forKey: .sportDiscipline)
+        frenchName = try c.decodeIfPresent(String.self, forKey: .frenchName)
+        searchAliases = try c.decodeIfPresent([String].self, forKey: .searchAliases) ?? []
+        laterality = try c.decodeIfPresent(String.self, forKey: .laterality)
     }
 }
 
@@ -379,7 +388,10 @@ nonisolated enum CatalogResourceDecoder {
             description: value.description, instructions: value.instructions, videoURL: value.videoURL,
             videoEmbedURL: value.videoEmbedURL, videoThumbnail: value.videoThumbnail, imageURL: value.imageURL,
             liftosaurURL: value.liftosaurURL, liftosaurSlug: value.liftosaurSlug,
-            sportDiscipline: value.sportDiscipline
+            sportDiscipline: value.sportDiscipline,
+            frenchName: value.frenchName?.trimmingCharacters(in: .whitespacesAndNewlines),
+            searchAliases: value.searchAliases.map(normalizeToken),
+            laterality: value.laterality
         )
     }
 
@@ -446,7 +458,8 @@ private extension ExerciseCatalogResource {
         secondaryMuscles: [String], muscleGroups: [String], anatomicalTargetMuscles: [String], anatomicalSynergistMuscles: [String],
         description: String?, instructions: [ExerciseInstructionResource], videoURL: String?, videoEmbedURL: String?, videoThumbnail: String?,
         imageURL: String?, liftosaurURL: String?, liftosaurSlug: String?,
-        sportDiscipline: String? = nil
+        sportDiscipline: String? = nil,
+        frenchName: String? = nil, searchAliases: [String] = [], laterality: String? = nil
     ) {
         self.name = name; self.stableKey = stableKey; self.sources = sources; self.category = category
         self.trackingType = trackingType; self.equipment = equipment; self.resistanceType = resistanceType
@@ -458,6 +471,7 @@ private extension ExerciseCatalogResource {
         self.videoEmbedURL = videoEmbedURL; self.videoThumbnail = videoThumbnail; self.imageURL = imageURL
         self.liftosaurURL = liftosaurURL; self.liftosaurSlug = liftosaurSlug
         self.sportDiscipline = sportDiscipline
+        self.frenchName = frenchName; self.searchAliases = searchAliases; self.laterality = laterality
     }
 }
 

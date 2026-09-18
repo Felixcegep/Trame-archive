@@ -32,7 +32,11 @@ enum SystemSeedCatalogCoordinator {
     // 24: author Olympic weightlifting as `sportDiscipline` on tagged lifts so
     // Active Workout can ask made/missed/quality instead of treating Snatch
     // and Clean & Jerk as generic strength.
-    static let contentVersion = 24
+    // 25: authors olympicWeightlifting on competition/variation lifts in the
+    // bundled catalog, adds missing technical weightlifting lifts, French
+    // names, and Copenhagen Plank laterality/French name. Existing installs
+    // need this version so `needsInstallation` refreshes them.
+    static let contentVersion = 25
 
     private static let retiredBundledProgramKeys: Set<String> = [
         "powerlifting-volume-intensity",
