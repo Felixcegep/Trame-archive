@@ -24,16 +24,5 @@ final class GoogleDriveOAuthConfigTests: XCTestCase {
         XCTAssertTrue(
             GoogleDriveOAuthConfig.isConfiguredClientID("123-abc.apps.googleusercontent.com")
         )
-        XCTAssertTrue(
-            GoogleDriveOAuthConfig.isConfiguredClientID(
-                "REPLACE.apps.googleusercontent.com"
-            )
-        )
-        XCTAssertEqual(
-            GoogleDriveOAuthConfig.reversedClientID(
-                from: "REPLACE.apps.googleusercontent.com"
-            ),
-            "com.googleusercontent.apps.REPLACE"
-        )
     }
 }

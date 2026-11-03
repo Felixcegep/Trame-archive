@@ -4,6 +4,8 @@
 
 Trame is an iOS training app. Its mobility and yoga catalogue combines app-authored material with data collected from third-party sources.
 
+Google Drive sign-in is not configured in this archive. To enable it, set up your own iOS OAuth client and callback scheme as described in the [Google Drive setup notes](Documentation/Sync/GoogleDriveImplementation.md).
+
 ## Dataset sources and credits
 
 Some catalogue data was collected from public websites and APIs, then transformed or combined with Trame's own seed data:
