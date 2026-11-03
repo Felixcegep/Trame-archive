@@ -1,5 +1,7 @@
 # Trame
 
+**Project status:** Finished and no longer actively maintained. This repository is kept as an archive.
+
 Trame is an iOS training app. Its exercise, program, mobility, and yoga catalogues combine app-authored material with data collected from third-party sources.
 
 ## Dataset sources and credits
