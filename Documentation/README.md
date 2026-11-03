@@ -1,67 +1,9 @@
-# GymTracker Documentation
+# Documentation
 
-This directory contains the small set of supporting documents that remain
-useful beside the repository-level source-of-truth files. Temporary plans and
-audits have explicit exit conditions; completed work is folded into the owning
-document and then removed. Git history preserves obsolete material.
+This archived project keeps its source and selected reference materials in this directory.
 
-## Source-of-truth documents
-
-- [`Feature.md`](../Feature.md) — product positioning, boundaries, vocabulary, and the current checkpoint.
-- [`FeaturesList.md`](../FeaturesList.md) — implemented status, gaps, acceptance criteria, release scope, and implementation order.
-- [`RoadMap.md`](../RoadMap.md) — unified product strategy and beta phasing.
-- [`DomainModel.md`](../DomainModel.md) — authoritative domain vocabulary, lifecycle invariants, snapshots, deletion, and backup guarantees.
-- [`ModelsAndEntities.md`](../ModelsAndEntities.md) — descriptive implementation reference; `DomainModel.md` wins in conflicts.
-- [`ScreenshotCoverage.md`](../ScreenshotCoverage.md) — canonical UI states, PNG paths, and capture status.
-- [`MarketAnalysis.md`](../MarketAnalysis.md) — competitor evidence and beta protocol.
-- [`Gym Tracker Pivot.md`](Gym%20Tracker%20Pivot.md) — long-form north-star requirements; capabilities remain Later unless promoted.
-
-## Design rules and references
-
-- [`DesignSystem.md`](DesignSystem.md) — visual tokens, hierarchy, and component rules.
-- [`MotionAndHaptics.md`](MotionAndHaptics.md) — animation, gesture, and tactile-feedback rules.
-- [`Accessibility.md`](Accessibility.md) — accessibility requirements and verification checklist.
-- [`Design/SetEditor.md`](Design/SetEditor.md) — active-workout set-editor rationale and constraints.
-- [`GymTracker Design System/readme.md`](GymTracker%20Design%20System/readme.md) — design-reference bundle overview.
-- [`GymTracker Design System/ComponentPrompts.md`](GymTracker%20Design%20System/ComponentPrompts.md) — reusable mockup and prototype prompts.
-- [`GymTracker Design System/SKILL.md`](GymTracker%20Design%20System/SKILL.md) — entry point for the GymTracker design skill.
-
-## Implementation plans and execution
-
-- [`05-Implementation-Plans/MASTER-Implementation-Order.md`](05-Implementation-Plans/MASTER-Implementation-Order.md) — codebase-first master implementation order and execution rules.
-- [`05-Implementation-Plans/Agent-Model-Allocation.md`](05-Implementation-Plans/Agent-Model-Allocation.md) — implementation-agent routing reference across L1–L5 capability levels.
-- [`05-Implementation-Plans/Task-Matrix.md`](05-Implementation-Plans/Task-Matrix.md) — task matrix across all execution epics.
-- [`05-Implementation-Plans/Phase-0/P0-Critical-Execution-Plan.md`](05-Implementation-Plans/Phase-0/P0-Critical-Execution-Plan.md) — Phase 0 release verification and instrumented beta plan.
-- [`05-Implementation-Plans/Competitive-Execution/`](05-Implementation-Plans/Competitive-Execution/) — CE-01 through CE-09 competitive execution plans.
-- [`99-Archive/`](99-Archive/) — superseded implementation plans and historical planning documents.
-
-## Release verification and audits
-
-These documents provide evidence or implementation-gap analysis. They do not
-override the source-of-truth documents above.
-
-- [`Verification/ReleaseGate.md`](Verification/ReleaseGate.md) — single checklist for open release verification.
-- [`Verification/UIUXAudit.md`](Verification/UIUXAudit.md) — repository-wide UI, accessibility, motion, and haptics audit.
-- [`Verification/UIUXInteractionPlan.md`](Verification/UIUXInteractionPlan.md) — implementation-gap plan for motion, haptics, and feedback.
-- [`Verification/RefactorAudit.md`](Verification/RefactorAudit.md) — repository-wide maintainability and architecture findings.
-
-## Program Engine
-
-- [`ProgramEngine/README.md`](ProgramEngine/README.md) — program-engine document map.
-- [`ProgramEngine/02-ProgramSpecifications.md`](ProgramEngine/02-ProgramSpecifications.md) — program and progression specifications.
-- [`ProgramEngine/03-DomainModel.md`](ProgramEngine/03-DomainModel.md) — program-engine domain model.
-- [`ProgramEngine/04-SeedData.md`](ProgramEngine/04-SeedData.md) — deterministic seed data.
-- [`ProgramEngine/06-TestPlan.md`](ProgramEngine/06-TestPlan.md) — program-engine test plan.
-- [`ProgramEngine/08-SchemaGapBacklog.md`](ProgramEngine/08-SchemaGapBacklog.md) — schema gaps and follow-up work.
-- [`ProgramEngine/09-DeepResearchCorrections.md`](ProgramEngine/09-DeepResearchCorrections.md) — research corrections and evidence notes.
-
-## Document lifecycle rules
-
-- `FeaturesList.md` owns implementation status and implementation order.
-- `DomainModel.md` owns domain invariants and lifecycle semantics.
-- `ScreenshotCoverage.md` owns screenshot state and capture status.
-- Superseded plans with useful historical context move to [`Documentation/99-Archive/`](99-Archive/).
-- Pure duplicates with no unique information may be deleted.
-- Archived documents are non-authoritative and must link to their active successor.
-- Git history remains the final record for deleted duplicates.
-- Generated documentation bundles are derived snapshots, not source-of-truth documents, and should not be edited manually.
+- [Exercise metadata](Resources/Exercises/README.md)
+- [Mobility catalogue](Resources/Mobility_and_Yoga/README.md)
+- [Program metadata](Resources/Programs/README.md)
+- [Program engine](ProgramEngine/README.md)
+- [Design reference](Design/Reference/README.md)

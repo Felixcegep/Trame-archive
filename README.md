@@ -4,7 +4,7 @@
 
 Trame is an iOS training app. Its mobility and yoga catalogue combines app-authored material with data collected from third-party sources.
 
-Google Drive sign-in is not configured in this archive. To enable it, set up your own iOS OAuth client and callback scheme as described in the [Google Drive setup notes](Documentation/Sync/GoogleDriveImplementation.md).
+Google Drive sign-in is not configured in this archive. To enable it, create an iOS OAuth client in Google Cloud, enable the Drive API, then replace `GoogleDriveClientID` and the reversed URL scheme placeholders in `GymTracker/Info.plist` with your own client values. Configure the OAuth consent screen and the bundle identifier for your app.
 
 ## Dataset sources and credits
 
