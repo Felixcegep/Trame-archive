@@ -14,10 +14,10 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         try context.save()
 
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 255)
-        XCTAssertEqual(first.inserted, 729)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 234)
+        XCTAssertEqual(first.inserted, 708)
         XCTAssertEqual(first.updated, 0)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 729)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 708)
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let archHang = try XCTUnwrap(exercises.first { $0.name == "Arch Hang" })
@@ -31,9 +31,9 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let second = try CatalogMetadataInstaller.seedDefinitions(catalog, in: context, registry: secondRegistry)
         XCTAssertEqual(second.inserted, 0)
         XCTAssertEqual(second.updated, 0)
-        XCTAssertEqual(second.unchanged, 729)
+        XCTAssertEqual(second.unchanged, 708)
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 255)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 234)
     }
 
     func testRecoveredMovementSeedPreservesCustomAndUserState() throws {

@@ -7,7 +7,10 @@ final class CatalogBundledResourceDecoderTests: XCTestCase {
         let catalog = try CatalogResourceDecoder.decodeBundled()
 
         XCTAssertEqual(catalog.exercises.count, 474)
-        XCTAssertEqual(catalog.mobilityDefinitions.count, 255)
+        XCTAssertEqual(catalog.mobilityDefinitions.count, 234)
+        XCTAssertFalse(catalog.mobilityDefinitions.contains { $0.sources.contains("repdb") })
+        XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Superman" })
+        XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Yoga: Plank" })
         XCTAssertEqual(catalog.programs.count, 78)
         XCTAssertEqual(catalog.programs.first?.stableKey, "the5314b")
     }

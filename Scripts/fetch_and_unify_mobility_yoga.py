@@ -7,12 +7,12 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-PROJECT_ROOT = "/Users/felixlachapelle/Desktop/GymTracker"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "GymTracker/Core/Data")
 MOBILITY_SEED_FILE = os.path.join(PROJECT_ROOT, "GymTracker/Core/Features/Mobility/MobilitySeedData.swift")
 OUTPUT_DOC_DIR = os.path.join(PROJECT_ROOT, "Documentation/Resources/Mobility_and_Yoga")
 OUTPUT_APP_DIR = os.path.join(PROJECT_ROOT, "GymTracker/Resources/Mobility")
-ROOT_EXPORT_DIR = "/Users/felixlachapelle"
+ROOT_EXPORT_DIR = os.path.join(PROJECT_ROOT, "exports")
 
 def normalize_key(name):
     if not name: return ""
@@ -118,10 +118,11 @@ def style_excel(filepath, sheet_name="Data", custom_widths=None):
 
 def main():
     print("=========================================================")
-    print("🚀 Ingesting, Comparing & Unifying Yoga, Mobility & RepDB")
+    print("🚀 Ingesting, Comparing & Unifying Yoga and Mobility")
     print("=========================================================")
     os.makedirs(OUTPUT_DOC_DIR, exist_ok=True)
     os.makedirs(OUTPUT_APP_DIR, exist_ok=True)
+    os.makedirs(ROOT_EXPORT_DIR, exist_ok=True)
 
     # 1. Parse Current Trame Mobility
     trame_mobility = parse_trame_mobility_seeds()
@@ -222,70 +223,6 @@ def main():
     style_excel(os.path.join(ROOT_EXPORT_DIR, "free_exercise_db_stretching.xlsx"), "Stretching Exercises")
     print(f"✅ Exported Stretching datasets to {stretch_xlsx_path}, {stretch_csv_path}, {stretch_json_path}")
 
-    # 4. Fetch RepDB
-    print("Fetching RepDB from https://raw.githubusercontent.com/RepDB/exercise-dataset/main/exercises.json ...")
-    repdb_raw = fetch_json("https://raw.githubusercontent.com/RepDB/exercise-dataset/main/exercises.json")
-    repdb_exercises = repdb_raw.get("exercises", [])
-    print(f"Loaded {len(repdb_exercises)} high-quality exercises from RepDB.")
-
-    repdb_rows = []
-    for r in repdb_exercises:
-        images_dict = r.get("images") or {}
-        flat_dict = images_dict.get("flat") or {}
-        img_start = flat_dict.get("start", "")
-        img_peak = flat_dict.get("peak", "")
-        if img_start: img_start = f"https://raw.githubusercontent.com/RepDB/exercise-dataset/main/{img_start}"
-        if img_peak: img_peak = f"https://raw.githubusercontent.com/RepDB/exercise-dataset/main/{img_peak}"
-
-        instructions_en = "\n".join([f"{i+1}. {st}" for i, st in enumerate(r.get("instructions_en") or [])])
-        tips_en = "\n".join([f"• {t}" for t in (r.get("tips_en") or [])])
-
-        repdb_rows.append({
-            "ID": r.get("id"),
-            "English Name": r.get("name_en"),
-            "German Name": r.get("name_de"),
-            "Spanish Name": r.get("name_es"),
-            "Category": str(r.get("category") or "").capitalize(),
-            "Body Part": str(r.get("body_part") or "").capitalize(),
-            "Difficulty": str(r.get("difficulty") or "").capitalize(),
-            "Equipment": str(r.get("equipment") or "").replace("_", " ").title(),
-            "Force Type": r.get("force_type") or "",
-            "Mechanic": r.get("mechanic") or "",
-            "Is Unilateral": "Yes" if r.get("is_unilateral") else "No",
-            "Is Bodyweight": "Yes" if r.get("is_bodyweight") else "No",
-            "MET (Metabolic Equivalent)": r.get("met"),
-            "Primary Muscles": ", ".join(r.get("primary_muscles") or []),
-            "Secondary Muscles": ", ".join(r.get("secondary_muscles") or []),
-            "English Description": r.get("description_en") or "",
-            "English Instructions": instructions_en,
-            "English Form Tips": tips_en,
-            "Start Image (WebP)": img_start,
-            "Peak Image (WebP)": img_peak,
-            "Goals": ", ".join(r.get("goals") or []),
-            "Tags": ", ".join(r.get("tags") or []),
-            "Attribution / License": "RepDB (Free with attribution required)"
-        })
-
-    df_repdb = pd.DataFrame(repdb_rows)
-    repdb_json_path = os.path.join(OUTPUT_DOC_DIR, "repdb_exercises_all.json")
-    repdb_csv_path = os.path.join(OUTPUT_DOC_DIR, "repdb_exercises_all.csv")
-    repdb_xlsx_path = os.path.join(OUTPUT_DOC_DIR, "repdb_exercises_all.xlsx")
-
-    with open(repdb_json_path, "w", encoding="utf-8") as f:
-        json.dump(repdb_raw, f, indent=2, ensure_ascii=False)
-    with open(os.path.join(OUTPUT_APP_DIR, "repdb_exercises_all.json"), "w", encoding="utf-8") as f:
-        json.dump(repdb_raw, f, indent=2, ensure_ascii=False)
-    with open(os.path.join(ROOT_EXPORT_DIR, "repdb_exercises_all.json"), "w", encoding="utf-8") as f:
-        json.dump(repdb_raw, f, indent=2, ensure_ascii=False)
-
-    df_repdb.to_csv(repdb_csv_path, index=False, encoding="utf-8-sig")
-    df_repdb.to_csv(os.path.join(ROOT_EXPORT_DIR, "repdb_exercises_all.csv"), index=False, encoding="utf-8-sig")
-    df_repdb.to_excel(repdb_xlsx_path, index=False)
-    df_repdb.to_excel(os.path.join(ROOT_EXPORT_DIR, "repdb_exercises_all.xlsx"), index=False)
-    style_excel(repdb_xlsx_path, "RepDB Exercises")
-    style_excel(os.path.join(ROOT_EXPORT_DIR, "repdb_exercises_all.xlsx"), "RepDB Exercises")
-    print(f"✅ Exported RepDB datasets to {repdb_xlsx_path}, {repdb_csv_path}, {repdb_json_path}")
-
     # 5. Build Master Movement, Mobility & Yoga Unified Database & Comparison
     print("\n--- Generating Master Movement, Mobility & Yoga Unified Database ---")
     unified_movements = {}
@@ -385,49 +322,6 @@ def main():
                 "sanskrit_name": "",
                 "met": 2.5,
                 "image_url": imgs[0] if imgs else "",
-                "svg_url": ""
-            }
-
-    for r in repdb_exercises:
-        rname = r.get("name_en", "").strip()
-        norm = normalize_key(rname)
-        rcat = str(r.get("category") or "").lower()
-        images_dict = r.get("images") or {}
-        flat_dict = images_dict.get("flat") or {}
-        img_start = flat_dict.get("start", "")
-        if img_start: img_start = f"https://raw.githubusercontent.com/RepDB/exercise-dataset/main/{img_start}"
-        inst = "\n".join([f"{i+1}. {st}" for i, st in enumerate(r.get("instructions_en") or [])])
-
-        if norm in unified_movements:
-            entry = unified_movements[norm]
-            if "repdb" not in entry["sources"]:
-                entry["sources"].append("repdb")
-            if not entry["image_url"] and img_start:
-                entry["image_url"] = img_start
-            if not entry["instructions"]:
-                entry["instructions"] = inst
-            if entry["met"] is None:
-                entry["met"] = r.get("met")
-        elif rcat in ["stretching", "mobility", "warmup", "yoga"]:
-            body_part = str(r.get("body_part") or "General").capitalize()
-            unified_movements[norm] = {
-                "name": rname,
-                "seed_key": make_seed_key(rname, "mobility"),
-                "sources": ["repdb"],
-                "category": rcat.capitalize(),
-                "family_name": f"{body_part} Mobility",
-                "tracking_type": "Duration" if r.get("is_bodyweight") else "Repetitions",
-                "default_duration_seconds": 30,
-                "default_repetitions": 10 if not r.get("is_bodyweight") else None,
-                "difficulty": str(r.get("difficulty") or "beginner").capitalize(),
-                "equipment": str(r.get("equipment") or "bodyweight").replace("_", " ").title(),
-                "primary_muscles": r.get("primary_muscles") or [],
-                "secondary_muscles": r.get("secondary_muscles") or [],
-                "instructions": inst,
-                "benefits": r.get("description_en") or "",
-                "sanskrit_name": "",
-                "met": r.get("met"),
-                "image_url": img_start,
                 "svg_url": ""
             }
 
