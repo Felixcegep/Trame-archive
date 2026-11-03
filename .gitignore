@@ -4,6 +4,13 @@ build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+*.xcresult/
+*.xcarchive/
+*.ipa
+*.dSYM/
+*.log
+__pycache__/
+*.py[cod]
 
 # Connect IQ compiled watch output
 GarminPingPong/bin/
@@ -15,3 +22,20 @@ GarminPingPong/bin/
 .claude/
 .zed/
 .zed-build/
+
+# Generated screenshot captures and archived exports
+/Screenshots/
+/exports/
+/GymTracker_Screenshots.zip
+/Screenshots-*.zip
+/Documentation/GymTracker Design System.zip
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.pem
+*.key
+*.mobileprovision
