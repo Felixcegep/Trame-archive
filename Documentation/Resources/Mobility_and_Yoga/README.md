@@ -1,9 +1,7 @@
-# Mobility and yoga datasets
+# Mobility catalogue
 
-The bundled [unified catalogue](master_mobility_and_yoga_unified.json) contains 234 mobility and yoga entries assembled from Trame's authored seeds, the [Yoga API](https://github.com/alexcumplido/yoga-api), and [Free Exercise DB](https://github.com/yuhonas/free-exercise-db). The app uses the matching JSON in `GymTracker/Resources/Mobility/`.
+The bundled [unified catalogue](master_mobility_and_yoga_unified.json) contains 188 mobility entries from Trame's authored seeds and [Free Exercise DB](https://github.com/yuhonas/free-exercise-db). The app uses the matching JSON in `GymTracker/Resources/Mobility/`.
 
-RepDB data is excluded from the bundled catalogue and from the export pipeline. The 21 entries sourced only from RepDB are no longer bundled; three overlapping entries retain their independent Yoga API or Free Exercise DB data. Existing on-device records are not deleted by this change.
+The previous RepDB and Yoga API datasets and image links are no longer bundled. Two previously mixed-source entries were rebuilt from Free Exercise DB, including its distinct exercise-ball Pyramid. Existing on-device records are not deleted by this change. Free Exercise DB publishes its dataset under the Unlicense.
 
-The Yoga API's code is MIT-licensed, while its image assets have separate terms and attribution requirements; consult its repository before using those assets. Free Exercise DB publishes its data under the Unlicense. Verify the rights for each asset and source before redistribution.
-
-The export script `Scripts/fetch_and_unify_mobility_yoga.py` can generate the unified JSON and optional spreadsheet exports from its remaining sources.
+The export script `Scripts/fetch_and_unify_mobility_yoga.py` can regenerate the unified JSON and optional spreadsheet exports from the remaining sources. Live upstream content may change the number of entries produced.

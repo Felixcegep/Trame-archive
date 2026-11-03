@@ -6,13 +6,16 @@ final class CatalogBundledResourceDecoderTests: XCTestCase {
     func testBundledCatalogsDecodeExpectedCounts() throws {
         let catalog = try CatalogResourceDecoder.decodeBundled()
 
-        XCTAssertEqual(catalog.exercises.count, 474)
-        XCTAssertEqual(catalog.mobilityDefinitions.count, 234)
+        XCTAssertEqual(catalog.exercises.count, 21)
+        XCTAssertEqual(catalog.mobilityDefinitions.count, 188)
         XCTAssertFalse(catalog.mobilityDefinitions.contains { $0.sources.contains("repdb") })
+        XCTAssertFalse(catalog.mobilityDefinitions.contains { $0.sources.contains("yoga-api") })
         XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Superman" })
-        XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Yoga: Plank" })
-        XCTAssertEqual(catalog.programs.count, 78)
-        XCTAssertEqual(catalog.programs.first?.stableKey, "the5314b")
+        XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Child's Pose" })
+        XCTAssertTrue(catalog.mobilityDefinitions.contains { $0.name == "Pyramid" })
+        XCTAssertEqual(catalog.programs.count, 22)
+        XCTAssertTrue(catalog.exercises.allSatisfy { !$0.sources.contains("liftosaur") })
+        XCTAssertTrue(catalog.programs.allSatisfy { !$0.sources.contains("liftosaur") })
     }
 
     func testDecoderStripsBOMNormalizesKeysAndStableValues() throws {

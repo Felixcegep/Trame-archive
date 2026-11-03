@@ -1,0 +1,661 @@
+[
+  {
+    "name": "Accumulation Wave Upper/Lower",
+    "slug": "accumulation-wave-upper-slash-lower",
+    "url": "",
+    "description": "Hold the weight, add a set each week. When you complete the full five-set week, the wave converts into a heavier bar and the set count resets. Three waves, then an easy week.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "9 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Active Range and End-Range Control",
+    "slug": "active-range-and-end-range-control",
+    "description": "Controlled Articular Rotations (CARs), end-range lift-offs, and isometric holds for joint stability and bulletproof range.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "3 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Intermediate",
+    "category": "Mobility & Joint Health",
+    "progression_model": "Isometrics & Active Lift-Off Time",
+    "routines_summary": "Day 1: Hip CARs & 90/90 Lift-Offs | Day 2: Shoulder CARs & Wall Lift-Offs | Day 3: Spine & Ankle Control",
+    "days_structure": [
+      {
+        "day": "Session 1 (Hip Control)",
+        "exercises": [
+          "Hip CARs",
+          "90/90 Lift-Off",
+          "Single-Leg Hip Hinge"
+        ]
+      },
+      {
+        "day": "Session 2 (Shoulder Control)",
+        "exercises": [
+          "Shoulder CARs",
+          "Wall Shoulder Flexion Lift-Off",
+          "Prone Y-T-W Raises"
+        ]
+      },
+      {
+        "day": "Session 3 (Spine & Ankle)",
+        "exercises": [
+          "Cat-Cow Segmental",
+          "Tibialis Raise",
+          "Full-Range Calf Raise"
+        ]
+      }
+    ],
+    "equipment": "Bodyweight / Mat",
+    "tags": [
+      "mobility",
+      "cars",
+      "joint-control"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Bench Press Specialization Matrix",
+    "slug": "bench-press-specialization-matrix",
+    "url": "",
+    "description": "Three weeks, twelve sessions, one lift. Every workout is precomputed from your entered max, and each week adds a small fixed amount on top of the percentages. Finish, rest, and test.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "3 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Bodyweight Ladder Foundations",
+    "slug": "bodyweight-ladder-foundations",
+    "url": "",
+    "description": "Progress by earning harder exercises, not by adding plates. Each movement slot climbs a ladder of variations: own the rep range with clean form and the app offers you the next rung.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "12 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Contract-Relax Lower Body",
+    "slug": "contract-relax-lower-body",
+    "description": "PNF (Proprioceptive Neuromuscular Facilitation) contract-relax protocol designed to expand active end-range in hamstrings, adductors, and hip flexors.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "2-3 days/week",
+    "duration_weeks": "6 weeks",
+    "difficulty": "Intermediate",
+    "category": "Mobility & Flexibility",
+    "progression_model": "PNF 5s Contract / 15s Relax Intervals",
+    "routines_summary": "Day 1: Hamstring & Adductor PNF | Day 2: Hip Flexor & Glute PNF",
+    "days_structure": [
+      {
+        "day": "Session A (Hamstrings & Adductors)",
+        "exercises": [
+          "Hamstring Strap Stretch (PNF)",
+          "Frog Stretch (Contract-Relax)",
+          "Butterfly Stretch"
+        ]
+      },
+      {
+        "day": "Session B (Hip Flexors & Glutes)",
+        "exercises": [
+          "Couch Stretch (PNF)",
+          "Pigeon Stretch (PNF)",
+          "Deep Squat Pry"
+        ]
+      }
+    ],
+    "equipment": "Mat / Stretching Strap",
+    "tags": [
+      "mobility",
+      "pnf",
+      "lower-body"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Double Progression Builder",
+    "slug": "double-progression-builder",
+    "url": "",
+    "description": "Every exercise owns a rep range. Fill the range on every set and the load goes up; until then the load waits while your reps climb. Four days, upper/lower.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Fitness Racing Base to Peak",
+    "slug": "fitness-racing-base-to-peak",
+    "url": "",
+    "description": "An eight-week original GymTracker adaptation for hybrid fitness-racing events: an aerobic base run, strength work, running intervals, station skill paired with compromised running, and a weekly race simulation that scales from a short rehearsal through a three-quarter and a full-distance simulation to a final race-day test.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Front-Split Assistance Ladder",
+    "slug": "front-split-assistance-ladder",
+    "description": "Systematic progressive ladder to achieve and maintain front-split flexibility through active hamstring opening and hip flexor lengthening.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "3 days/week",
+    "duration_weeks": "12 weeks",
+    "difficulty": "Advanced",
+    "category": "Mobility & Gymnastic Flexibility",
+    "progression_model": "Height-Block Reduction Ladder",
+    "routines_summary": "Session: Active Front-Leg Lift -> Couch Stretch -> Supported Front-Split Hold",
+    "days_structure": [
+      {
+        "day": "Front Split Progression Session",
+        "exercises": [
+          "Active Straight Leg Raise",
+          "Half-Kneeling Hip-Flexor Stretch",
+          "Active Front-Leg Lift",
+          "Supported Front-Split Hold"
+        ]
+      }
+    ],
+    "equipment": "Yoga Blocks / Mat / Support Chair",
+    "tags": [
+      "mobility",
+      "front-split",
+      "gymnastics"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "General Flexibility Foundation",
+    "slug": "general-flexibility-foundation",
+    "description": "Full-body passive and active flexibility foundations targeting major joint ranges: hips, thoracic spine, ankles, shoulders, and hamstrings.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "3 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Beginner",
+    "category": "Mobility & Flexibility",
+    "progression_model": "Volume & Hold-Duration Escalation",
+    "routines_summary": "Day 1: Hip & Ankle Opener | Day 2: Thoracic & Shoulder Flow | Day 3: Full Posterior Chain",
+    "days_structure": [
+      {
+        "day": "Day 1 (Hips & Ankles)",
+        "exercises": [
+          "90/90 Hip Switch",
+          "Couch Stretch",
+          "Pigeon Stretch",
+          "Knee-to-Wall Ankle Mobilization"
+        ]
+      },
+      {
+        "day": "Day 2 (Spine & Shoulders)",
+        "exercises": [
+          "Cat-Cow",
+          "Thread the Needle",
+          "Shoulder Pass-Throughs",
+          "Doorway Chest Opener"
+        ]
+      },
+      {
+        "day": "Day 3 (Posterior Chain)",
+        "exercises": [
+          "World's Greatest Stretch",
+          "Elephant Walks",
+          "Standing Hamstring Fold"
+        ]
+      }
+    ],
+    "equipment": "Bodyweight / Mat / Yoga Block",
+    "tags": [
+      "mobility",
+      "flexibility",
+      "general-foundation"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Loaded Flexibility Foundations",
+    "slug": "loaded-flexibility-foundations",
+    "description": "Loaded stretching protocol combining light external loads with end-range eccentric loading for rapid, permanent tissue adaptation.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "2 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Advanced",
+    "category": "Mobility & Strength",
+    "progression_model": "Load & ROM Progression",
+    "routines_summary": "Session 1: Jefferson Curls & Loaded Cossacks | Session 2: Weighted Pancake & Goblet Squat Holds",
+    "days_structure": [
+      {
+        "day": "Session 1 (Loaded Posterior & Adductor)",
+        "exercises": [
+          "Jefferson Curl",
+          "Loaded Cossack Squat",
+          "Elevated Toe Calf Raise Stretch"
+        ]
+      },
+      {
+        "day": "Session 2 (Loaded Hips & Squat Depth)",
+        "exercises": [
+          "Weighted Pancake Hold",
+          "Goblet Deep-Squat Hold",
+          "Half-Kneeling Hip-Flexor Stretch"
+        ]
+      }
+    ],
+    "equipment": "Light Dumbbells / Kettlebells / Plates",
+    "tags": [
+      "mobility",
+      "loaded-stretching",
+      "advanced"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Multi-Erg Interval Rotation",
+    "slug": "multi--erg-interval-rotation",
+    "url": "",
+    "description": "A four-week original GymTracker rotation across SkiErg, RowErg, and BikeErg. Session A repeats a four-minute-per-machine rotation for two or three rounds; Session B is a fixed five-segment pyramid across the same three machines. Both sessions shorten their recovery and Session A adds a round as the weeks progress.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "4 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Overhead Mobility Integration",
+    "slug": "overhead-mobility-integration",
+    "description": "Dedicated overhead mobility routine targeting thoracic extension, latissimus elasticity, and scapular upward rotation for strict press and snatch.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "3-4 days/week (Pre-workout)",
+    "duration_weeks": "6 weeks",
+    "difficulty": "All Levels",
+    "category": "Mobility & Overhead Primer",
+    "progression_model": "Thoracic Mobilization to Active Overhead Lift-Off",
+    "routines_summary": "Overhead Primer: Foam Roller T-Spine -> Banded Lat Distraction -> Wall Slides -> Shoulder Pass-Throughs",
+    "days_structure": [
+      {
+        "day": "Overhead Primer Routine",
+        "exercises": [
+          "Foam Roller T-Spine Extension",
+          "Banded Lat Distraction",
+          "Wall Slides",
+          "Wall Shoulder Flexion Lift-Off"
+        ]
+      }
+    ],
+    "equipment": "Foam Roller / Resistance Band / PVC Pipe",
+    "tags": [
+      "mobility",
+      "overhead",
+      "primer"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Percent Cycle 4-Week",
+    "slug": "percent-cycle-4--week",
+    "url": "",
+    "description": "Four-week waves of fives, threes, and heavy singles against a conservative training max. The last main set of each day is open-ended — rep records drive the next cycle.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "12 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Powerlifting Double-Exposure Practice",
+    "slug": "powerlifting-double--exposure-practice",
+    "url": "",
+    "description": "A four-week synthetic conformance program with separately keyed competition, tempo, pause, and close-grip exposures. It is an original GymTracker engine fixture, not an official federation or coach program.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "4 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Powerlifting Foundations",
+    "slug": "powerlifting-foundations",
+    "url": "",
+    "description": "A 12-week technique and strength foundation for competition squat, bench press, and deadlift. Built from IPF competition standards and ACSM strength progression principles.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "12 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Six-Week Block Strength",
+    "slug": "six--week-block-strength",
+    "url": "",
+    "description": "Six weeks from volume to a platform-ready max: two weeks of muscular conditioning, a strength week, a heavy acclimation week, a peak week of near-max singles, then a taper and test day.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "6 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "SkiErg 1,000 m Progression",
+    "slug": "skierg-1-u2c-000-m-progression",
+    "url": "",
+    "description": "Concept2's six-week, twice-weekly progression toward a 1,000 m SkiErg test. Complete a separate 500 m benchmark before starting and use that recorded pace to guide the intervals.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "6 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Squat Mobility Integration",
+    "slug": "squat-mobility-integration",
+    "description": "Specialized pre-squat and post-squat routine targeting deep hip flexion, ankle dorsiflexion, adductor length, and upright thoracic posture.",
+    "author": "Trame Mobility Engine",
+    "days_per_week": "3-4 days/week (Pre-workout)",
+    "duration_weeks": "6 weeks",
+    "difficulty": "All Levels",
+    "category": "Mobility & Squat Primer",
+    "progression_model": "Dynamic Warmup to Deep Position Hold",
+    "routines_summary": "Pre-Squat Primer: Ankle Mobilization -> Deep Squat Pry -> Tactical Frog -> Cossack Squat",
+    "days_structure": [
+      {
+        "day": "Squat Primer Routine",
+        "exercises": [
+          "Knee-to-Wall Ankle Mobilization",
+          "Tactical Frog",
+          "Deep Squat Pry",
+          "Goblet Deep-Squat Hold"
+        ]
+      }
+    ],
+    "equipment": "Bodyweight / Light Kettlebell",
+    "tags": [
+      "mobility",
+      "squat",
+      "primer"
+    ],
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Strongman Contest Preparation",
+    "slug": "strongman-contest-preparation",
+    "url": "",
+    "description": "A six-week original GymTracker strongman contest-preparation adaptation. Two base weeks build load tolerance on log press, farmer's hold, deadlift, yoke, sandbag loading and farmer's carry; two build weeks raise intensity and add a deadlift ladder, a sandbag medley and bag-toss practice; a simulation week rehearses a contest-style event sequence; a final week cuts volume in half at sixty to seventy percent loads for a technical assessment.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "6 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Undulating Upper/Lower",
+    "slug": "undulating-upper-slash-lower",
+    "url": "",
+    "description": "Each big lift appears twice a week wearing different hats: one heavy strength exposure, one higher-rep volume exposure. Each exposure keeps its own weights and progresses on its own rules.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "10 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Velocity-Calibrated Strength",
+    "slug": "velocity--calibrated-strength",
+    "url": "",
+    "description": "Let bar speed set the day's weights. A standard warm-up single tells the app how you're moving today; main work stays inside a target speed zone and stops before grinding.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "6 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  },
+  {
+    "name": "Weightlifting Complex to Competition",
+    "slug": "weightlifting-complex-to-competition",
+    "url": "",
+    "description": "An original eight-week, three-session progression from technical shared-load complexes toward competition-lift practice and a three-attempt Snatch and Clean & Jerk test.",
+    "author": "Trame Engine",
+    "days_per_week": "3-4 days/week",
+    "duration_weeks": "8 weeks",
+    "difficulty": "Intermediate",
+    "category": "Strength / Hypertrophy",
+    "progression_model": "Wave / Stage Ladder",
+    "routines_summary": "",
+    "days_structure": [],
+    "equipment": "Barbell / Dumbbell / Gym",
+    "tags": [
+      "trame-core",
+      "verified-progression"
+    ],
+    "image_url": "",
+    "sources": [
+      "trame"
+    ],
+    "quality_tier": "Tier 1 (Canonical Gold Standard)",
+    "scientific_rating": "100%"
+  }
+]

@@ -13,27 +13,25 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let first = try CatalogMetadataInstaller.seedDefinitions(catalog, in: context, registry: registry)
         try context.save()
 
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 234)
-        XCTAssertEqual(first.inserted, 708)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 21)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 188)
+        XCTAssertEqual(first.inserted, 209)
         XCTAssertEqual(first.updated, 0)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 708)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SystemSeedRecord>()), 209)
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
-        let archHang = try XCTUnwrap(exercises.first { $0.name == "Arch Hang" })
-        XCTAssertEqual(archHang.trackingType, .repsOnly)
-        XCTAssertEqual(archHang.equipmentType, .bodyweight)
-        XCTAssertEqual(archHang.resistanceType, .bodyweight)
-        let ballSlams = try XCTUnwrap(exercises.first { $0.name == "Ball Slams" })
-        XCTAssertEqual(ballSlams.equipmentType, .medicineBall)
+        let airBike = try XCTUnwrap(exercises.first { $0.name == "Air Bike" })
+        XCTAssertEqual(airBike.trackingType, .durationAndDistance)
+        XCTAssertEqual(airBike.equipmentType, .cardioMachine)
+        XCTAssertEqual(airBike.resistanceType, .machine)
 
         let secondRegistry = try SystemSeedRegistry(context: context)
         let second = try CatalogMetadataInstaller.seedDefinitions(catalog, in: context, registry: secondRegistry)
         XCTAssertEqual(second.inserted, 0)
         XCTAssertEqual(second.updated, 0)
-        XCTAssertEqual(second.unchanged, 708)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 474)
-        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 234)
+        XCTAssertEqual(second.unchanged, 209)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Exercise>()), 21)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MobilityDefinition>()), 188)
     }
 
     func testRecoveredMovementSeedPreservesCustomAndUserState() throws {
@@ -226,7 +224,7 @@ final class CatalogMetadataInstallerTests: XCTestCase {
         let executable = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
         let discovery = try context.fetch(FetchDescriptor<ProgramDiscoverySeed>())
         XCTAssertEqual(executable.count, 21)
-        XCTAssertEqual(discovery.count, 57)
+        XCTAssertEqual(discovery.count, 7)
         XCTAssertTrue(discovery.allSatisfy { !$0.isRunnable })
         XCTAssertTrue(discovery.allSatisfy { $0.compatibilityStatus == .incompleteRecovery })
         XCTAssertEqual(

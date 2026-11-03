@@ -118,7 +118,7 @@ def style_excel(filepath, sheet_name="Data", custom_widths=None):
 
 def main():
     print("=========================================================")
-    print("🚀 Ingesting, Comparing & Unifying Yoga and Mobility")
+    print("🚀 Ingesting and unifying mobility data")
     print("=========================================================")
     os.makedirs(OUTPUT_DOC_DIR, exist_ok=True)
     os.makedirs(OUTPUT_APP_DIR, exist_ok=True)
@@ -127,49 +127,6 @@ def main():
     # 1. Parse Current Trame Mobility
     trame_mobility = parse_trame_mobility_seeds()
     print(f"Trame App Current State: {len(trame_mobility)} seeded mobility/stretching definitions.")
-
-    # 2. Fetch Yoga API
-    print("Fetching Yoga Poses from https://yoga-api-nzy4.onrender.com/v1/poses ...")
-    yoga_raw = fetch_json("https://yoga-api-nzy4.onrender.com/v1/poses")
-    print(f"Loaded {len(yoga_raw)} Yoga Poses.")
-
-    yoga_rows = []
-    for pose in yoga_raw:
-        yoga_rows.append({
-            "ID": pose.get("id"),
-            "English Name": pose.get("english_name"),
-            "Sanskrit Name": pose.get("sanskrit_name"),
-            "Sanskrit Adapted": pose.get("sanskrit_name_adapted"),
-            "Translation / Meaning": pose.get("translation_name"),
-            "Pose Description": pose.get("pose_description"),
-            "Benefits": pose.get("pose_benefits"),
-            "Category": "Yoga / Flexibility",
-            "Tracking Type": "Duration",
-            "Default Duration (s)": 30,
-            "SVG URL": pose.get("url_svg"),
-            "PNG URL": pose.get("url_png"),
-            "Alt SVG URL": pose.get("url_svg_alt")
-        })
-
-    df_yoga = pd.DataFrame(yoga_rows)
-    yoga_json_path = os.path.join(OUTPUT_DOC_DIR, "yoga_poses_all.json")
-    yoga_csv_path = os.path.join(OUTPUT_DOC_DIR, "yoga_poses_all.csv")
-    yoga_xlsx_path = os.path.join(OUTPUT_DOC_DIR, "yoga_poses_all.xlsx")
-
-    with open(yoga_json_path, "w", encoding="utf-8") as f:
-        json.dump(yoga_raw, f, indent=2, ensure_ascii=False)
-    with open(os.path.join(OUTPUT_APP_DIR, "yoga_poses_all.json"), "w", encoding="utf-8") as f:
-        json.dump(yoga_raw, f, indent=2, ensure_ascii=False)
-    with open(os.path.join(ROOT_EXPORT_DIR, "yoga_poses_all.json"), "w", encoding="utf-8") as f:
-        json.dump(yoga_raw, f, indent=2, ensure_ascii=False)
-
-    df_yoga.to_csv(yoga_csv_path, index=False, encoding="utf-8-sig")
-    df_yoga.to_csv(os.path.join(ROOT_EXPORT_DIR, "yoga_poses_all.csv"), index=False, encoding="utf-8-sig")
-    df_yoga.to_excel(yoga_xlsx_path, index=False)
-    df_yoga.to_excel(os.path.join(ROOT_EXPORT_DIR, "yoga_poses_all.xlsx"), index=False)
-    style_excel(yoga_xlsx_path, "Yoga Poses")
-    style_excel(os.path.join(ROOT_EXPORT_DIR, "yoga_poses_all.xlsx"), "Yoga Poses")
-    print(f"✅ Exported Yoga datasets to {yoga_xlsx_path}, {yoga_csv_path}, {yoga_json_path}")
 
     # 3. Fetch Free Exercise DB (and isolate stretching)
     print("Fetching Free Exercise DB from https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json ...")
@@ -249,41 +206,6 @@ def main():
             "image_url": "",
             "svg_url": ""
         }
-
-    for p in yoga_raw:
-        ename = p.get("english_name", "").strip()
-        norm = normalize_key(ename)
-        if norm in unified_movements:
-            entry = unified_movements[norm]
-            if "yoga-api" not in entry["sources"]:
-                entry["sources"].append("yoga-api")
-            entry["sanskrit_name"] = p.get("sanskrit_name_adapted") or p.get("sanskrit_name") or ""
-            entry["benefits"] = p.get("pose_benefits") or ""
-            entry["svg_url"] = p.get("url_svg") or ""
-            entry["image_url"] = p.get("url_png") or ""
-            if not entry["instructions"]:
-                entry["instructions"] = p.get("pose_description") or ""
-        else:
-            unified_movements[norm] = {
-                "name": f"Yoga: {ename}",
-                "seed_key": make_seed_key(ename, "yoga"),
-                "sources": ["yoga-api"],
-                "category": "Yoga",
-                "family_name": "Yoga & Balance",
-                "tracking_type": "Duration",
-                "default_duration_seconds": 30,
-                "default_repetitions": None,
-                "difficulty": "All Levels",
-                "equipment": "Yoga Mat / Bodyweight",
-                "primary_muscles": [],
-                "secondary_muscles": [],
-                "instructions": p.get("pose_description") or "",
-                "benefits": p.get("pose_benefits") or "",
-                "sanskrit_name": p.get("sanskrit_name_adapted") or p.get("sanskrit_name") or "",
-                "met": 2.5,
-                "image_url": p.get("url_png") or "",
-                "svg_url": p.get("url_svg") or ""
-            }
 
     for s in free_stretches:
         sname = s.get("name", "").strip()

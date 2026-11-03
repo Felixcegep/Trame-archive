@@ -1,0 +1,1440 @@
+[
+  {
+    "name": "Air Bike",
+    "seed_key": "exercise.air-bike",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Air Bike",
+    "search_aliases": [
+      "Machine Air Bike",
+      "air bike",
+      "fan bike"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "machine",
+    "movement_pattern": "locomotion",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": "seated",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio",
+      "airbike"
+    ],
+    "primary_muscles": [
+      "quadriceps",
+      "frontDeltoid"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "tricepLateralHead"
+    ],
+    "muscle_groups": [
+      "Legs",
+      "Shoulders",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Behind The Neck Jerk",
+    "seed_key": "exercise.behind-the-neck-jerk",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Jeté nuque",
+    "search_aliases": [
+      "behind the neck jerk",
+      "jeté nuque"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "jerk",
+    "tags": [
+      "olympic-weightlifting",
+      "jerk",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "frontDeltoid",
+      "tricepLateralHead",
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "trapezius",
+      "gluteMaximus"
+    ],
+    "muscle_groups": [
+      "Shoulders",
+      "Arms",
+      "Legs",
+      "Back",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Jerk the barbell from a behind-the-neck rack to overhead to train jerk drive and lockout without a clean.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "verticalPush"
+    ]
+  },
+  {
+    "name": "BikeErg",
+    "seed_key": "exercise.bikeerg",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "BikeErg",
+    "search_aliases": [
+      "Machine BikeErg",
+      "assault bike",
+      "bike erg",
+      "echo bike"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "machine",
+    "movement_pattern": "locomotion",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": "seated",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio",
+      "bikeerg",
+      "ergometer",
+      "cycling"
+    ],
+    "primary_muscles": [
+      "quadriceps",
+      "gluteMaximus"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "calves"
+    ],
+    "muscle_groups": [
+      "Legs",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Block Clean",
+    "seed_key": "exercise.block-clean",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Épaulé des plots",
+    "search_aliases": [
+      "block clean",
+      "épaulé des plots"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "clean",
+    "tags": [
+      "olympic-weightlifting",
+      "clean",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "bicep",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Clean the barbell from blocks to isolate the second pull and turnover of the clean.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "hinge"
+    ]
+  },
+  {
+    "name": "Block Snatch",
+    "seed_key": "exercise.block-snatch",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Arraché des plots",
+    "search_aliases": [
+      "block snatch",
+      "arraché des plots"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "snatch",
+    "tags": [
+      "olympic-weightlifting",
+      "snatch",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "quadriceps",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "frontDeltoid",
+      "erectorSpinae",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Shoulders",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Snatch the barbell from blocks to train the finish of the pull and the overhead receive.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "hinge"
+    ]
+  },
+  {
+    "name": "Hang Power Clean",
+    "seed_key": "exercise.hang-power-clean",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Épaulé puissance en suspension",
+    "search_aliases": [
+      "hang power clean"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "partial",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "clean",
+    "tags": [
+      "olympic-weightlifting",
+      "hang-clean",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "bicep",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Power clean from the hang, receiving the bar above a full squat.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "hinge"
+    ]
+  },
+  {
+    "name": "Hang Power Snatch",
+    "seed_key": "exercise.hang-power-snatch",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Arraché puissance en suspension",
+    "search_aliases": [
+      "hang power snatch"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "partial",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "snatch",
+    "tags": [
+      "olympic-weightlifting",
+      "hang-snatch",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "frontDeltoid"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Shoulders"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Power snatch from the hang, receiving the bar overhead above a full squat.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "hinge"
+    ]
+  },
+  {
+    "name": "High-Hang Clean",
+    "seed_key": "exercise.high--hang-clean",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Épaulé suspension haute",
+    "search_aliases": [
+      "high hang clean"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "partial",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "clean",
+    "tags": [
+      "olympic-weightlifting",
+      "hang-clean",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "bicep",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Clean from a high-hang position to emphasize the finish of the pull and the turnover.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "hinge"
+    ]
+  },
+  {
+    "name": "Incline Walk",
+    "seed_key": "exercise.incline-walk",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Marche inclinée",
+    "search_aliases": [
+      "Machine Incline Walk",
+      "incline walk"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "machine",
+    "movement_pattern": "locomotion",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio",
+      "walking"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "calves",
+      "hamstrings"
+    ],
+    "secondary_muscles": [
+      "quadriceps"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Jerk Balance",
+    "seed_key": "exercise.jerk-balance",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Chute de jeté",
+    "search_aliases": [
+      "jerk balance",
+      "chute de jeté"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "jerk",
+    "tags": [
+      "olympic-weightlifting",
+      "jerk",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "frontDeltoid",
+      "tricepLateralHead",
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "trapezius",
+      "gluteMaximus"
+    ],
+    "muscle_groups": [
+      "Shoulders",
+      "Arms",
+      "Legs",
+      "Back",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Dip and drive into a split or power receive to train jerk timing and overhead stability.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "verticalPush"
+    ]
+  },
+  {
+    "name": "Medicine Ball Chest Pass",
+    "seed_key": "exercise.medicine-ball-chest-pass",
+    "sources": [
+      "trame"
+    ],
+    "french_name": null,
+    "search_aliases": [
+      "Medicine Ball Chest Pass (Medicine Ball)"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "medicineBall",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "horizontalPush",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "intermediate",
+    "grip_style": "neutral",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "perLoadUnit",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": "medicine-ball-chest-pass",
+    "tags": [
+      "medicine-ball-chest-pass",
+      "medicine-ball",
+      "horizontal-push",
+      "middlechest",
+      "compound",
+      "sport"
+    ],
+    "primary_muscles": [
+      "middleChest"
+    ],
+    "secondary_muscles": [
+      "frontDeltoid",
+      "tricepLateralHead",
+      "rectusAbdominis"
+    ],
+    "muscle_groups": [
+      "Chest",
+      "Shoulders",
+      "Arms",
+      "Core"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "horizontalPush",
+      "throw"
+    ]
+  },
+  {
+    "name": "Medicine-Ball Overhead Backward Throw",
+    "seed_key": "exercise.medicine--ball-overhead-backward-throw",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Lancer arrière par-dessus la tête",
+    "search_aliases": [
+      "Medicine Ball Medicine-Ball Overhead Backward Throw",
+      "Medicine Ball Overhead Backward Throw",
+      "mb overhead throw"
+    ],
+    "category": "power",
+    "tracking_type": "repsOnly",
+    "equipment": "medicineBall",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "hinge",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "intermediate",
+    "grip_style": null,
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "power",
+      "throwing",
+      "medicine-ball"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "erectorSpinae"
+    ],
+    "secondary_muscles": [
+      "latissimusDorsi",
+      "frontDeltoid"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Shoulders"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "hinge",
+      "throw"
+    ]
+  },
+  {
+    "name": "Medicine-Ball Rotational Throw",
+    "seed_key": "exercise.medicine--ball-rotational-throw",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Lancer rotationnel médecine-ball",
+    "search_aliases": [
+      "Medicine Ball Medicine-Ball Rotational Throw",
+      "Medicine Ball Rotational Throw",
+      "mb rotational throw"
+    ],
+    "category": "power",
+    "tracking_type": "repsOnly",
+    "equipment": "medicineBall",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "rotation",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "unilateral",
+    "difficulty": "intermediate",
+    "grip_style": null,
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "power",
+      "throwing",
+      "medicine-ball"
+    ],
+    "primary_muscles": [
+      "obliques",
+      "rectusAbdominis"
+    ],
+    "secondary_muscles": [
+      "middleChest",
+      "latissimusDorsi"
+    ],
+    "muscle_groups": [
+      "Core",
+      "Chest",
+      "Back"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "rotation",
+      "throw"
+    ]
+  },
+  {
+    "name": "Muscle Clean",
+    "seed_key": "exercise.muscle-clean",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Épaulé force",
+    "search_aliases": [
+      "muscle clean",
+      "épaulé force"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "clean",
+    "tags": [
+      "olympic-weightlifting",
+      "clean",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "bicep",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Clean the barbell to the shoulders without dropping under it, training the pull and turnover.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "verticalPull"
+    ]
+  },
+  {
+    "name": "Push Jerk",
+    "seed_key": "exercise.push-jerk",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Jeté force",
+    "search_aliases": [
+      "push jerk",
+      "jeté force"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "olympicLift",
+    "force_type": "push",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "advanced",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "jerk",
+    "tags": [
+      "olympic-weightlifting",
+      "jerk",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "frontDeltoid",
+      "tricepLateralHead",
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "trapezius",
+      "gluteMaximus"
+    ],
+    "muscle_groups": [
+      "Shoulders",
+      "Arms",
+      "Legs",
+      "Back",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Dip and drive the barbell overhead and receive it with the feet in place, without a split.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "olympicLift",
+      "verticalPush"
+    ]
+  },
+  {
+    "name": "RowErg",
+    "seed_key": "exercise.rowerg",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "RowErg",
+    "search_aliases": [
+      "Machine RowErg",
+      "concept2 rower",
+      "row erg",
+      "rowing ergometer"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "machine",
+    "movement_pattern": "locomotion",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": "seated",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio",
+      "rowerg",
+      "ergometer",
+      "rowing"
+    ],
+    "primary_muscles": [
+      "latissimusDorsi",
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "hamstrings",
+      "erectorSpinae",
+      "bicep"
+    ],
+    "muscle_groups": [
+      "Back",
+      "Legs",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "SkiErg",
+    "seed_key": "exercise.skierg",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "SkiErg",
+    "search_aliases": [
+      "Machine SkiErg",
+      "ski erg",
+      "ski ergometer"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "machine",
+    "movement_pattern": "locomotion",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio",
+      "skierg",
+      "ergometer",
+      "skiing"
+    ],
+    "primary_muscles": [
+      "latissimusDorsi",
+      "tricepLongHead"
+    ],
+    "secondary_muscles": [
+      "rectusAbdominis",
+      "gluteMaximus",
+      "hamstrings"
+    ],
+    "muscle_groups": [
+      "Back",
+      "Arms",
+      "Core",
+      "Glutes",
+      "Legs"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Snatch Deadlift",
+    "seed_key": "exercise.snatch-deadlift",
+    "sources": [
+      "trame"
+    ],
+    "french_name": "Soulevé de terre arraché",
+    "search_aliases": [
+      "snatch deadlift",
+      "soulevé de terre arraché"
+    ],
+    "category": "power",
+    "tracking_type": "Weight & Reps",
+    "equipment": "barbell",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "hinge",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "intermediate",
+    "grip_style": "pronated",
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": true,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "olympicWeightlifting",
+    "strongman_event_family": null,
+    "variation_family_id": "snatch",
+    "tags": [
+      "olympic-weightlifting",
+      "snatch",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "gluteMaximus",
+      "hamstrings",
+      "trapezius"
+    ],
+    "secondary_muscles": [
+      "quadriceps",
+      "erectorSpinae",
+      "forearms"
+    ],
+    "muscle_groups": [
+      "Glutes",
+      "Legs",
+      "Back",
+      "Arms"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "Deadlift with a snatch-width grip to strengthen the first pull of the snatch.",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "hinge",
+      "olympicLift"
+    ]
+  },
+  {
+    "name": "Stationary Bike",
+    "seed_key": "exercise.stationary-bike",
+    "sources": [
+      "trame"
+    ],
+    "french_name": null,
+    "search_aliases": [
+      "Machine Stationary Bike"
+    ],
+    "category": "cardio",
+    "tracking_type": "calories",
+    "equipment": "cardioMachine",
+    "resistance_type": "External Weight",
+    "movement_pattern": "locomotion",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": null,
+    "range_of_motion": "Full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio"
+    ],
+    "primary_muscles": [
+      "quadriceps",
+      "hamstrings",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "gluteMaximus"
+    ],
+    "muscle_groups": [
+      "Legs",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Treadmill Run",
+    "seed_key": "exercise.treadmill-run",
+    "sources": [
+      "trame"
+    ],
+    "french_name": null,
+    "search_aliases": [
+      "Machine Treadmill Run"
+    ],
+    "category": "cardio",
+    "tracking_type": "durationAndDistance",
+    "equipment": "cardioMachine",
+    "resistance_type": "External Weight",
+    "movement_pattern": "locomotion",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "beginner",
+    "grip_style": null,
+    "stance": null,
+    "range_of_motion": "Full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": null,
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "cardio"
+    ],
+    "primary_muscles": [
+      "quadriceps",
+      "hamstrings",
+      "calves"
+    ],
+    "secondary_muscles": [
+      "gluteMaximus"
+    ],
+    "muscle_groups": [
+      "Legs",
+      "Glutes"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "locomotion"
+    ]
+  },
+  {
+    "name": "Wall Ball",
+    "seed_key": "exercise.wall-ball",
+    "sources": [
+      "trame"
+    ],
+    "french_name": null,
+    "search_aliases": [],
+    "category": "power",
+    "tracking_type": "repsOnly",
+    "equipment": "medicineBall",
+    "resistance_type": "externalWeight",
+    "movement_pattern": "squat",
+    "force_type": "mixed",
+    "mechanics": "compound",
+    "laterality": "Bilateral",
+    "difficulty": "intermediate",
+    "grip_style": null,
+    "stance": "standing",
+    "range_of_motion": "full",
+    "setup_angle_degrees": null,
+    "is_plate_loaded": false,
+    "rep_counting_style": "Total",
+    "weight_entry_style": "Total Load",
+    "load_unit_count": 1,
+    "sport_discipline": "hybridFitnessRacing",
+    "strongman_event_family": null,
+    "variation_family_id": null,
+    "tags": [
+      "fitness-racing",
+      "wall-ball",
+      "conditioning"
+    ],
+    "primary_muscles": [
+      "quadriceps",
+      "frontDeltoid",
+      "gluteMaximus"
+    ],
+    "secondary_muscles": [
+      "tricepLongHead",
+      "adductors",
+      "calves",
+      "rectusAbdominis"
+    ],
+    "muscle_groups": [
+      "Legs",
+      "Shoulders",
+      "Glutes",
+      "Arms",
+      "Core"
+    ],
+    "target_muscles_anatomical": [],
+    "synergist_muscles_anatomical": [],
+    "description": "",
+    "instructions": [],
+    "substitutions": [],
+    "progressions": [],
+    "regressions": [],
+    "video_url": "",
+    "video_embed_url": "",
+    "video_thumbnail": "",
+    "image_url": "",
+    "liftosaur_url": "",
+    "liftosaur_slug": "",
+    "movement_patterns": [
+      "squat",
+      "throw"
+    ]
+  }
+]
